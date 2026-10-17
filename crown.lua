@@ -1,3 +1,4 @@
+local VERSION = "V4.9"
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
@@ -11,8 +12,14 @@ local WS = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local camera = WS.CurrentCamera
 
-local ok, WindUI = pcall(function() return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/1.6.66/main.lua"))() end)
-if not ok or not WindUI then SGui:SetCore("SendNotification", {Title = "UI加载失败", Text = "网络拦截", Duration = 10}) return end
+local ok, WindUI = pcall(function() 
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/1.6.66/main.lua"))() 
+end)
+
+if not ok or not WindUI then 
+    pcall(function() SGui:SetCore("SendNotification", {Title = "UI加载失败", Text = "网络拦截或执行器不支持", Duration = 10}) end)
+    return 
+end
 
 local Cfg = {
     AutoPetEgg = false, PetEggName = "SkyPetEgg", PetEggQty = 1,
@@ -84,33 +91,41 @@ function TP:ToTarget()
     return true
 end
 
-local Window = WindUI:CreateWindow({Title = "力量之冠 V11.0 双炮完全体", Icon = "zap", Author = "力量之冠", Folder = "PowerCrownSave", Theme = "Dark", Transparent = true, Resizable = false, Size = UDim2.fromOffset(460, 780)})
+local successUI, Window = pcall(function()
+    return WindUI:CreateWindow({Title = "力量之冠 " .. VERSION .. " 修复版", Icon = "zap", Author = "力量之冠", Folder = "PowerCrownSave", Theme = "Dark", Transparent = true, Resizable = false, Size = UDim2.fromOffset(460, 780)})
+end)
+
+if not successUI or not Window then 
+    pcall(function() SGui:SetCore("SendNotification", {Title = "UI创建失败", Text = "组件崩溃", Duration = 10}) end)
+    return 
+end
+
 local MainTab = Window:Tab({Title = "控制面板", Icon = "settings"})
 
 local PetSection = MainTab:Section({Title = "🐾 宠物区", Icon = "paw"})
 PetSection:Toggle({Title = "自动抽宠物蛋", Value = false, Callback = function(state) Cfg.AutoPetEgg = state end})
 PetSection:Input({Title = "宠物蛋名字", Value = "SkyPetEgg", Callback = function(text) Cfg.PetEggName = text end})
-local PetStatus = PetSection:Paragraph({Title = "宠物区状态", Desc = "待机中..."})
+local PetStatus = PetSection:Label({Text = "宠物区状态: 待机中..."})
 
 local HaloSection = MainTab:Section({Title = "✨ 光环区", Icon = "star"})
 HaloSection:Toggle({Title = "自动抽光环蛋", Value = false, Callback = function(state) Cfg.AutoHaloEgg = state end})
 HaloSection:Input({Title = "光环蛋名字", Value = "SkyHaloEgg", Callback = function(text) Cfg.HaloEggName = text end})
-local HaloStatus = HaloSection:Paragraph({Title = "光环区状态", Desc = "待机中..."})
+local HaloStatus = HaloSection:Label({Text = "光环区状态: 待机中..."})
 
 local TrainSection = MainTab:Section({Title = "🏋️ 自动锻炼", Icon = "activity"})
 TrainSection:Toggle({Title = "自动锻炼", Value = false, Callback = function(state) Cfg.AutoTrain = state end})
 TrainSection:Dropdown({Title = "选择动作", Values = ActionListCN, Value = "哑铃", Callback = function(selected) local en = ActionMap[selected] if en then Cfg.TrainAction = en Cfg.TrainActionCN = selected end end})
-local TrainStatus = TrainSection:Paragraph({Title = "锻炼状态", Desc = "待机中..."})
+local TrainStatus = TrainSection:Label({Text = "锻炼状态: 待机中..."})
 
 local FastTrainSection = MainTab:Section({Title = "⚡ 无间隔极速锻炼", Icon = "gauge"})
 FastTrainSection:Toggle({Title = "开启极速锻炼", Value = false, Callback = function(state) Cfg.FastTrain = state end})
 FastTrainSection:Dropdown({Title = "选择动作", Values = ActionListCN, Value = "哑铃", Callback = function(selected) local en = ActionMap[selected] if en then Cfg.FastTrainAction = en Cfg.FastTrainActionCN = selected end end})
-local FastTrainStatus = FastTrainSection:Paragraph({Title = "极速状态", Desc = "待机中..."})
+local FastTrainStatus = FastTrainSection:Label({Text = "极速状态: 待机中..."})
 
 local RebirthSection = MainTab:Section({Title = "💀 自动重生", Icon = "refresh-cw"})
 RebirthSection:Toggle({Title = "开启自动重生", Value = false, Callback = function(state) Cfg.AutoRebirth = state end})
 RebirthSection:Input({Title = "目标力量", Value = "10000", Callback = function(text) Cfg.TargetStrength = tonumber(text) or 10000 end})
-local RebirthStatus = RebirthSection:Paragraph({Title = "重生状态", Desc = "待机中..."})
+local RebirthStatus = RebirthSection:Label({Text = "重生状态: 待机中..."})
 
 local MoveSection = MainTab:Section({Title = "⚡ 移动与反挂机", Icon = "move"})
 MoveSection:Toggle({Title = "飞行模式", Value = false, Callback = function(state) Cfg.Fly = state end})
@@ -119,17 +134,17 @@ MoveSection:Toggle({Title = "强力反挂机", Value = true, Callback = function
 
 local FunTab = Window:Tab({Title = "娱乐区", Icon = "sparkles"})
 local RailgunSection = FunTab:Section({Title = "末日轨道炮 (全星系)", Icon = "zap"})
-local RailgunStatus = RailgunSection:Paragraph({Title = "轨道炮状态", Desc = "请先点击选择目标"})
+local RailgunStatus = RailgunSection:Label({Text = "轨道炮状态: 请先点击选择目标"})
 local targetPosition = nil
 local isTargeting = false
 
-RailgunSection:Button({Title = "选择发射目标", Callback = function() isTargeting = true RailgunStatus:SetDesc("请在画面中点击地面") end})
-RailgunSection:Button({Title = "立即发射", Callback = function() if not targetPosition then RailgunStatus:SetDesc("请先选择目标！") return end RailgunStatus:SetDesc("正在加载宇宙模型...") if _G.TriggerStarDestroyer then _G.TriggerStarDestroyer(targetPosition) else RailgunStatus:SetDesc("模型未加载完毕") end end})
+RailgunSection:Button({Title = "选择发射目标", Callback = function() isTargeting = true RailgunStatus:SetText("轨道炮状态: 请在画面中点击地面") end})
+RailgunSection:Button({Title = "立即发射", Callback = function() if not targetPosition then RailgunStatus:SetText("请先选择目标！") return end RailgunStatus:SetText("正在加载宇宙模型...") if _G.TriggerStarDestroyer then _G.TriggerStarDestroyer(targetPosition) else RailgunStatus:SetText("模型未加载完毕") end end})
 RailgunSection:Toggle({Title = "启用 F 键发射", Value = true, Callback = function(state) Cfg.RailgunKeyBind = state end})
 
 local JupiterSection = FunTab:Section({Title = "木星轨道炮 (巨物降临)", Icon = "moon"})
-local JupiterStatus = JupiterSection:Paragraph({Title = "木星炮状态", Desc = "请先在上方选择发射目标"})
-JupiterSection:Button({Title = "☄️ 立即发射木星炮", Callback = function() if not targetPosition then JupiterStatus:SetDesc("请先在上方选择目标！") return end JupiterStatus:SetDesc("木星引力锁定中...") if _G.TriggerJupiter then _G.TriggerJupiter(targetPosition) end end})
+local JupiterStatus = JupiterSection:Label({Text = "木星炮状态: 请先在上方选择发射目标"})
+JupiterSection:Button({Title = "☄️ 立即发射木星炮", Callback = function() if not targetPosition then JupiterStatus:SetText("请先在上方选择目标！") return end JupiterStatus:SetText("木星引力锁定中...") if _G.TriggerJupiter then _G.TriggerJupiter(targetPosition) end end})
 
 local TeleportTab = Window:Tab({Title = "传送", Icon = "send"})
 local TPSection = TeleportTab:Section({Title = "传送玩家", Icon = "user"})
@@ -143,7 +158,7 @@ pcall(function() SG.Parent = game:GetService("CoreGui") end)
 if not SG.Parent then SG.Parent = player.PlayerGui end
 
 local DataHUD = Instance.new("Frame") DataHUD.Size = UDim2.new(0, 210, 0, 105) DataHUD.Position = UDim2.new(0, 20, 0.3, 0) DataHUD.BackgroundColor3 = Color3.fromRGB(20, 24, 34) DataHUD.BackgroundTransparency = 0.1 DataHUD.BorderSizePixel = 0 DataHUD.Parent = SG corner(DataHUD, 10)
-local HUDTitle = Instance.new("TextLabel") HUDTitle.Size = UDim2.new(1, 0, 0, 24) HUDTitle.BackgroundTransparency = 1 HUDTitle.Text = "📊 力量之冠 V11.0" HUDTitle.TextColor3 = Color3.fromRGB(60, 150, 230) HUDTitle.Font = Enum.Font.GothamBold HUDTitle.TextSize = 12 HUDTitle.Parent = DataHUD
+local HUDTitle = Instance.new("TextLabel") HUDTitle.Size = UDim2.new(1, 0, 0, 24) HUDTitle.BackgroundTransparency = 1 HUDTitle.Text = "📊 力量之冠 " .. VERSION HUDTitle.TextColor3 = Color3.fromRGB(60, 150, 230) HUDTitle.Font = Enum.Font.GothamBold HUDTitle.TextSize = 12 HUDTitle.Parent = DataHUD
 local LabelReps = Instance.new("TextLabel") LabelReps.Size = UDim2.new(0.5, -10, 0, 18) LabelReps.Position = UDim2.new(0, 10, 0, 30) LabelReps.BackgroundTransparency = 1 LabelReps.Text = "总训练: 0" LabelReps.TextColor3 = Color3.fromRGB(230, 230, 235) LabelReps.Font = Enum.Font.Gotham LabelReps.TextSize = 11 LabelReps.TextXAlignment = Enum.TextXAlignment.Left LabelReps.Parent = DataHUD
 local LabelRebirth = Instance.new("TextLabel") LabelRebirth.Size = UDim2.new(0.5, -10, 0, 18) LabelRebirth.Position = UDim2.new(0, 10, 0, 50) LabelRebirth.BackgroundTransparency = 1 LabelRebirth.Text = "总转生: 0" LabelRebirth.TextColor3 = Color3.fromRGB(230, 230, 235) LabelRebirth.Font = Enum.Font.Gotham LabelRebirth.TextSize = 11 LabelRebirth.TextXAlignment = Enum.TextXAlignment.Left LabelRebirth.Parent = DataHUD
 
@@ -172,17 +187,17 @@ UIS.InputBegan:Connect(function(input, gp)
     if isTargeting then
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             local ray = camera:ViewportPointToRay(input.Position.X, input.Position.Y) local res = WS:Raycast(ray.Origin, ray.Direction * 1000)
-            if res then targetPosition = res.Position local mk = Instance.new("Part") mk.Shape = Enum.PartType.Ball mk.Material = Enum.Material.Neon mk.Color = Color3.fromRGB(255, 0, 0) mk.Size = Vector3.new(14, 14, 14) mk.Position = targetPosition + Vector3.new(0, 5, 0) mk.Anchored = true mk.CanCollide = false mk.Parent = WS Debris:AddItem(mk, 10) RailgunStatus:SetDesc("目标已选定！") JupiterStatus:SetDesc("目标已选定！") isTargeting = false end
+            if res then targetPosition = res.Position local mk = Instance.new("Part") mk.Shape = Enum.PartType.Ball mk.Material = Enum.Material.Neon mk.Color = Color3.fromRGB(255, 0, 0) mk.Size = Vector3.new(14, 14, 14) mk.Position = targetPosition + Vector3.new(0, 5, 0) mk.Anchored = true mk.CanCollide = false mk.Parent = WS Debris:AddItem(mk, 10) RailgunStatus:SetText("目标已选定！") JupiterStatus:SetText("目标已选定！") isTargeting = false end
         end
         return
     end
     if input.KeyCode == Enum.KeyCode.F and Cfg.RailgunKeyBind and targetPosition and _G.TriggerStarDestroyer then _G.TriggerStarDestroyer(targetPosition) end
 end)
 
-task.spawn(function() local ev pcall(function() ev = RS:WaitForChild("Remotes"):WaitForChild("StoreEvent") end) while true do task.wait(Cfg.EggInterval) if Cfg.AutoPetEgg and ev then pcall(function() ev:FireServer("Egg", Cfg.PetEggQty, Cfg.EggCurrency, Cfg.PetEggName) PetStatus:SetDesc("抽: " .. Cfg.PetEggName) end) end if Cfg.AutoHaloEgg and ev then pcall(function() ev:FireServer("Egg", Cfg.HaloEggQty, Cfg.EggCurrency, Cfg.HaloEggName) HaloStatus:SetDesc("抽: " .. Cfg.HaloEggName) end) end end end)
-task.spawn(function() local ev pcall(function() ev = RS:WaitForChild("Remotes"):WaitForChild("TrainEvent") end) while true do task.wait(Cfg.TrainInterval) if Cfg.AutoTrain and ev then pcall(function() ev:FireServer(Cfg.TrainAction) Cfg.TotalReps = Cfg.TotalReps + 1 TrainStatus:SetDesc("锻炼: " .. Cfg.TrainActionCN) end) end end end)
+task.spawn(function() local ev pcall(function() ev = RS:WaitForChild("Remotes"):WaitForChild("StoreEvent") end) while true do task.wait(Cfg.EggInterval) if Cfg.AutoPetEgg and ev then pcall(function() ev:FireServer("Egg", Cfg.PetEggQty, Cfg.EggCurrency, Cfg.PetEggName) PetStatus:SetText("抽: " .. Cfg.PetEggName) end) end if Cfg.AutoHaloEgg and ev then pcall(function() ev:FireServer("Egg", Cfg.HaloEggQty, Cfg.EggCurrency, Cfg.HaloEggName) HaloStatus:SetText("抽: " .. Cfg.HaloEggName) end) end end end)
+task.spawn(function() local ev pcall(function() ev = RS:WaitForChild("Remotes"):WaitForChild("TrainEvent") end) while true do task.wait(Cfg.TrainInterval) if Cfg.AutoTrain and ev then pcall(function() ev:FireServer(Cfg.TrainAction) Cfg.TotalReps = Cfg.TotalReps + 1 TrainStatus:SetText("锻炼: " .. Cfg.TrainActionCN) end) end end end)
 task.spawn(function() local ev pcall(function() ev = RS:WaitForChild("Remotes"):WaitForChild("TrainEvent") end) RunService.Heartbeat:Connect(function() if not Cfg.FastTrain or not ev then return end for _ = 1, 10 do pcall(function() ev:FireServer(Cfg.FastTrainAction) Cfg.TotalReps = Cfg.TotalReps + 1 end) end end) end)
-task.spawn(function() local ev pcall(function() ev = RS:WaitForChild("Remotes"):WaitForChild("RebirthEvent") end) while true do task.wait(0.1) if Cfg.AutoRebirth and ev then pcall(function() if getCurrentStrength() >= Cfg.TargetStrength then ev:FireServer("Update") Cfg.TargetStrength = Cfg.TargetStrength + Cfg.RebirthInc RebirthStatus:SetDesc("进度: " .. getCurrentRebirths()) end end) end end end)
+task.spawn(function() local ev pcall(function() ev = RS:WaitForChild("Remotes"):WaitForChild("RebirthEvent") end) while true do task.wait(0.1) if Cfg.AutoRebirth and ev then pcall(function() if getCurrentStrength() >= Cfg.TargetStrength then ev:FireServer("Update") Cfg.TargetStrength = Cfg.TargetStrength + Cfg.RebirthInc RebirthStatus:SetText("进度: " .. getCurrentRebirths()) end end) end end end)
 task.spawn(function() while SG.Parent do task.wait(10) if Cfg.AntiAfk then pcall(function() local VIM = game:GetService("VirtualInputManager") VIM:SendKeyEvent(Enum.KeyCode.Space, true, false, game) task.wait(0.05) VIM:SendKeyEvent(Enum.KeyCode.Space, false, false, game) VIM:SendMouseMoveEvent(0, 0, game) task.wait(0.05) VIM:SendMouseMoveEvent(1, 1, game) end) end end end)
 task.spawn(function() while SG.Parent do LabelReps.Text = "总训练: " .. fmt(Cfg.TotalReps) LabelRebirth.Text = "总转生: " .. fmt(getCurrentRebirths()) task.wait(0.5) end end)
 if player.Character then local hum = player.Character:FindFirstChildOfClass("Humanoid") if hum then hum.WalkSpeed = Cfg.WalkSpeed end end applyAntiIdleKick()
@@ -244,11 +259,10 @@ local function bigSphere(parent, pos, diameter, color, material, transparency)
     return p
 end
 
-local function addTexturedGalaxyDisc(parent, center, radius) return nil end
 local function landAt(n) return math.noise(n.X * 2.1 + 3.7, n.Y * 2.1 + 1.3, n.Z * 2.1 + 8.1) + 0.45 * math.noise(n.X * 5 + 1, n.Y * 5 + 2, n.Z * 5 + 3) > 0.04 end
 local function cloudAt(n) return math.noise(n.X * 3.3 + 9.1, n.Y * 3.3 + 4.2, n.Z * 3.3 + 2.7) + 0.5 * math.noise(n.X * 8 + 5, n.Y * 8 + 6, n.Z * 8 + 7) > 0.12 end
 local function plateOnSphere(folder, EC, n, r, w, color, material, transparency, thick) local p = EC + n * r return vpart({ Size = Vector3.new(w, w, thick or 2), CFrame = CFrame.lookAt(p, p + n), Color = color, Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0 }, folder) end
 
 local function buildStars(folder, GC) local palette = { Color3.fromRGB(190, 215, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 232, 190), Color3.fromRGB(255, 190, 140), Color3.fromRGB(160, 190, 255) } local bn = Vector3.new(0.35, 0.85, 0.4).Unit local e1 = bn:Cross(Vector3.yAxis).Unit local e2 = bn:Cross(e1).Unit local coreA = 1.2 local shell = GALAXY_RADIUS * 2.9 local detailed = false local function addStar(dir, radius, sizeScale) local s = (detailed and 12 or 18) + (math.random() ^ 3) * (detailed and 34 or 62) s *= sizeScale vpart({ Name = "DeepSpaceStar", Shape = Enum.PartType.Ball, Size = Vector3.one * s, Position = GC + dir * radius, Material = Enum.Material.Neon, Color = palette[math.random(1, #palette)], Transparency = math.random() * 0.18 }, folder) end local shellCount = detailed and 680 or 1100 for i = 1, shellCount do addStar(randDir(), shell + math.random() * GALAXY_RADIUS * 0.18, 0.8) if i % 170 == 0 then task.wait() end end local armCount = detailed and 980 or 1450 local made = 0 while made < armCount do local a = math.random() * math.pi * 2 local da = math.abs(((a - coreA + math.pi) % (math.pi * 2)) - math.pi) if math.random() < 0.35 + 0.65 * math.exp(-da * da / 0.9) then local dir = (e1 * math.cos(a) + e2 * math.sin(a) + bn * gauss() * 0.2).Unit addStar(dir, shell - GALAXY_RADIUS * 0.04 + math.random() * GALAXY_RADIUS * 0.14, 1 + 0.35 * math.exp(-da * da / 0.9)) made += 1 if made % 170 == 0 then task.wait() end end end local hazeCount = detailed and 22 or 38 local hazeColors = { Color3.fromRGB(100, 120, 255), Color3.fromRGB(255, 100, 170), Color3.fromRGB(255, 170, 90), Color3.fromRGB(110, 255, 230) } for i = 1, hazeCount do local a = math.random() * math.pi * 2 local dir = (e1 * math.cos(a) + e2 * math.sin(a) + bn * gauss() * 0.12).Unit bigSphere(folder, GC + dir * (GALAXY_RADIUS * 2.62), GALAXY_RADIUS * (0.045 + math.random() * 0.035), hazeColors[math.random(1, #hazeColors)], Enum.Material.Neon, 0.965 + math.random() * 0.025) end end
 
-local function buildGalaxy(folder, GC) local ARMS, R = 4, GALAXY_RADIUS local textured = false local brightCount = textured and 560 or 1150 local dustCount = textured and 680 or 1050 for i = 1, bright
+local function buildGalaxy(folder, GC) local ARMS, R = 4, GALAXY_RADIUS local textured = false local brightCount = textured and 560 or 1150 local dustCount = textured and 680 or 1050 for i = 1, brightCount do local arm = i % ARMS local tt = math.random() ^ 0.68 local r = tt *
