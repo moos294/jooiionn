@@ -27,7 +27,7 @@ function TP:ToTarget() local char = player.Character if not char then return fal
 function TP:StartLoop() if self.Loop then return end self.Loop = true self.Thread = task.spawn(function() while self.Loop do self:ToTarget() task.wait() end end) end
 function TP:StopLoop() self.Loop = false self.Thread = nil end
 
-local Window = WindUI:CreateWindow({ Title = "力量之冠 V6.0 终极防卡版", Icon = "zap", Author = "力量之冠", Folder = "PowerCrownSave", Theme = "Dark", Transparent = true, Resizable = false, Size = UDim2.fromOffset(460, 780) })
+local Window = WindUI:CreateWindow({ Title = "力量之冠 V6.1 终极稳定版", Icon = "zap", Author = "力量之冠", Folder = "PowerCrownSave", Theme = "Dark", Transparent = true, Resizable = false, Size = UDim2.fromOffset(460, 780) })
 local MainTab = Window:Tab({ Title = "控制面板", Icon = "settings" })
 local PetSection = MainTab:Section({ Title = "🐾 宠物区", Icon = "paw" })
 PetSection:Toggle({ Title = "自动抽宠物蛋", Value = false, Callback = function(state) Cfg.AutoPetEgg = state end })
@@ -71,7 +71,7 @@ local SG = Instance.new("ScreenGui") SG.Name = "PowerCrownUI" SG.ResetOnSpawn = 
 pcall(function() SG.Parent = game:GetService("CoreGui") end) if not SG.Parent then SG.Parent = player.PlayerGui end
 local DataHUD = Instance.new("Frame") DataHUD.Size = UDim2.new(0, 210, 0, 105) DataHUD.Position = UDim2.new(0, 20, 0.3, 0) DataHUD.BackgroundColor3 = Color3.fromRGB(20, 24, 34) DataHUD.BackgroundTransparency = 0.1 DataHUD.BorderSizePixel = 0 DataHUD.Parent = SG
 corner(DataHUD, 10)
-local HUDTitle = Instance.new("TextLabel") HUDTitle.Size = UDim2.new(1, 0, 0, 24) HUDTitle.BackgroundTransparency = 1 HUDTitle.Text = "📊 力量之冠 V6.0" HUDTitle.TextColor3 = Color3.fromRGB(60, 150, 230) HUDTitle.Font = Enum.Font.GothamBold HUDTitle.TextSize = 12 HUDTitle.Parent = DataHUD
+local HUDTitle = Instance.new("TextLabel") HUDTitle.Size = UDim2.new(1, 0, 0, 24) HUDTitle.BackgroundTransparency = 1 HUDTitle.Text = "📊 力量之冠 V6.1" HUDTitle.TextColor3 = Color3.fromRGB(60, 150, 230) HUDTitle.Font = Enum.Font.GothamBold HUDTitle.TextSize = 12 HUDTitle.Parent = DataHUD
 local LabelReps = Instance.new("TextLabel") LabelReps.Size = UDim2.new(0.5, -10, 0, 18) LabelReps.Position = UDim2.new(0, 10, 0, 30) LabelReps.BackgroundTransparency = 1 LabelReps.Text = "总训练: 0" LabelReps.TextColor3 = Color3.fromRGB(230, 230, 235) LabelReps.Font = Enum.Font.Gotham LabelReps.TextSize = 11 LabelReps.TextXAlignment = Enum.TextXAlignment.Left LabelReps.Parent = DataHUD
 local LabelRebirth = Instance.new("TextLabel") LabelRebirth.Size = UDim2.new(0.5, -10, 0, 18) LabelRebirth.Position = UDim2.new(0, 10, 0, 50) LabelRebirth.BackgroundTransparency = 1 LabelRebirth.Text = "总转生: 0" LabelRebirth.TextColor3 = Color3.fromRGB(230, 230, 235) LabelRebirth.Font = Enum.Font.Gotham LabelRebirth.TextSize = 11 LabelRebirth.TextXAlignment = Enum.TextXAlignment.Left LabelRebirth.Parent = DataHUD
 
@@ -214,10 +214,21 @@ local function runSequence(target)
     state = "cinematic" lastFire = os.clock() local startCF = camera.CFrame local startFov = camera.FieldOfView local startPos = startCF.Position local imp = T.imp
     camera.CameraType = Enum.CameraType.Scriptable setControls(false) setCoreGui(false) showBars(true) ensureFx() restoreAll() playSound(SOUNDS.lock, 1, 0.9)
     setFlash(1)
-    setCaption("正在加载宇宙模型，请稍候...", Color3.fromRGB(255, 255, 255))
-    local stage = { ready = false } task.spawn(function() buildStage(stage) end)
-    while not stage.ready do task.wait(0.1) end
+    setCaption("正在构建宇宙模型，请稍候...", Color3.fromRGB(255, 255, 255))
+    local stage = { ready = false } 
+    task.spawn(function() buildStage(stage) end)
+    
+    local timeout = tick() + 15
+    while not stage.ready and tick() < timeout do 
+        task.wait(0.1) 
+    end
+    
     setFlash(0)
+    if not stage.ready then
+        warn("模型构建超时，强制启动")
+        stage.ready = true
+    end
+    
     setCaption("目标锁定  ·  TARGET LOCKED", Color3.fromRGB(255, 120, 120))
     local reticle = makeReticle(DANGER_RADIUS, target) local lockLaser = makeLaser(fxFolder, target + Vector3.new(0, 4500, 0), { 12, 6, 2.4 }) lockLaser.setEnd(target) lockLaser.setWidth(0) task.delay(math.max(imp - 1.6, 0), function() groundLaser(target, 1.6) end)
     local rotStart = startCF.Rotation local rotEnd = CFrame.lookAt(Vector3.zero, Vector3.new(0, -1, 0), Vector3.new(0, 0, -1)) local lv = startCF.LookVector local heading = math.atan2(lv.Z, lv.X) local groundCamBase = Vector3.new(math.cos(heading + math.pi), 0, math.sin(heading + math.pi)) * 520 + Vector3.new(0, 170, 0)
