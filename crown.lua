@@ -27,194 +27,231 @@ RebirthSection:Toggle({Title="开启自动重生",Value=false,Callback=function(
 
 local FunTab=Window:Tab({Title="娱乐区",Icon="sparkles"})
 local GojoSection=FunTab:Section({Title="五条悟专属 (领域展开)",Icon="sparkles"})
+
 local isCasting = false
-GojoSection:Button({Title="领域展开·无量空处",Callback=function()
+
+local function playDomain()
     if isCasting then return end
     isCasting = true
     
-    local success, err = pcall(function()
-        local char = player.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then isCasting = false return end
+    
+    local origCamType = camera.CameraType
+    local origFOV = camera.FieldOfView
+    
+    local torso = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+    local lShoulder = torso and (torso:FindFirstChild("Left Shoulder") or torso:FindFirstChild("LeftShoulder"))
+    local rShoulder = torso and (torso:FindFirstChild("Right Shoulder") or torso:FindFirstChild("RightShoulder"))
+    local origL, origR
+    if lShoulder and rShoulder then
+        origL = lShoulder.C0
+        origR = rShoulder.C0
+        local tInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        TweenService:Create(lShoulder, tInfo, {C0 = origL * CFrame.Angles(math.rad(-70), math.rad(30), math.rad(-20))}):Play()
+        TweenService:Create(rShoulder, tInfo, {C0 = origR * CFrame.Angles(math.rad(-70), math.rad(-30), math.rad(20))}):Play()
+    end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "DomainUI"
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999
+    gui.Parent = player:WaitForChild("PlayerGui")
+    
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.fromScale(1,1)
+    flash.BackgroundColor3 = Color3.new(1,1,1)
+    flash.BackgroundTransparency = 1
+    flash.BorderSizePixel = 0
+    flash.ZIndex = 100
+    flash.Parent = gui
+    
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.fromScale(1, 0.3)
+    text.Position = UDim2.fromScale(0, 0.65)
+    text.BackgroundTransparency = 1
+    text.Text = ""
+    text.TextColor3 = Color3.new(1,1,1)
+    text.Font = Enum.Font.GothamBlack
+    text.TextSize = 80
+    text.TextStrokeTransparency = 0
+    text.TextTransparency = 1
+    text.ZIndex = 101
+    text.Parent = gui
+    
+    local domainFolder = Instance.new("Folder")
+    domainFolder.Name = "DomainFX"
+    domainFolder.Parent = Workspace
+    
+    local cc = Instance.new("ColorCorrectionEffect")
+    cc.Contrast = 0
+    cc.Saturation = 0
+    cc.Brightness = 0
+    cc.TintColor = Color3.new(1,1,1)
+    cc.Parent = Lighting
+    
+    local blur = Instance.new("BlurEffect")
+    blur.Size = 0
+    blur.Parent = Lighting
+    
+    camera.CameraType = Enum.CameraType.Scriptable
+    
+    local dummyPos = hrp.Position + hrp.CFrame.LookVector * 12
+    local dummy = Instance.new("Model")
+    dummy.Name = "TargetDummy"
+    dummy.Parent = domainFolder
+    
+    local function makeLimb(name, size, color, mat, parent)
+        local p = Instance.new("Part")
+        p.Name = name
+        p.Size = size
+        p.Color = color
+        p.Material = mat
+        p.Anchored = true
+        p.CanCollide = false
+        p.CanQuery = false
+        p.CanTouch = false
+        p.Parent = parent
+        return p
+    end
+    
+    local dTorso = makeLimb("Torso", Vector3.new(2, 2, 1), Color3.fromRGB(30, 30, 40), Enum.Material.SmoothPlastic, dummy)
+    dTorso.CFrame = CFrame.new(dummyPos)
+    
+    local dHead = makeLimb("Head", Vector3.new(1.2, 1.2, 1.2), Color3.fromRGB(200, 180, 160), Enum.Material.SmoothPlastic, dummy)
+    dHead.Shape = Enum.PartType.Ball
+    dHead.CFrame = dTorso.CFrame * CFrame.new(0, 1.6, 0)
+    
+    local dLArm = makeLimb("LArm", Vector3.new(0.5, 2, 0.5), Color3.fromRGB(30, 30, 40), Enum.Material.SmoothPlastic, dummy)
+    dLArm.CFrame = dTorso.CFrame * CFrame.new(-1.3, 0, 0)
+    
+    local dRArm = makeLimb("RArm", Vector3.new(0.5, 2, 0.5), Color3.fromRGB(30, 30, 40), Enum.Material.SmoothPlastic, dummy)
+    dRArm.CFrame = dTorso.CFrame * CFrame.new(1.3, 0, 0)
+    
+    local tDummy = TweenInfo.new(0.5, Enum.EasingStyle.Bounce)
+    TweenService:Create(dLArm, tDummy, {CFrame = dTorso.CFrame * CFrame.new(-0.8, 0.8, 0.5) * CFrame.Angles(math.rad(-90), 0, math.rad(-45))}):Play()
+    TweenService:Create(dRArm, tDummy, {CFrame = dTorso.CFrame * CFrame.new(0.8, 0.8, 0.5) * CFrame.Angles(math.rad(-90), 0, math.rad(45))}):Play()
+    TweenService:Create(dTorso, TweenInfo.new(0.5), {CFrame = dTorso.CFrame * CFrame.Angles(math.rad(-20), 0, 0)}):Play()
+    
+    local redLines = Instance.new("Folder")
+    redLines.Parent = domainFolder
+    local lineParts = {}
+    for i = 1, 100 do
+        local line = makeLimb("RedLine", Vector3.new(0.05, 0.05, math.random(100, 300)), Color3.fromRGB(255, 20, 20), Enum.Material.Neon, redLines)
+        table.insert(lineParts, {part=line, offset=Vector3.new((math.random()-0.5)*40, (math.random()-0.5)*40, (math.random()-0.5)*40), speed=math.random(150, 400)})
+    end
+    
+    text.Text = "领域展开"
+    TweenService:Create(flash, TweenInfo.new(0.1), {BackgroundTransparency = 0}):Play()
+    TweenService:Create(text, TweenInfo.new(0.1), {TextTransparency = 0}):Play()
+    
+    local startTime = tick()
+    local renderConn
+    local phase = 1
+    
+    renderConn = RunService.RenderStepped:Connect(function()
+        local t = tick() - startTime
         
-        local origCamType = camera.CameraType
-        local origFOV = camera.FieldOfView
-        
-        local gui = Instance.new("ScreenGui")
-        gui.Name = "DomainUI"
-        gui.IgnoreGuiInset = true
-        gui.DisplayOrder = 999
-        gui.Parent = player:WaitForChild("PlayerGui")
-        
-        local flash = Instance.new("Frame")
-        flash.Size = UDim2.fromScale(1,1)
-        flash.BackgroundColor3 = Color3.new(1,1,1)
-        flash.BackgroundTransparency = 1
-        flash.BorderSizePixel = 0
-        flash.ZIndex = 100
-        flash.Parent = gui
-        
-        local text = Instance.new("TextLabel")
-        text.Size = UDim2.fromScale(1, 0.3)
-        text.Position = UDim2.fromScale(0, 0.65)
-        text.BackgroundTransparency = 1
-        text.Text = ""
-        text.TextColor3 = Color3.new(1,1,1)
-        text.Font = Enum.Font.GothamBlack
-        text.TextSize = 80
-        text.TextStrokeTransparency = 0
-        text.TextTransparency = 1
-        text.ZIndex = 101
-        text.Parent = gui
-        
-        local domainFolder = Instance.new("Folder")
-        domainFolder.Name = "DomainFX"
-        domainFolder.Parent = Workspace
-        
-        local cc = Instance.new("ColorCorrectionEffect")
-        cc.Contrast = 1.5
-        cc.Saturation = -1
-        cc.Brightness = -0.15
-        cc.TintColor = Color3.fromRGB(240,245,255)
-        cc.Parent = Lighting
-        
-        local origBrightness = Lighting.Brightness
-        Lighting.Brightness = 0
-        
-        camera.CameraType = Enum.CameraType.Scriptable
-        
-        local dummyPos = hrp.Position + hrp.CFrame.LookVector * 10
-        local gojoPos = dummyPos + hrp.CFrame.LookVector * 4
-        
-        local dummy = Instance.new("Model")
-        dummy.Name = "TargetDummy"
-        dummy.Parent = domainFolder
-        
-        local function makePart(name, size, color, mat, parent)
-            local p = Instance.new("Part")
-            p.Name = name
-            p.Size = size
-            p.Color = color
-            p.Material = mat
-            p.Anchored = true
-            p.CanCollide = false
-            p.CanQuery = false
-            p.CanTouch = false
-            p.Parent = parent
-            return p
+        if t > 0.2 and phase == 1 then
+            phase = 2
+            text.Text = "“无量空处”"
+            flash.BackgroundTransparency = 1
+            TweenService:Create(blur, TweenInfo.new(0.3), {Size = 24}):Play()
         end
         
-        local dBody = makePart("Body", Vector3.new(2, 3, 1), Color3.fromRGB(50, 50, 60), Enum.Material.SmoothPlastic, dummy)
-        dBody.CFrame = CFrame.new(dummyPos)
-        local dHead = makePart("Head", Vector3.new(1.2, 1.2, 1.2), Color3.fromRGB(200, 180, 160), Enum.Material.SmoothPlastic, dummy)
-        dHead.Shape = Enum.PartType.Ball
-        dHead.CFrame = CFrame.new(dummyPos + Vector3.new(0, 2.1, 0))
-        
-        local gojoBody = makePart("Body", Vector3.new(2.5, 3.5, 1), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, domainFolder)
-        gojoBody.CFrame = CFrame.new(gojoPos)
-        local gHead = makePart("Head", Vector3.new(1.5, 1.5, 1.5), Color3.fromRGB(255, 230, 210), Enum.Material.SmoothPlastic, domainFolder)
-        gHead.Shape = Enum.PartType.Ball
-        gHead.CFrame = gojoBody.CFrame * CFrame.new(0, 2.4, 0)
-        local gHair = makePart("Hair", Vector3.new(1.7, 0.8, 1.7), Color3.new(1,1,1), Enum.Material.Neon, domainFolder)
-        gHair.Shape = Enum.PartType.Ball
-        gHair.CFrame = gHead.CFrame * CFrame.new(0, 0.5, 0)
-        local gBlind = makePart("Blindfold", Vector3.new(1.6, 0.4, 1.6), Color3.fromRGB(10,10,10), Enum.Material.SmoothPlastic, domainFolder)
-        gBlind.CFrame = gHead.CFrame * CFrame.new(0, 0.1, 0)
-        
-        local lArm = makePart("LArm", Vector3.new(0.6, 2.5, 0.6), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, domainFolder)
-        lArm.CFrame = gojoBody.CFrame * CFrame.new(-1.5, 0.5, 0)
-        local rArm = makePart("RArm", Vector3.new(0.6, 2.5, 0.6), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, domainFolder)
-        rArm.CFrame = gojoBody.CFrame * CFrame.new(1.5, 0.5, 0)
-        
-        local tInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back)
-        TweenService:Create(lArm, tInfo, {CFrame = gojoBody.CFrame * CFrame.new(-0.4, 1.2, -1) * CFrame.Angles(math.rad(-45), math.rad(-30), math.rad(60))}):Play()
-        TweenService:Create(rArm, tInfo, {CFrame = gojoBody.CFrame * CFrame.new(0.4, 1.2, -1) * CFrame.Angles(math.rad(-45), math.rad(30), math.rad(-60))}):Play()
-        
-        local blackHole = makePart("Void", Vector3.new(1,1,1), Color3.new(0,0,0), Enum.Material.SmoothPlastic, domainFolder)
-        blackHole.Shape = Enum.PartType.Ball
-        blackHole.CFrame = CFrame.new(dummyPos + Vector3.new(0, 2.5, -2))
-        
-        local shards = {}
-        for i = 1, 200 do
-            local s = makePart("Shard", Vector3.new(math.random(5,20)/10, math.random(5,20)/10, math.random(1,5)/10), i%2==0 and Color3.new(1,1,1) or Color3.fromRGB(150, 200, 255), Enum.Material.Neon, domainFolder)
-            table.insert(shards, {part = s, angle = math.random()*math.pi*2, dist = math.random(5, 15), speed = (math.random() - 0.5) * 5})
-        end
-        
-        local textFolder = Instance.new("Folder")
-        textFolder.Parent = domainFolder
-        local texts = {}
-        for i = 1, 60 do
-            local bb = Instance.new("BillboardGui")
-            bb.Size = UDim2.fromOffset(100, 40)
-            bb.AlwaysOnTop = true
-            bb.Adornee = dHead
-            bb.Parent = textFolder
+        if t > 1.5 and phase == 2 then
+            phase = 3
+            text.Text = ""
+            TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
+            cc.Contrast = 2
+            cc.Saturation = -1
             
-            local tl = Instance.new("TextLabel")
-            tl.Size = UDim2.fromScale(1,1)
-            tl.BackgroundTransparency = 1
-            tl.Font = Enum.Font.Code
-            tl.TextSize = 20
-            tl.TextColor3 = i%3==0 and Color3.fromRGB(255,50,50) or Color3.new(1,1,1)
-            tl.Text = string.format("%x", math.random(100000, 999999))
-            tl.Parent = bb
-            table.insert(texts, {gui = bb, label = tl, offset = Vector3.new((math.random()-0.5)*4, (math.random()-0.5)*4, (math.random()-0.5)*4), speed = math.random()*2})
-        end
-        
-        text.Text = "领域展开"
-        TweenService:Create(flash, TweenInfo.new(0.05), {BackgroundTransparency = 0}):Play()
-        TweenService:Create(text, TweenInfo.new(0.05), {TextTransparency = 0}):Play()
-        task.wait(0.1)
-        flash.BackgroundTransparency = 1
-        text.Text = "“无量空处”"
-        
-        TweenService:Create(blackHole, TweenInfo.new(1, Enum.EasingStyle.Exponential), {Size = Vector3.new(30,30,30)}):Play()
-        
-        local startTime = tick()
-        local renderConn
-        renderConn = RunService.RenderStepped:Connect(function()
-            local t = tick() - startTime
-            
-            local shake = math.max(0, 1 - t) * 1.5
-            local camPos = (hrp.Position + hrp.CFrame.LookVector * -5 + Vector3.new(0, 5, 0))
-            local lookAt = dummyPos + Vector3.new(0, 2, 0)
-            
-            camera.CFrame = CFrame.lookAt(camPos, lookAt) * CFrame.Angles(math.noise(t*50,0,0)*shake, math.noise(0,t*50,0)*shake, math.noise(t*30,t*30,0)*shake)
-            camera.FieldOfView = 70 + math.sin(t*15)*15
-            
-            for _, s in ipairs(shards) do
-                local currDist = (s.dist - t * 10) % 15 + 2
-                local a = s.angle + t * s.speed
-                local pos = blackHole.Position + Vector3.new(math.cos(a)*currDist, math.sin(a)*currDist, math.sin(a*2)*currDist)
-                s.part.CFrame = CFrame.lookAt(pos, blackHole.Position) * CFrame.Angles(t*10, t*10, 0)
+            for _, l in ipairs(lineParts) do
+                TweenService:Create(l.part, TweenInfo.new(0.5), {Transparency = 1}):Play()
             end
+            Debris:AddItem(redLines, 0.6)
             
-            for _, txt in ipairs(texts) do
-                local pos = dHead.Position + txt.offset * (1 - (t * txt.speed % 1)) 
-                txt.gui.StudsOffsetWorldSpace = pos - dHead.Position
-                txt.label.Text = string.format("%x", math.random(100000, 999999))
+            local void = makeLimb("Void", Vector3.new(1,1,1), Color3.new(0,0,0), Enum.Material.SmoothPlastic, domainFolder)
+            void.Shape = Enum.PartType.Ball
+            void.CFrame = CFrame.new(dummyPos + Vector3.new(0, 3, -4))
+            TweenService:Create(void, TweenInfo.new(2, Enum.EasingStyle.Exponential), {Size = Vector3.new(60,60,60)}):Play()
+            
+            for i = 1, 150 do
+                local shard = makeLimb("Shard", Vector3.new(math.random(20,80)/10, math.random(20,80)/10, 0.1), Color3.new(1,1,1), Enum.Material.Neon, domainFolder)
+                local angle = math.random()*math.pi*2
+                local dist = math.random(10, 45)
+                shard.CFrame = CFrame.new(dummyPos + Vector3.new(math.cos(angle)*dist, math.sin(angle)*dist + 3, -4)) * CFrame.Angles(0,0,angle)
+                TweenService:Create(shard, TweenInfo.new(1), {Size = Vector3.new(shard.Size.X*4, shard.Size.Y*4, 0.1)}):Play()
             end
-        end)
+        end
         
-        task.wait(4)
+        local shake = 0
+        if t > 0.2 and t < 1.5 then shake = 1.5
+        elseif t >= 1.5 and t < 4 then shake = 0.5 end
         
+        local camPos = (hrp.Position + hrp.CFrame.LookVector * -5 + Vector3.new(0, 6, 0))
+        local lookAt = dummyPos + Vector3.new(0, 3, 0)
+        
+        camera.CFrame = CFrame.lookAt(camPos, lookAt) * CFrame.Angles(math.noise(t*80,0,0)*shake, math.noise(0,t*80,0)*shake, math.noise(t*40,t*40,0)*shake)
+        camera.FieldOfView = 70 + math.sin(t*30)*15
+        
+        if phase == 2 then
+            for _, l in ipairs(lineParts) do
+                local dist = (t * l.speed) % 300
+                local pos = dummyPos + l.offset.Unit * dist
+                l.part.CFrame = CFrame.lookAt(pos, dummyPos)
+            end
+        end
+    end)
+    
+    task.delay(4.5, function()
         if renderConn then renderConn:Disconnect() end
         domainFolder:Destroy()
         cc:Destroy()
-        Lighting.Brightness = origBrightness
+        blur:Destroy()
         camera.CameraType = origCamType
         camera.FieldOfView = origFOV
         gui:Destroy()
+        if lShoulder and rShoulder then
+            TweenService:Create(lShoulder, TweenInfo.new(0.3), {C0 = origL}):Play()
+            TweenService:Create(rShoulder, TweenInfo.new(0.3), {C0 = origR}):Play()
+        end
+        isCasting = false
+    end)
+end
+
+GojoSection:Button({Title="变身五条悟 (获取物品)",Callback=function()
+    local bp = player:WaitForChild("Backpack")
+    if bp:FindFirstChild("无量空处") or (player.Character and player.Character:FindFirstChild("无量空处")) then
+        return
+    end
+    
+    local tool = Instance.new("Tool")
+    tool.Name = "无量空处"
+    tool.RequiresHandle = true
+    tool.CanBeDropped = false
+    
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(1, 1, 1)
+    handle.Shape = Enum.PartType.Ball
+    handle.Color = Color3.new(0,0,0)
+    handle.Material = Enum.Material.Neon
+    handle.Parent = tool
+    
+    local light = Instance.new("PointLight")
+    light.Color = Color3.fromRGB(100, 150, 255)
+    light.Range = 10
+    light.Brightness = 2
+    light.Parent = handle
+    
+    tool.Activated:Connect(function()
+        playDomain()
     end)
     
-    if not success then
-        warn("技能执行出错: ", err)
-        camera.CameraType = Enum.CameraType.Custom
-        pcall(function() player.PlayerGui.DomainUI:Destroy() end)
-        pcall(function() Workspace.DomainFX:Destroy() end)
-        pcall(function() Lighting.ColorCorrectionEffect:Destroy() end)
-    end
-    isCasting = false
+    tool.Parent = bp
+    StarterGui:SetCore("SendNotification",{Title="获得物品",Text="已获得【无量空处】，请手持并点击屏幕释放",Duration=5})
 end})
 
 local SG=Instance.new("ScreenGui")SG.Name="PowerCrownUI"SG.ResetOnSpawn=false SG.IgnoreGuiInset=true
