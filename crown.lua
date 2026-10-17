@@ -1,175 +1,246 @@
-local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local TS = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Debris = game:GetService("Debris")
-local Workspace = game:GetService("Workspace")
-local player = Players.LocalPlayer
-local camera = Workspace.CurrentCamera
+local CoreGui = game:GetService("CoreGui")
 
-local children = workspace:GetChildren()
-for k, value1 in pairs(children) do
-	local result = value1.Name:lower()
-	if result:find("windui") then
-		value1:Destroy()
-	end
+local Library = {}
+Library._windows = {}
+Library.Version = "6.8.12"
+
+local Themes = {
+    Dark = { Primary = Color3.fromRGB(50, 173, 230), Accent = Color3.fromRGB(100, 210, 255) },
+    Purple = { Primary = Color3.fromRGB(191, 90, 242), Accent = Color3.fromRGB(94, 92, 230) },
+    Red = { Primary = Color3.fromRGB(255, 55, 95), Accent = Color3.fromRGB(255, 100, 130) }
+}
+
+local Theme = {
+    Bg = Color3.fromRGB(6, 6, 8), Window = Color3.fromRGB(16, 16, 19), Sidebar = Color3.fromRGB(20, 20, 24),
+    Card = Color3.fromRGB(26, 26, 31), CardHover = Color3.fromRGB(35, 35, 42), Track = Color3.fromRGB(33, 33, 39),
+    TrackHover = Color3.fromRGB(42, 42, 50), Text = Color3.fromRGB(255, 255, 255), SubText = Color3.fromRGB(158, 158, 166),
+    Muted = Color3.fromRGB(99, 99, 107), Border = Color3.fromRGB(48, 48, 55),
+}
+
+local function createInstance(class, props, children)
+    local inst = Instance.new(class)
+    for k, v in pairs(props or {}) do inst[k] = v end
+    if children then for _, c in ipairs(children) do c.Parent = inst end end
+    return inst
 end
 
-local response = game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua")
-local WindUI = loadstring(response)()
+local function tweenTo(inst, props, time)
+    TS:Create(inst, TweenInfo.new(time or 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+end
 
-WindUI:AddTheme({
-	Name = "NB29Neon",
-	Text = Color3.fromHex("#FFFFFF"),
-	Accent = Color3.fromHex("#00FFA3"),
-	Background = Color3.fromHex("#0B1020"),
-	Button = Color3.fromHex("#14233f"),
-	Icon = Color3.fromHex("#00FFA3"),
-	Outline = Color3.fromHex("#00E0FF"),
-	Placeholder = Color3.fromHex("#7fdfff")
-})
+local function addCorner(radius) return createInstance("UICorner", { CornerRadius = UDim.new(0, radius) }) end
 
-local Window = WindUI:CreateWindow({
-	Title = "力量之冠封存4.0",
-	Author = "力量之冠",
-	Folder = "PowerCrownV5",
-	HideSearchBar = true,
-	Icon = "zap",
-	MaxSize = Vector2.new(520, 420),
-	MinSize = Vector2.new(520, 420),
-	NoResize = true,
-	OpenButton = {
-		Title = "打开面板",
-		Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")), ColorSequenceKeypoint.new(0.16, Color3.fromHex("FF7F00")), ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")), ColorSequenceKeypoint.new(0.5, Color3.fromHex("00FF00")), ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")), ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")), ColorSequenceKeypoint.new(1, Color3.fromHex("9400D3"))) }),
-		CornerRadius = UDim.new(0, 16),
-		Draggable = true,
-		Enabled = true,
-		Icon = "zap",
-		StrokeThickness = 3
-	},
-	Resizable = false,
-	ScrollBarEnabled = true,
-	SideBarWidth = 140,
-	Size = UDim2.fromOffset(520, 420),
-	Theme = "NB29Neon",
-	Transparent = false
-})
+local function getGuiParent()
+    local gethui = getgenv and getgenv().gethui or gethui
+    if type(gethui) == "function" then
+        local ok, hui = pcall(gethui)
+        if ok and hui then return hui end
+    end
+    local player = Players.LocalPlayer
+    return player and player:FindFirstChildOfClass("PlayerGui") or CoreGui
+end
 
-Window:Tag({ Title = "封存版", Color = Color3.fromHex("#00FFA3") })
-Window:Tag({ Title = "29 UI 框架", Color = Color3.fromHex("#FFD400") })
+local function fitTextSize(props)
+    return createInstance("TextLabel", {
+        Text = props.Text or "", Size = props.Size or UDim2.new(1, 0, 1, 0),
+        Position = props.Position or UDim2.new(), BackgroundTransparency = 1,
+        TextColor3 = props.Color or Theme.Text, TextSize = props.TextSize or 14,
+        Font = Enum.Font.BuilderSans, TextXAlignment = props.X or Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center, TextWrapped = props.Wrapped or false,
+        TextTruncate = props.Truncate or Enum.TextTruncate.None, ZIndex = props.ZIndex or 1
+    })
+end
 
-task.spawn(function()
-	task.wait(0.5)
-	local PlayerGui = player:WaitForChild("PlayerGui")
-	local children2 = PlayerGui:GetChildren()
-	for k2, value2 in pairs(children2) do
-		local result3 = value2.Name:lower()
-		if result3:find("wind") then
-			local descendants = value2:GetDescendants()
-			for k3, descendant in pairs(descendants) do
-				pcall(function()
-					descendant.Size = UDim2.fromOffset(520, 420)
-					descendant.MinSize = Vector2.new(520, 420)
-					descendant.MaxSize = Vector2.new(520, 420)
-				end)
-			end
-		end
-	end
+function Library:CreateWindow(config)
+    local cfg = config or {}
+    local title = cfg.Title or "Rise"
+    local theme = Themes[cfg.Theme or "Dark"] or Themes.Dark
+    local size = cfg.Size or UDim2.fromOffset(600, 480)
+    local isMobile = UIS.TouchEnabled and not UIS.MouseEnabled
+    if isMobile then size = UDim2.fromOffset(340, 460) end
+
+    local Window = {
+        Title = title, Theme = theme, IsMobile = isMobile,
+        Tabs = {}, TabOrder = {}, ActiveTabName = "", Visible = true,
+        _frameSize = size, _framePosition = UDim2.new(0.5, -size.X.Offset/2, 0.5, -size.Y.Offset/2)
+    }
+
+    local sg = createInstance("ScreenGui", { Name = "RiseUI_Test", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = getGuiParent() })
+    Window.ScreenGui = sg
+
+    local main = createInstance("Frame", { Name = "Window", Size = size, Position = Window._framePosition, BackgroundColor3 = Theme.Window, BorderColor3 = Theme.Border, BorderSizePixel = 1, ClipsDescendants = true }, { addCorner(18) })
+    main.Parent = sg
+    Window.Frame = main
+
+    local sidebar = createInstance("Frame", { Size = UDim2.new(0, isMobile and 120 or 160, 1, 0), BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0 }, { addCorner(18) })
+    sidebar.Parent = main
+    Window.Sidebar = sidebar
+
+    local logo = createInstance("Frame", { Position = UDim2.new(0, 8, 0, 10), Size = UDim2.new(1, -8, 0, 38), BackgroundTransparency = 1, Parent = sidebar })
+    fitTextSize({ Text = title, Size = UDim2.new(0, 100, 0, 36), TextSize = 20, Parent = logo })
+    fitTextSize({ Text = "v" .. Library.Version, Position = UDim2.new(0, 100, 0, 10), Size = UDim2.new(0, 50, 0, 16), TextSize = 12, Color = theme.Primary, Parent = logo })
+
+    local nav = createInstance("ScrollingFrame", { Position = UDim2.new(0, 0, 0, 60), Size = UDim2.new(1, 0, 1, -60), BackgroundTransparency = 1, ScrollBarThickness = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y }, { createInstance("UIListLayout", { Padding = UDim.new(0, 4) }) })
+    nav.Parent = sidebar
+    Window.Nav = nav
+
+    local content = createInstance("Frame", { Position = UDim2.new(0, isMobile and 120 or 160, 0, 0), Size = UDim2.new(1, -(isMobile and 120 or 160), 1, 0), BackgroundTransparency = 1, ClipsDescendants = true })
+    content.Parent = main
+
+    local header = createInstance("Frame", { Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1, Active = true })
+    header.Parent = content
+    Window.Header = header
+
+    local dragging, dragStart, startPos
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; dragStart = input.Position; startPos = main.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+
+    local closeBtn = createInstance("TextButton", { Text = "×", Position = UDim2.new(1, -34, 0, 8), Size = UDim2.fromOffset(26, 26), BackgroundTransparency = 1, TextColor3 = Theme.Text, TextSize = 20, Font = Enum.Font.BuilderSans })
+    closeBtn.Parent = main
+    closeBtn.MouseButton1Click:Connect(function() sg:Destroy() end)
+
+    local scroll = createInstance("ScrollingFrame", { Position = UDim2.new(0, 0, 0, 54), Size = UDim2.new(1, -24, 1, -66), BackgroundTransparency = 1, ScrollBarThickness = 2, ScrollBarImageTransparency = 0.8, AutomaticCanvasSize = Enum.AutomaticSize.Y }, { createInstance("UIListLayout", { Padding = UDim.new(0, 7) }) })
+    scroll.Parent = content
+    Window.Scroll = scroll
+    Window.List = scroll:FindFirstChildOfClass("UIListLayout").Parent
+
+    function Window:SelectTab(tabName)
+        self.ActiveTabName = tabName
+        for _, v in ipairs(self.TabOrder) do
+            local isSel = v.Name == tabName
+            tweenTo(v.NavButton, { BackgroundTransparency = isSel and 0 or 1 }, 0.3)
+            v.NavLabel.TextColor3 = isSel and Theme.Text or Theme.SubText
+        end
+        for _, child in ipairs(self.Scroll:GetChildren()) do
+            if child:IsA("GuiObject") then child.Visible = false end
+        end
+        for _, mod in ipairs(self.Tabs[tabName].Modules) do
+            mod.Card.Visible = true
+            mod.Card.Parent = self.Scroll
+        end
+    end
+
+    function Window:CreateTab(name)
+        local tab = { Name = name, Modules = {} }
+        self.Tabs[name] = tab
+        table.insert(self.TabOrder, tab)
+
+        local btn = createInstance("TextButton", { Text = "", Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = self.Theme.Accent, BackgroundTransparency = 1 }, { addCorner(100) })
+        btn.Parent = self.Nav
+        local lbl = fitTextSize({ Text = name, Position = UDim2.new(0, 22, 0, 0), Size = UDim2.new(1, -28, 1, 0), TextSize = 15, Color = Theme.SubText })
+        lbl.Parent = btn
+        tab.NavButton = btn; tab.NavLabel = lbl
+
+        btn.MouseButton1Click:Connect(function() self:SelectTab(name) end)
+        if #self.TabOrder == 1 then self:SelectTab(name) end
+        return tab
+    end
+    return Window
+end
+
+function Library:CreateModule(window, tab, name, desc)
+    local tabObj = window.Tabs[tab]
+    if not tabObj then return end
+
+    local card = createInstance("Frame", { Size = UDim2.new(1, 0, 0, 74), BackgroundColor3 = Color3.fromRGB(22, 25, 33), BackgroundTransparency = 0.4, BorderColor3 = Theme.Border, BorderSizePixel = 1, ClipsDescendants = true }, { addCorner(14), createInstance("UIListLayout") })
+    local header = createInstance("TextButton", { Text = "", Size = UDim2.new(1, 0, 0, 74), BackgroundTransparency = 1 })
+    header.Parent = card
+
+    local titleLbl = fitTextSize({ Text = name, Position = UDim2.new(0, 12, 0, 9), Size = UDim2.new(0.8, 0, 0, 25), TextSize = 16 })
+    titleLbl.Parent = header
+    local descLbl = fitTextSize({ Text = desc or "", Position = UDim2.new(0, 12, 0, 39), Size = UDim2.new(1, -42, 0, 22), TextSize = 13, Color = Theme.SubText, Truncate = Enum.TextTruncate.AtEnd })
+    descLbl.Parent = header
+
+    local body = createInstance("Frame", { Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1, ClipsDescendants = true }, { createInstance("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 14) }), createInstance("UIListLayout", { Padding = UDim.new(0, 1) }) })
+    body.Parent = card
+
+    local expanded = false
+    local gear = createInstance("TextButton", { Text = "+", Position = UDim2.new(1, -42, 0, 23), Size = UDim2.new(0, 26, 0, 26), BackgroundColor3 = Theme.Track, BorderColor3 = Theme.Border, BorderSizePixel = 1, TextColor3 = Theme.SubText, TextSize = 16 }, { addCorner(100) })
+    gear.Parent = header
+
+    gear.MouseButton1Click:Connect(function()
+        expanded = not expanded
+        gear.Rotation = expanded and 45 or 0
+        tweenTo(body, { Size = expanded and UDim2.new(1, 0, 0, body.UIListLayout.AbsoluteContentSize.Y + 26) or UDim2.new(1, 0, 0, 0) }, 0.2)
+    end)
+
+    local mod = { Card = card, Window = window, Tab = tab }
+    table.insert(tabObj.Modules, mod)
+
+    function mod:AddToggle(txt, def, cb)
+        local row = createInstance("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Parent = body })
+        fitTextSize({ Text = txt, Size = UDim2.new(1, -30, 1, 0), Parent = row })
+        local btn = createInstance("TextButton", { Position = UDim2.new(1, -24, 0.5, -7), Size = UDim2.new(0, 14, 0, 14), BackgroundColor3 = def and window.Theme.Primary or Theme.Track, BorderColor3 = def and window.Theme.Primary or Theme.Muted, BorderSizePixel = 1 }, { addCorner(100), Parent = row })
+        local state = def
+        btn.MouseButton1Click:Connect(function()
+            state = not state
+            tweenTo(btn, { BackgroundColor3 = state and window.Theme.Primary or Theme.Track }, 0.15)
+            btn.BorderColor3 = state and window.Theme.Primary or Theme.Muted
+            if cb then cb(state) end
+        end)
+    end
+
+    function mod:AddButton(txt, cb)
+        local row = createInstance("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Parent = body })
+        local lbl = fitTextSize({ Text = txt, Size = UDim2.new(1, 0, 1, 0), Parent = row })
+        row.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then if cb then cb() end end end)
+        row.MouseEnter:Connect(function() lbl.TextColor3 = window.Theme.Primary end)
+        row.MouseLeave:Connect(function() lbl.TextColor3 = Theme.Text end)
+    end
+
+    function mod:AddSlider(txt, min, max, def, cb)
+        local row = createInstance("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Parent = body })
+        fitTextSize({ Text = txt, Size = UDim2.new(0.5, 0, 1, 0), Parent = row })
+        local track = createInstance("TextButton", { Text = "", Position = UDim2.new(0.5, 0, 0.5, -4), Size = UDim2.new(0.5, -40, 0, 8), BackgroundColor3 = Theme.Track, BorderSizePixel = 0 }, { addCorner(100), Parent = row })
+        local fill = createInstance("Frame", { Size = UDim2.new((def-min)/(max-min), 0, 1, 0), BackgroundColor3 = window.Theme.Primary, BorderSizePixel = 0 }, { addCorner(100), Parent = track })
+        local valLbl = fitTextSize({ Text = tostring(def), Position = UDim2.new(1, -32, 0, 0), Size = UDim2.new(0, 30, 1, 0), X = Enum.TextXAlignment.Right, Parent = row })
+        
+        local dragging = false
+        track.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true end end)
+        UIS.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local p = math.clamp((i.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+            tweenTo(fill, { Size = UDim2.new(p, 0, 1, 0) }, 0.1)
+            local val = math.floor((min + (max - min) * p) / 1) * 1
+            valLbl.Text = tostring(val)
+            if cb then cb(val) end
+        end end)
+        UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+    end
+    
+    return mod
+end
+
+local success, err = pcall(function()
+    local win = Library:CreateWindow({ Title = "纯UI测试", Theme = "Dark" })
+    local tab = win:CreateTab("测试页")
+    local mod = Library:CreateModule(win, "测试页", "这是一个测试模块", "点击右上角 + 展开")
+    
+    mod:AddToggle("测试开关", true, function(s)
+        print("开关状态:", s)
+    end)
+    mod:AddButton("测试按钮", function()
+        print("按钮被点击了！")
+    end)
+    mod:AddSlider("测试滑动条", 0, 100, 50, function(v)
+        print("滑块值:", v)
+    end)
 end)
 
-local targetPosition = nil
-local isTargeting = false
-local Tab = Window:Tab({ Title = "娱乐大炮", Icon = "crosshair" })
-
-Tab:Paragraph({ Title = "操作提示", Desc = "请先点击【选择目标】，在游戏里点一下地面，最后点击发射！" })
-
-Tab:Button({
-	Title = "1. 🎯 选择发射目标",
-	Callback = function()
-		isTargeting = true
-		WindUI:Notify({ Title = "提示", Content = "请在游戏画面中点击地面！", Duration = 3 })
-	end
-})
-
-Tab:Button({
-	Title = "2. ☄️ 发射：星际轨道炮",
-	Color = Color3.fromHex("#FF4444"),
-	Callback = function()
-		if not targetPosition then WindUI:Notify({ Title = "错误", Content = "请先选择目标！", Duration = 3 }) return end
-		if _G.TriggerStarDestroyer then _G.TriggerStarDestroyer(targetPosition) end
-	end
-})
-
-Tab:Button({
-	Title = "3. 🪐 发射：土星/木星网格炮",
-	Color = Color3.fromHex("#FF9500"),
-	Callback = function()
-		if not targetPosition then WindUI:Notify({ Title = "错误", Content = "请先选择目标！", Duration = 3 }) return end
-		if _G.TriggerJupiter then _G.TriggerJupiter(targetPosition) end
-	end
-})
-
-UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
-	if isTargeting then
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			local ray = camera:ViewportPointToRay(input.Position.X, input.Position.Y)
-			local res = Workspace:Raycast(ray.Origin, ray.Direction * 2000)
-			if res then
-				targetPosition = res.Position
-				local mk = Instance.new("Part")
-				mk.Shape = Enum.PartType.Ball mk.Material = Enum.Material.Neon
-				mk.Color = Color3.fromRGB(255, 0, 0) mk.Size = Vector3.new(14, 14, 14)
-				mk.Position = targetPosition + Vector3.new(0, 5, 0) mk.Anchored = true mk.CanCollide = false mk.Parent = Workspace
-				Debris:AddItem(mk, 10)
-				isTargeting = false
-				WindUI:Notify({ Title = "锁定成功", Content = "目标已标定，请点击发射！", Duration = 3 })
-			end
-		end
-		return
-	end
-end)
-local fxFolder = Instance.new("Folder")
-fxFolder.Name = "SpaceCannonFX"
-fxFolder.Parent = Workspace
-
-local function new(class, props, parent) local inst = Instance.new(class) for k, v in pairs(props) do inst[k] = v end if parent then inst.Parent = parent end return inst end
-local function vpart(props, parent) local p = new("Part", { Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false, Material = Enum.Material.SmoothPlastic, TopSurface = Enum.SurfaceType.Smooth, BottomSurface = Enum.SurfaceType.Smooth }, nil) for k, v in pairs(props) do p[k] = v end p.Parent = parent return p end
-local function clamp01(x) return math.clamp(x, 0, 1) end
-local function tween(inst, time, props, style, dir) local tw = TweenService:Create(inst, TweenInfo.new(time, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props) tw:Play() return tw end
-local function smooth(t) t = clamp01(t) return t * t * (3 - 2 * t) end
-local function gauss() return math.random() + math.random() + math.random() - 1.5 end
-local function rotY(v, a) return CFrame.Angles(0, a, 0):VectorToWorldSpace(v) end
-local function randDir() local z = math.random() * 2 - 1 local a = math.random() * math.pi * 2 local r = math.sqrt(1 - z * z) return Vector3.new(r * math.cos(a), z, r * math.sin(a)) end
-
-local flash = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 100, Active = false }, player.PlayerGui:FindFirstChildOfClass("ScreenGui"))
-local function setFlash(a, color) flash.BackgroundColor3 = color or Color3.new(1, 1, 1) flash.BackgroundTransparency = 1 - clamp01(a) end
-local impactFlash = { t = -1e9, a = 0 } local impactShake = { t = -1e9, amp = 0 }
-local function impactFlashValue() local e = os.clock() - impactFlash.t if e < 0 or e > 0.62 then return 0 end local rise = math.clamp(e / 0.045, 0, 1) local fall = math.clamp(1 - math.max(0, e - 0.045) / 0.575, 0, 1) return impactFlash.a * rise * fall * fall end
-local function impactShakeAmount() local e = os.clock() - impactShake.t if e < 0 or e > 3.5 then return 0 end return impactShake.amp * (1 - e / 3.5) ^ 2 end
-local function shakeCF(cf, amp, t, rotAmp) if amp <= 0.001 then return cf end local nx = math.noise(t * 23, 1.3, 0) * 2 local ny = math.noise(t * 27, 5.1, 0) * 2 local nz = math.noise(t * 19, 9.7, 0) * 2 return cf * CFrame.new(nx * amp, ny * amp, 0) * CFrame.Angles(ny * rotAmp, nx * rotAmp, nz * rotAmp * 0.5) end
-local wasShaking = false
-local barTop = new("Frame", { Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 90 }, player.PlayerGui:FindFirstChildOfClass("ScreenGui"))
-local barBottom = new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 90 }, player.PlayerGui:FindFirstChildOfClass("ScreenGui"))
-local function showBars(on) local s = UDim2.new(1, 0, on and 0.1 or 0, 0) tween(barTop, 0.8, { Size = s }) tween(barBottom, 0.8, { Size = s }) end
-local caption = new("TextLabel", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0.9, 0), Size = UDim2.new(0.9, 0, 0, 40), BackgroundTransparency = 1, Text = "", TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.GothamBold, TextSize = 22, TextTransparency = 1, TextStrokeTransparency = 0.6, ZIndex = 95 }, player.PlayerGui:FindFirstChildOfClass("ScreenGui"))
-local function setCaption(text, color) if text == "" then tween(caption, 0.4, { TextTransparency = 1 }) return end caption.Text = text caption.TextColor3 = color or Color3.new(1, 1, 1) caption.TextTransparency = 1 tween(caption, 0.4, { TextTransparency = 0 }) end
-local SOUNDS = { lock = { fallback = "rbxasset://sounds/electronicpingshort.wav" }, whoosh = { fallback = "rbxasset://sounds/Rocket whoosh 01.wav" }, charge = { fallback = "rbxasset://sounds/Rocket whoosh 01.wav" }, fire = { fallback = "rbxasset://sounds/Rocket shot.wav" }, boom = { fallback = "rbxasset://sounds/impact_explosion_03.mp3" } }
-local function playSound(id, volume, speed, looped) if type(id) == "table" then id = id.fallback end if not id or id == "" then return nil end local s = new("Sound", { SoundId = id, Volume = volume or 1, PlaybackSpeed = speed or 1, Looped = looped or false }, game:GetService("SoundService")) pcall(function() s:Play() end) if not looped then Debris:AddItem(s, 10) end return s end
-local fx = {}
-local function ensureFx() if fx.cc then return end fx.cc = new("ColorCorrectionEffect", { Name = "SC_CC" }, Lighting) fx.bloom = new("BloomEffect", { Name = "SC_Bloom", Intensity = 0.5, Size = 28, Threshold = 1 }, Lighting) fx.blur = new("BlurEffect", { Name = "SC_Blur", Size = 0 }, Lighting) end
-local function clearFx() for k, v in pairs(fx) do v:Destroy() fx[k] = nil end end
-local function setControls(enabled) pcall(function() local pm = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")) local c = pm:GetControls() if enabled then c:Enable() else c:Disable() end end) end
-local function setCoreGui(enabled) pcall(function() game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, enabled) end) end
-local state = "idle" local lastFire = -1e9
-local DANGER_RADIUS = 480 local CRATER_RADIUS = 480 local CRATER_DEPTH = 185 local RIM_WIDTH = 190 local RIM_HEIGHT = 96 local CELL = 12 local SPACE_ORIGIN = Vector3.new(0, 300000, 0) local EARTH_RADIUS = 80 local GALAXY_RADIUS = 34000 local SUN_RADIUS = 1400 local EARTH_ORBIT_RADIUS = 3600 local T = { lockEnd = 2, ascentEnd = 6, orbitEnd = 12, moonEnd = 15, marsEnd = 18, jupiterEnd = 21, solarSystemEnd = 24, pullEnd = 28, holdEnd = 32, swoopEnd = 38, fireT = 42, groundT = 45, imp = 47, endT = 52 }
-local NK = NumberSequenceKeypoint.new local FLAT = CFrame.Angles(0, 0, math.rad(90)) local RED = Color3.fromRGB(255, 56, 56)
-local function bigSphere(parent, pos, diameter, color, material, transparency) local p if diameter <= 2048 then p = vpart({ Shape = Enum.PartType.Ball, Size = Vector3.one * diameter, Position = pos, Color = color, Material = material, Transparency = transparency }, parent) else p = vpart({ Size = Vector3.one * 2048, Position = pos, Color = color, Material = material, Transparency = transparency }, parent) new("SpecialMesh", { MeshType = Enum.MeshType.Sphere, Scale = Vector3.one * (diameter / 2048) }, p) end return p end
-local function landAt(n) return math.noise(n.X * 2.1 + 3.7, n.Y * 2.1 + 1.3, n.Z * 2.1 + 8.1) + 0.45 * math.noise(n.X * 5 + 1, n.Y * 5 + 2, n.Z * 5 + 3) > 0.04 end
-local function cloudAt(n) return math.noise(n.X * 3.3 + 9.1, n.Y * 3.3 + 4.2, n.Z * 3.3 + 2.7) + 0.5 * math.noise(n.X * 8 + 5, n.Y * 8 + 6, n.Z * 8 + 7) > 0.12 end
-local function plateOnSphere(folder, EC, n, r, w, color, material, transparency, thick) local p = EC + n * r return vpart({ Size = Vector3.new(w, w, thick or 2), CFrame = CFrame.lookAt(p, p + n), Color = color, Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0 }, folder) end
-
-local function buildStars(folder, GC) local palette = { Color3.fromRGB(190, 215, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 232, 190), Color3.fromRGB(255, 190, 140), Color3.fromRGB(160, 190, 255) } local bn = Vector3.new(0.35, 0.85, 0.4).Unit local e1 = bn:Cross(Vector3.yAxis).Unit local e2 = bn:Cross(e1).Unit local coreA = 1.2 local shell = GALAXY_RADIUS * 2.9 local detailed = false local function addStar(dir, radius, sizeScale) local s = (detailed and 12 or 18) + (math.random() ^ 3) * (detailed and 34 or 62) s *= sizeScale vpart({ Name = "DeepSpaceStar", Shape = Enum.PartType.Ball, Size = Vector3.one * s, Position = GC + dir * radius, Material = Enum.Material.Neon, Color = palette[math.random(1, #palette)], Transparency = math.random() * 0.18 }, folder) end local shellCount = detailed and 680 or 1100 for i = 1, shellCount do addStar(randDir(), shell + math.random() * GALAXY_RADIUS * 0.18, 0.8) if i % 170 == 0 then task.wait() end end local armCount = detailed and 980 or 1450 local made = 0 while made < armCount do local a = math.random() * math.pi * 2 local da = math.abs(((a - coreA + math.pi) % (math.pi * 2)) - math.pi) if math.random() < 0.35 + 0.65 * math.exp(-da * da / 0.9) then local dir = (e1 * math.cos(a) + e2 * math.sin(a) + bn * gauss() * 0.2).Unit addStar(dir, shell - GALAXY_RADIUS * 0.04 + math.random() * GALAXY_RADIUS * 0.14, 1 + 0.35 * math.exp(-da * da / 0.9)) made += 1 if made % 170 == 0 then task.wait() end end end local hazeCount = detailed and 22 or 38 local hazeColors = { Color3.fromRGB(100, 120, 255), Color3.fromRGB(255, 100, 170), Color3.fromRGB(255, 170, 90), Color3.fromRGB(110, 255, 230) } for i = 1, hazeCount do local a = math.random() * math.pi * 2 local dir = (e1 * math.cos(a) + e2 * math.sin(a) + bn * gauss() * 0.12).Unit bigSphere(folder, GC + dir * (GALAXY_RADIUS * 2.62), GALAXY_RADIUS * (0.045 + math.random() * 0.035), hazeColors[math.random(1, #hazeColors)], Enum.Material.Neon, 0.965 + math.random() * 0.025) end end
-local function buildGalaxy(folder, GC) local ARMS, R = 4, GALAXY_RADIUS local textured = false local brightCount = textured and 560 or 1150 local dustCount = textured and 680 or 1050 for i = 1, brightCount do local arm = i % ARMS local tt = math.random() ^ 0.68 local r = tt * R + 120 * math.random() local ang = arm * (2 * math.pi / ARMS) + tt * 4.6 + gauss() * 0.19 * (1.2 - tt) local rr = r + gauss() * R * 0.018 * (0.4 + tt) local pos = GC + Vector3.new(math.cos(ang) * rr, 78 + gauss() * (R * 0.008 * (1 - tt) + 18), math.sin(ang) * rr) local size = (18 + math.random() * 66) * (1.1 - 0.42 * tt) local col = Color3.fromRGB(255, 225, 170):Lerp(Color3.fromRGB(255, 140, 150), clamp01(tt * 1.6)):Lerp(Color3.fromRGB(110, 150, 255), clamp01((tt - 0.5) * 2)) vpart({ Name = "GalacticArmStar", Shape = Enum.PartType.Ball, Size = Vector3.one * size, Position = pos, Material = Enum.Material.Neon, Color = col, Transparen
+if not success then
+    warn("UI 加载失败: " .. tostring(err))
+end
