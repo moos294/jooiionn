@@ -27,7 +27,7 @@ function TP:ToTarget() local char = player.Character if not char then return fal
 function TP:StartLoop() if self.Loop then return end self.Loop = true self.Thread = task.spawn(function() while self.Loop do self:ToTarget() task.wait() end end) end
 function TP:StopLoop() self.Loop = false self.Thread = nil end
 
-local Window = WindUI:CreateWindow({ Title = "力量之冠 V6.1 终极稳定版", Icon = "zap", Author = "力量之冠", Folder = "PowerCrownSave", Theme = "Dark", Transparent = true, Resizable = false, Size = UDim2.fromOffset(460, 780) })
+local Window = WindUI:CreateWindow({ Title = "力量之冠 V7.0 终极神罚版", Icon = "zap", Author = "力量之冠", Folder = "PowerCrownSave", Theme = "Dark", Transparent = true, Resizable = false, Size = UDim2.fromOffset(460, 780) })
 local MainTab = Window:Tab({ Title = "控制面板", Icon = "settings" })
 local PetSection = MainTab:Section({ Title = "🐾 宠物区", Icon = "paw" })
 PetSection:Toggle({ Title = "自动抽宠物蛋", Value = false, Callback = function(state) Cfg.AutoPetEgg = state end })
@@ -54,13 +54,18 @@ MoveSection:Toggle({ Title = "飞行模式", Value = false, Callback = function(
 MoveSection:Slider({ Title = "步行速度", Value = { Min = 16, Max = 500, Default = 16 }, Step = 1, Callback = function(value) Cfg.WalkSpeed = value local char = player.Character if char then local hum = char:FindFirstChildOfClass("Humanoid") if hum then hum.WalkSpeed = value end end end })
 MoveSection:Toggle({ Title = "强力反挂机", Value = true, Callback = function(state) Cfg.AntiAfk = state end })
 local FunTab = Window:Tab({ Title = "娱乐区", Icon = "sparkles" })
-local RailgunSection = FunTab:Section({ Title = "末日轨道炮 (真·全星系)", Icon = "zap" })
+local RailgunSection = FunTab:Section({ Title = "末日轨道炮 (全星系)", Icon = "zap" })
 local RailgunStatus = RailgunSection:Paragraph({ Title = "轨道炮状态", Desc = "请先点击选择目标" })
 local targetPosition = nil
 local isTargeting = false
 RailgunSection:Button({ Title = "选择发射目标", Callback = function() isTargeting = true RailgunStatus:SetDesc("请在画面中点击地面") end })
 RailgunSection:Button({ Title = "立即发射", Callback = function() if not targetPosition then RailgunStatus:SetDesc("请先选择目标！") return end RailgunStatus:SetDesc("正在加载宇宙模型...") if _G.TriggerStarDestroyer then _G.TriggerStarDestroyer(targetPosition) else RailgunStatus:SetDesc("模型未加载完毕") end end })
 RailgunSection:Toggle({ Title = "启用 F 键发射", Value = true, Callback = function(state) Cfg.RailgunKeyBind = state end })
+
+local JupiterSection = FunTab:Section({ Title = "木星轨道炮 (巨物降临)", Icon = "moon" })
+local JupiterStatus = JupiterSection:Paragraph({ Title = "木星炮状态", Desc = "请先在上方选择发射目标" })
+JupiterSection:Button({ Title = "☄️ 立即发射木星炮", Callback = function() if not targetPosition then JupiterStatus:SetDesc("请先在上方选择目标！") return end JupiterStatus:SetDesc("木星引力锁定中...") _G.TriggerJupiter(targetPosition) end })
+
 local TeleportTab = Window:Tab({ Title = "传送", Icon = "send" })
 local TPSection = TeleportTab:Section({ Title = "传送玩家", Icon = "user" })
 local function GetPlayerList() local list = {} for _, p in ipairs(Players:GetPlayers()) do if p ~= player then table.insert(list, p.Name) end end return list end
@@ -71,7 +76,7 @@ local SG = Instance.new("ScreenGui") SG.Name = "PowerCrownUI" SG.ResetOnSpawn = 
 pcall(function() SG.Parent = game:GetService("CoreGui") end) if not SG.Parent then SG.Parent = player.PlayerGui end
 local DataHUD = Instance.new("Frame") DataHUD.Size = UDim2.new(0, 210, 0, 105) DataHUD.Position = UDim2.new(0, 20, 0.3, 0) DataHUD.BackgroundColor3 = Color3.fromRGB(20, 24, 34) DataHUD.BackgroundTransparency = 0.1 DataHUD.BorderSizePixel = 0 DataHUD.Parent = SG
 corner(DataHUD, 10)
-local HUDTitle = Instance.new("TextLabel") HUDTitle.Size = UDim2.new(1, 0, 0, 24) HUDTitle.BackgroundTransparency = 1 HUDTitle.Text = "📊 力量之冠 V6.1" HUDTitle.TextColor3 = Color3.fromRGB(60, 150, 230) HUDTitle.Font = Enum.Font.GothamBold HUDTitle.TextSize = 12 HUDTitle.Parent = DataHUD
+local HUDTitle = Instance.new("TextLabel") HUDTitle.Size = UDim2.new(1, 0, 0, 24) HUDTitle.BackgroundTransparency = 1 HUDTitle.Text = "📊 力量之冠 V7.0" HUDTitle.TextColor3 = Color3.fromRGB(60, 150, 230) HUDTitle.Font = Enum.Font.GothamBold HUDTitle.TextSize = 12 HUDTitle.Parent = DataHUD
 local LabelReps = Instance.new("TextLabel") LabelReps.Size = UDim2.new(0.5, -10, 0, 18) LabelReps.Position = UDim2.new(0, 10, 0, 30) LabelReps.BackgroundTransparency = 1 LabelReps.Text = "总训练: 0" LabelReps.TextColor3 = Color3.fromRGB(230, 230, 235) LabelReps.Font = Enum.Font.Gotham LabelReps.TextSize = 11 LabelReps.TextXAlignment = Enum.TextXAlignment.Left LabelReps.Parent = DataHUD
 local LabelRebirth = Instance.new("TextLabel") LabelRebirth.Size = UDim2.new(0.5, -10, 0, 18) LabelRebirth.Position = UDim2.new(0, 10, 0, 50) LabelRebirth.BackgroundTransparency = 1 LabelRebirth.Text = "总转生: 0" LabelRebirth.TextColor3 = Color3.fromRGB(230, 230, 235) LabelRebirth.Font = Enum.Font.Gotham LabelRebirth.TextSize = 11 LabelRebirth.TextXAlignment = Enum.TextXAlignment.Left LabelRebirth.Parent = DataHUD
 
@@ -99,7 +104,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if isTargeting then
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             local ray = camera:ViewportPointToRay(input.Position.X, input.Position.Y) local result = workspace:Raycast(ray.Origin, ray.Direction * 1000)
-            if result then targetPosition = result.Position local targetMarker = Instance.new("Part") targetMarker.Shape = Enum.PartType.Ball targetMarker.Material = Enum.Material.Neon targetMarker.Color = Color3.fromRGB(255, 0, 0) targetMarker.Size = Vector3.new(14, 14, 14) targetMarker.Position = targetPosition + Vector3.new(0, 5, 0) targetMarker.Anchored = true targetMarker.CanCollide = false targetMarker.Parent = workspace Debris:AddItem(targetMarker, 10) RailgunStatus:SetDesc("目标已选定！") isTargeting = false end
+            if result then targetPosition = result.Position local targetMarker = Instance.new("Part") targetMarker.Shape = Enum.PartType.Ball targetMarker.Material = Enum.Material.Neon targetMarker.Color = Color3.fromRGB(255, 0, 0) targetMarker.Size = Vector3.new(14, 14, 14) targetMarker.Position = targetPosition + Vector3.new(0, 5, 0) targetMarker.Anchored = true targetMarker.CanCollide = false targetMarker.Parent = workspace Debris:AddItem(targetMarker, 10) RailgunStatus:SetDesc("目标已选定！") JupiterStatus:SetDesc("目标已选定！") isTargeting = false end
         end
         return
     end
@@ -210,37 +215,189 @@ local function buildCannon(folder, cf) local SCALE = 40 local C = { coils = {}, 
 local function buildStage(stage) local folder = new("Folder", { Name = "SpaceStage" }, Workspace) stage.folder = folder local GC = SPACE_ORIGIN local CP = GC + Vector3.new(18000, 1200, 9000) local fwd = Vector3.new(-0.78, -0.02, -0.2).Unit local cannonCF = CFrame.lookAt(CP, CP + fwd) local EC = CP + fwd * 5200 + cannonCF.RightVector * -500 + cannonCF.UpVector * -150 stage.GC, stage.CP, stage.cannonCF, stage.EC = GC, CP, cannonCF, EC local nT = (CP - EC).Unit stage.nT = nT stage.markPt = EC + nT * EARTH_RADIUS stage.cannon = buildCannon(folder, cannonCF) task.wait(0.5) buildGalaxy(folder, GC) task.wait(0.5) buildStars(folder, GC) task.wait(0.5) stage.earthSurface = buildEarth(folder, EC) task.wait(0.5) stage.solarSystem = buildSolarSystem(folder, EC, GC) task.wait(0.5) stage.sunPos, stage.sunDir = stage.solarSystem.sunPos, stage.solarSystem.sunDir buildMoon(folder, EC + Vector3.new(220, 160, 420)) task.wait(0.5) for _ = 1, 70 do local off = Vector3.new(gauss(), gauss() * 0.6, gauss()) * 1500 if off.Magnitude > 450 then vpart({ Size = Vector3.new(14 + math.random() * 70, 14 + math.random() * 50, 14 + math.random() * 70), Material = Enum.Material.Slate, Color = Color3.fromRGB(70, 66, 70), CFrame = CFrame.new(CP + off) * CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6) }, folder) end end stage.markFlare = makeGroundStrikeMarker(folder, stage.markPt, nT, EARTH_RADIUS * 0.34) stage.markLaser = makeLaser(folder, stage.markPt + nT * 3200, { 36, 18, 7 }) stage.markLaser.setEnd(stage.markPt) stage.markLaser.setWidth(0) stage.ready = true end
 local function finishStage(stage) local dir = stage.sunDir or Lighting:GetSunDirection() stage.sunDir = dir local placed, tries = 0, 0 while placed < 300 and tries < 3600 do tries += 1 local n = randDir() if n:Dot(dir) < -0.12 and landAt(n) then placed += 1 plateOnSphere(stage.folder, stage.EC, n, EARTH_RADIUS * 1.003, 2 + math.random() * 2.5, Color3.fromRGB(255, 205, 120), Enum.Material.Neon, 0.1, 0.8) if placed % 100 == 0 then task.wait() end end end end
 local function finishCinematic(stage, conn) if conn then conn:Disconnect() end if stage and stage.folder then stage.folder:Destroy() end restoreLighting() clearFx() showBars(false) setCaption("") camera.CameraType = Enum.CameraType.Custom camera.FieldOfView = 70 setControls(true) setCoreGui(true) setFlash(0) state = "idle" end
-local function runSequence(target)
-    state = "cinematic" lastFire = os.clock() local startCF = camera.CFrame local startFov = camera.FieldOfView local startPos = startCF.Position local imp = T.imp
-    camera.CameraType = Enum.CameraType.Scriptable setControls(false) setCoreGui(false) showBars(true) ensureFx() restoreAll() playSound(SOUNDS.lock, 1, 0.9)
-    setFlash(1)
-    setCaption("正在构建宇宙模型，请稍候...", Color3.fromRGB(255, 255, 255))
-    local stage = { ready = false } 
-    task.spawn(function() buildStage(stage) end)
+local function runSequence(target) state = "cinematic" lastFire = os.clock() local startCF = camera.CFrame local startFov = camera.FieldOfView local startPos = startCF.Position local imp = T.imp camera.CameraType = Enum.CameraType.Scriptable setControls(false) setCoreGui(false) showBars(true) ensureFx() restoreAll() playSound(SOUNDS.lock, 1, 0.9) setFlash(1) setCaption("正在加载宇宙模型，请稍候...", Color3.fromRGB(255, 255, 255)) local stage = { ready = false } task.spawn(function() buildStage(stage) end) local timeout = tick() + 15 while not stage.ready and tick() < timeout do task.wait(0.1) end setFlash(0) if not stage.ready then warn("模型构建超时，强制启动") stage.ready = true end setCaption("目标锁定  ·  TARGET LOCKED", Color3.fromRGB(255, 120, 120)) local reticle = makeReticle(DANGER_RADIUS, target) local lockLaser = makeLaser(fxFolder, target + Vector3.new(0, 4500, 0), { 12, 6, 2.4 }) lockLaser.setEnd(target) lockLaser.setWidth(0) task.delay(math.max(imp - 1.6, 0), function() groundLaser(target, 1.6) end) local rotStart = startCF.Rotation local rotEnd = CFrame.lookAt(Vector3.zero, Vector3.new(0, -1, 0), Vector3.new(0, 0, -1)) local lv = startCF.LookVector local heading = math.atan2(lv.Z, lv.X) local groundCamBase = Vector3.new(math.cos(heading + math.pi), 0, math.sin(heading + math.pi)) * 520 + Vector3.new(0, 170, 0) local inSpace, fired, groundFlag, impacted, finished = false, false, false, false, false local laser, fireClock = nil, 0 local chargeSnd, beamSnd, ascentSnd, ambientSnd, countdownSnd, afterSnd = nil, nil, nil, nil, nil, nil local armPlayed, countdownPlayed = false, false local t0 = os.clock() local conn local function spaceCam(t) local ER = EARTH_RADIUS local nT = stage.nT local EC = stage.EC local markPt = stage.markPt local dirA0 = (rotY(nT, 0.45) + Vector3.new(0, 0.35, 0)).Unit local dirOv = Vector3.new(0.18, 0.7, 0.69).Unit local OV = GALAXY_RADIUS * 1.4 if t < T.orbitEnd then local u = t - T.ascentEnd local dirA = rotY(dirA0, u * 0.05) local orbitBase = EARTH_RADIUS * 3.6 local d = orbitBase - EARTH_RADIUS * 0.11 * u local pos = EC + dirA * d return CFrame.lookAt(pos, markPt + (EC - markPt) * 0.1), 70 elseif t < T.pullEnd then local u = smooth((t - T.orbitEnd) / (T.pullEnd - T.orbitEnd)) local dirStart = rotY(dirA0, (T.orbitEnd - T.ascentEnd) * 0.05) local pullStart = EARTH_RADIUS * 3.6 - EARTH_RADIUS * 0.11 * (T.orbitEnd - T.ascentEnd) local dist = pullStart * (OV / pullStart) ^ u local pivot = markPt:Lerp(stage.GC, u) local dir = dirStart:Lerp(dirOv, u).Unit return CFrame.lookAt(pivot + dir * dist, pivot), 70 elseif t < T.holdEnd then local dir = rotY(dirOv, (t - T.pullEnd) * 0.04) return CFrame.lookAt(stage.GC + dir * OV, stage.GC), 70 else local e = smooth(clamp01((t - T.holdEnd) / (T.swoopEnd - T.holdEnd))) local dirHold = rotY(dirOv, (T.holdEnd - T.pullEnd) * 0.04) local orbit = (t > T.swoopEnd) and (t - T.swoopEnd) or 0 local localOff = CFrame.Angles(0, orbit * 0.035, 0) * Vector3.new(560, 250, 330) local dirE = stage.cannonCF:VectorToWorldSpace(localOff).Unit local dist = OV * (1000 / OV) ^ e local pf = smooth(clamp01((e - 0.05) / 0.95)) local push = (t > T.swoopEnd) and (1 - 0.1 * clamp01((t - T.swoopEnd) / (T.fireT - T.swoopEnd))) or 1 local dir = dirHold:Lerp(dirE, e).Unit local pivot = stage.GC:Lerp(stage.CP, pf) local lookPoint = pivot + stage.cannonCF:VectorToWorldSpace(Vector3.new(0, 0, -330)) * pf return CFrame.lookAt(pivot + dir * dist * push, lookPoint), 70 end end local function pulseWin(t, center, rise, fall) if t < center then return clamp01(1 - (center - t) / rise) end return clamp01(1 - (t - center) / fall) end local function step(t) if stage.earthSurface then if stage.earthSurface.clouds then stage.earthSurface.clouds.CFrame = CFrame.new(stage.EC) * CFrame.Angles(0, t * 0.018, 0) end if stage.earthSurface.night then stage.earthSurface.night.CFrame = CFrame.new(stage.EC) * CFrame.Angles(0, t * 0.018, 0) end end local cf local fov = 70 local shakeAmp, rotAmp = 0, 0 local f = 0 if t < T.ascentEnd then if t < T.lockEnd then cf = startCF fov = startFov lockLaser.setWidth(smooth(t / 0.6)) else local u = clamp01((t - T.lockEnd) / (T.ascentEnd - T.lockEnd)) local h = 40 * ((14000 / 40) ^ u - 1) local eo = smooth(u) local pos = Vector3.new(lerp(startPos.X, target.X, eo * 0.9), startPos.Y + h, lerp(startPos.Z, target.Z, eo * 0.9)) local rot = rotStart:Lerp(rotEnd, smooth(clamp01((u - 0.1) / 0.9))) cf = CFrame.new(pos) * rot fov = lerp(startFov, 55, u) fx.blur.Size = lerp(0, 22, clamp01((t - (T.ascentEnd - 1.2)) / 1.2)) fx.cc.Brightness = lerp(0, -0.05, u) fx.cc.Saturation = lerp(0, 0.2, u) setCaption("升空  ·  ASCENT", Color3.new(1, 1, 1)) if not ascentSnd then ascentSnd = playSound(SOUNDS.whoosh, 0.9, 0.5) end f = math.max(f, (t > T.ascentEnd - 0.7 and 1 or 0) * (1 - math.abs(t - T.ascentEnd) / 0.7)) end reticle.update(t) elseif t < T.groundT then if not inSpace then inSpace = true enterSpaceLighting() fx.blur.Size = 0 fx.bloom.Intensity = 1.2 fx.bloom.Threshold = 0.9 fx.cc.Brightness = 0 fx.cc.Saturation = 0.15 setCaption("近地轨道  ·  LOW EARTH ORBIT", Color3.new(1, 1, 1)) chargeSnd = playSound(SOUNDS.charge, 0.7, 0.35, true) ambientSnd = playSound(SOUNDS.ambient, 0.25, 1, true) end if not stage.finished then stage.finished = true task.spawn(finishStage, stage) end cf, fov = spaceCam(t) if stage.markLaser then stage.markLaser.setWidth(smooth((t - T.ascentEnd) / 1.2) * (0.85 + 0.15 * math.sin(t * 9))) end if stage.markFlare then stage.markFlare.update(t) end if t >= T.pullEnd - 0.4 then setCaption("银河系  ·  MILKY WAY", Color3.new(1, 1, 1)) end if t >= T.holdEnd + 0.6 then setCaption("歼星炮  ·  STAR-DESTROYER ONLINE", Color3.fromRGB(255, 140, 140)) if not armPlayed then armPlayed = true playSound(SOUNDS.arm, 0.8, 1) end end if t >= T.swoopEnd and not countdownPlayed then countdownPlayed = true countdownSnd = playSound(SOUNDS.countdown, 0.52, 1) end if t < T.swoopEnd then stage.cannon.update(0, t) elseif t < T.fireT then local x = clamp01((t - T.swoopEnd) / (T.fireT - T.swoopEnd)) stage.cannon.update(x, t) shakeAmp = 4 * x * x rotAmp = 0.004 * x * x caption.Text = string.format("充能中  ·  CHARGING  %d%%", math.floor(x * 100)) caption.TextColor3 = Color3.fromRGB(255, 90, 90) caption.TextTransparency = 0 if chargeSnd then chargeSnd.PlaybackSpeed = 0.35 + 1.2 * x chargeSnd.Volume = 0.7 + 0.6 * x end else stage.cannon.update(1, t) end if t >= T.fireT then if not fired then fired = true fireClock = os.clock() setCaption("发射  ·  FIRE", Color3.new(1, 1, 1)) if chargeSnd then chargeSnd:Destroy() chargeSnd = nil end playSound(SOUNDS.fire, 1.35, 0.82) beamSnd = playSound(SOUNDS.beam, 0.8, 0.82, true) laser = makeLaser(stage.folder, stage.cannon.muzzleCF.Position, { 240, 130, 55 }) laser.setWidth(0) if stage.cannon.chargeEm then stage.cannon.chargeEm.Rate = 0 end end local u = os.clock() - fireClock local muzzle = stage.cannon.muzzleCF.Position laser.setEnd(muzzle:Lerp(stage.markPt, smooth(u / 0.5))) laser.setWidth(smooth(u / 0.25)) shakeAmp = 16 * math.exp(-u * 1.6) rotAmp = 0.012 * math.exp(-u * 1.6) fov = 70 + 20 * math.exp(-u * 4) local pw = t < T.fireT and 0 or (t < T.fireT + 0.02 and (t - T.fireT) / 0.02 or math.clamp(1 - (t - T.fireT - 0.02) / 0.9, 0, 1)) f = math.max(f, 0.9 * pw) end f = math.max(f, pulseWin(t, T.ascentEnd, 0.01, 1.1)) f = math.max(f, pulseWin(t, T.groundT, 0.25, 0.01) * (t > T.groundT - 0.25 and 1 or 0)) else if not groundFlag then groundFlag = true if chargeSnd then chargeSnd:Destroy() chargeSnd = nil end if ambientSnd then ambientSnd:Destroy() ambientSnd = nil end if countdownSnd then countdownSnd:Destroy() countdownSnd = nil end if beamSnd then beamSnd:Destroy() beamSnd = nil end if stage.folder then stage.folder:Destroy() stage.folder = nil end restoreLighting() fx.bloom.Intensity = 0.9 fx.bloom.Threshold = 0.95 fx.cc.Saturation = 0 tween(fx.cc, 1.4, { TintColor = Color3.fromRGB(233, 217, 255), Brightness = -0.035, Contrast = 0.12, Saturation = -0.08 }) setCaption("命中  ·  IMPACT", Color3.fromRGB(255, 90, 90)) end if not impacted and t >= imp then impacted = true afterSnd = playSound(SOUNDS.after, 0.75, 0.92) task.spawn(doImpact, target, true) end local g = t - T.groundT local ang = math.max(0, t - imp) * 0.06 local offs = CFrame.Angles(0, ang, 0) * (groundCamBase * (1 - 0.08 * clamp01(g / (imp - T.groundT)))) cf = CFrame.lookAt(target + offs, target + Vector3.new(0, 45, 0)) fov = lerp(70, 62, clamp01(g / 6)) f = math.max(f, (t > T.groundT - 0.01 and t < T.groundT + 0.8) and (1 - (t - T.groundT) / 0.8) or 0) reticle.update(t) if t > imp + 3 then setCaption("") end end f = math.max(f, impactFlashValue()) local ia = impactShakeAmount() shakeAmp += ia rotAmp += ia * 0.0015 if t > T.endT - 0.8 then setFlash(clamp01((t - (T.endT - 0.8)) / 0.8), Color3.new(0, 0, 0)) else setFlash(f) end camera.FieldOfView = fov camera.CFrame = shakeCF(cf, shakeAmp, t, rotAmp) end conn = RunService.RenderStepped:Connect(function() if finished then return end local t = os.clock() - t0 if t >= T.endT then finished = true reticle.destroy() lockLaser.destroy() if ascentSnd then ascentSnd:Destroy() end if beamSnd then beamSnd:Destroy() end if chargeSnd then chargeSnd:Destroy() end if ambientSnd then ambientSnd:Destroy() end if countdownSnd then countdownSnd:Destroy() end if afterSnd then afterSnd:Destroy() end finishCinematic(stage, conn) return end local ok, err = pcall(step, t) if not ok then warn("[SpaceCannon]", err) finished = true reticle.destroy() lockLaser.destroy() if beamSnd then beamSnd:Destroy() end if chargeSnd then chargeSnd:Destroy() end if ambientSnd then ambientSnd:Destroy() end if countdownSnd then countdownSnd:Destroy() end if ascentSnd then ascentSnd:Destroy() end if afterSnd then afterSnd:Destroy() end finishCinematic(stage, conn) end end) end _G.TriggerStarDestroyer = runSequence
+
+local function runJupiterStrike(targetPos)
+    if state == "cinematic" then return end
+    state = "cinematic"
+    local startCF = camera.CFrame
+    camera.CameraType = Enum.CameraType.Scriptable
+    setControls(false)
+    setCoreGui(false)
     
-    local timeout = tick() + 15
-    while not stage.ready and tick() < timeout do 
-        task.wait(0.1) 
+    local jGui = Instance.new("ScreenGui")
+    jGui.Name = "JupiterUI"
+    jGui.IgnoreGuiInset = true
+    jGui.Parent = player.PlayerGui
+    
+    local speedFrame = Instance.new("Frame")
+    speedFrame.Size = UDim2.fromScale(1, 1)
+    speedFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    speedFrame.BackgroundTransparency = 1
+    speedFrame.Parent = jGui
+    
+    local lines = {}
+    for i = 1, 100 do
+        local line = Instance.new("Frame")
+        line.Size = UDim2.new(0, math.random(2, 4), math.random(50, 200), 0)
+        line.Position = UDim2.fromScale(math.random(), math.random())
+        line.BackgroundColor3 = Color3.new(1, 1, 1)
+        line.BackgroundTransparency = 0.3
+        line.Rotation = math.random(-30, 30)
+        line.Parent = speedFrame
+        table.insert(lines, line)
     end
     
-    setFlash(0)
-    if not stage.ready then
-        warn("模型构建超时，强制启动")
-        stage.ready = true
+    local hudText = Instance.new("TextLabel")
+    hudText.Size = UDim2.new(1, 0, 0, 50)
+    hudText.Position = UDim2.new(0, 0, 0.8, 0)
+    hudText.BackgroundTransparency = 1
+    hudText.Text = "速度: 0.00 倍光速"
+    hudText.TextColor3 = Color3.fromRGB(255, 100, 50)
+    hudText.Font = Enum.Font.Code
+    hudText.TextSize = 24
+    hudText.Parent = jGui
+    
+    local spaceTarget = Vector3.new(0, 100000, 0)
+    local t0 = tick()
+    
+    task.spawn(function()
+        while tick() - t0 < 3 do
+            local a = (tick() - t0) / 3
+            camera.CFrame = startCF:Lerp(CFrame.new(spaceTarget, spaceTarget + Vector3.new(0, 0, -1)), a)
+            hudText.Text = string.format("速度: %.3f 倍光速", a * 0.66)
+            speedFrame.BackgroundTransparency = 1 - a * 0.8
+            for _, l in ipairs(lines) do
+                l.Size = UDim2.new(0, math.random(1, 3), l.Size.Y.Scale + math.random(10, 50), 0)
+            end
+            RunService.RenderStepped:Wait()
+        end
+    end)
+    task.wait(3)
+    
+    local jupiterModel = Instance.new("Model")
+    jupiterModel.Parent = workspace
+    local jupiterPos = spaceTarget + Vector3.new(-3000, 500, -5000)
+    
+    for i = 1, 30 do
+        local band = Instance.new("Part")
+        band.Anchored = true
+        band.CanCollide = false
+        band.Size = Vector3.new(4000, 50, 4000)
+        band.CFrame = CFrame.new(jupiterPos + Vector3.new(0, (i - 15) * 50, 0)) * CFrame.Angles(0, 0, math.rad(90))
+        band.Color = Color3.fromRGB(math.random(180, 220), math.random(140, 180), math.random(100, 130))
+        band.Material = Enum.Material.SmoothPlastic
+        band.Parent = jupiterModel
     end
     
-    setCaption("目标锁定  ·  TARGET LOCKED", Color3.fromRGB(255, 120, 120))
-    local reticle = makeReticle(DANGER_RADIUS, target) local lockLaser = makeLaser(fxFolder, target + Vector3.new(0, 4500, 0), { 12, 6, 2.4 }) lockLaser.setEnd(target) lockLaser.setWidth(0) task.delay(math.max(imp - 1.6, 0), function() groundLaser(target, 1.6) end)
-    local rotStart = startCF.Rotation local rotEnd = CFrame.lookAt(Vector3.zero, Vector3.new(0, -1, 0), Vector3.new(0, 0, -1)) local lv = startCF.LookVector local heading = math.atan2(lv.Z, lv.X) local groundCamBase = Vector3.new(math.cos(heading + math.pi), 0, math.sin(heading + math.pi)) * 520 + Vector3.new(0, 170, 0)
-    local inSpace, fired, groundFlag, impacted, finished = false, false, false, false, false local laser, fireClock = nil, 0 local chargeSnd, beamSnd, ascentSnd, ambientSnd, countdownSnd, afterSnd = nil, nil, nil, nil, nil, nil local armPlayed, countdownPlayed = false, false local t0 = os.clock() local conn
-    local function spaceCam(t) local ER = EARTH_RADIUS local nT = stage.nT local EC = stage.EC local markPt = stage.markPt local dirA0 = (rotY(nT, 0.45) + Vector3.new(0, 0.35, 0)).Unit local dirOv = Vector3.new(0.18, 0.7, 0.69).Unit local OV = GALAXY_RADIUS * 1.4 if t < T.orbitEnd then local u = t - T.ascentEnd local dirA = rotY(dirA0, u * 0.05) local orbitBase = EARTH_RADIUS * 3.6 local d = orbitBase - EARTH_RADIUS * 0.11 * u local pos = EC + dirA * d return CFrame.lookAt(pos, markPt + (EC - markPt) * 0.1), 70 elseif t < T.pullEnd then local u = smooth((t - T.orbitEnd) / (T.pullEnd - T.orbitEnd)) local dirStart = rotY(dirA0, (T.orbitEnd - T.ascentEnd) * 0.05) local pullStart = EARTH_RADIUS * 3.6 - EARTH_RADIUS * 0.11 * (T.orbitEnd - T.ascentEnd) local dist = pullStart * (OV / pullStart) ^ u local pivot = markPt:Lerp(stage.GC, u) local dir = dirStart:Lerp(dirOv, u).Unit return CFrame.lookAt(pivot + dir * dist, pivot), 70 elseif t < T.holdEnd then local dir = rotY(dirOv, (t - T.pullEnd) * 0.04) return CFrame.lookAt(stage.GC + dir * OV, stage.GC), 70 else local e = smooth(clamp01((t - T.holdEnd) / (T.swoopEnd - T.holdEnd))) local dirHold = rotY(dirOv, (T.holdEnd - T.pullEnd) * 0.04) local orbit = (t > T.swoopEnd) and (t - T.swoopEnd) or 0 local localOff = CFrame.Angles(0, orbit * 0.035, 0) * Vector3.new(560, 250, 330) local dirE = stage.cannonCF:VectorToWorldSpace(localOff).Unit local dist = OV * (1000 / OV) ^ e local pf = smooth(clamp01((e - 0.05) / 0.95)) local push = (t > T.swoopEnd) and (1 - 0.1 * clamp01((t - T.swoopEnd) / (T.fireT - T.swoopEnd))) or 1 local dir = dirHold:Lerp(dirE, e).Unit local pivot = stage.GC:Lerp(stage.CP, pf) local lookPoint = pivot + stage.cannonCF:VectorToWorldSpace(Vector3.new(0, 0, -330)) * pf return CFrame.lookAt(pivot + dir * dist * push, lookPoint), 70 end end
-    local function pulseWin(t, center, rise, fall) if t < center then return clamp01(1 - (center - t) / rise) end return clamp01(1 - (t - center) / fall) end
-    local function step(t) if stage.earthSurface then if stage.earthSurface.clouds then stage.earthSurface.clouds.CFrame = CFrame.new(stage.EC) * CFrame.Angles(0, t * 0.018, 0) end if stage.earthSurface.night then stage.earthSurface.night.CFrame = CFrame.new(stage.EC) * CFrame.Angles(0, t * 0.018, 0) end end local cf local fov = 70 local shakeAmp, rotAmp = 0, 0 local f = 0
-        if t < T.ascentEnd then if t < T.lockEnd then cf = startCF fov = startFov lockLaser.setWidth(smooth(t / 0.6)) else local u = clamp01((t - T.lockEnd) / (T.ascentEnd - T.lockEnd)) local h = 40 * ((14000 / 40) ^ u - 1) local eo = smooth(u) local pos = Vector3.new(lerp(startPos.X, target.X, eo * 0.9), startPos.Y + h, lerp(startPos.Z, target.Z, eo * 0.9)) local rot = rotStart:Lerp(rotEnd, smooth(clamp01((u - 0.1) / 0.9))) cf = CFrame.new(pos) * rot fov = lerp(startFov, 55, u) fx.blur.Size = lerp(0, 22, clamp01((t - (T.ascentEnd - 1.2)) / 1.2)) fx.cc.Brightness = lerp(0, -0.05, u) fx.cc.Saturation = lerp(0, 0.2, u) setCaption("升空  ·  ASCENT", Color3.new(1, 1, 1)) if not ascentSnd then ascentSnd = playSound(SOUNDS.whoosh, 0.9, 0.5) end f = math.max(f, (t > T.ascentEnd - 0.7 and 1 or 0) * (1 - math.abs(t - T.ascentEnd) / 0.7)) end reticle.update(t)
-        elseif t < T.groundT then if not inSpace then inSpace = true enterSpaceLighting() fx.blur.Size = 0 fx.bloom.Intensity = 1.2 fx.bloom.Threshold = 0.9 fx.cc.Brightness = 0 fx.cc.Saturation = 0.15 setCaption("近地轨道  ·  LOW EARTH ORBIT", Color3.new(1, 1, 1)) chargeSnd = playSound(SOUNDS.charge, 0.7, 0.35, true) ambientSnd = playSound(SOUNDS.ambient, 0.25, 1, true) end if not stage.finished then stage.finished = true task.spawn(finishStage, stage) end cf, fov = spaceCam(t) if stage.markLaser then stage.markLaser.setWidth(smooth((t - T.ascentEnd) / 1.2) * (0.85 + 0.15 * math.sin(t * 9))) end if stage.markFlare then stage.markFlare.update(t) end if t >= T.pullEnd - 0.4 then setCaption("银河系  ·  MILKY WAY", Color3.new(1, 1, 1)) end if t >= T.holdEnd + 0.6 then setCaption("歼星炮  ·  STAR-DESTROYER ONLINE", Color3.fromRGB(255, 140, 140)) if not armPlayed then armPlayed = true playSound(SOUNDS.arm, 0.8, 1) end end if t >= T.swoopEnd and not countdownPlayed then countdownPlayed = true countdownSnd = playSound(SOUNDS.countdown, 0.52, 1) end if t < T.swoopEnd then stage.cannon.update(0, t) elseif t < T.fireT then local x = clamp01((t - T.swoopEnd) / (T.fireT - T.swoopEnd)) stage.cannon.update(x, t) shakeAmp = 4 * x * x rotAmp = 0.004 * x * x caption.Text = string.format("充能中  ·  CHARGING  %d%%", math.floor(x * 100)) caption.TextColor3 = Color3.fromRGB(255, 90, 90) caption.TextTransparency = 0 if chargeSnd then chargeSnd.PlaybackSpeed = 0.35 + 1.2 * x chargeSnd.Volume = 0.7 + 0.6 * x end else stage.cannon.update(1, t) end if t >= T.fireT then if not fired then fired = true fireClock = os.clock() setCaption("发射  ·  FIRE", Color3.new(1, 1, 1)) if chargeSnd then chargeSnd:Destroy() chargeSnd = nil end playSound(SOUNDS.fire, 1.35, 0.82) beamSnd = playSound(SOUNDS.beam, 0.8, 0.82, true) laser = makeLaser(stage.folder, stage.cannon.muzzleCF.Position, { 240, 130, 55 }) laser.setWidth(0) if stage.cannon.chargeEm then stage.cannon.chargeEm.Rate = 0 end end local u = os.clock() - fireClock local muzzle = stage.cannon.muzzleCF.Position laser.setEnd(muzzle:Lerp(stage.markPt, smooth(u / 0.5))) laser.setWidth(smooth(u / 0.25)) shakeAmp = 16 * math.exp(-u * 1.6) rotAmp = 0.012 * math.exp(-u * 1.6) fov = 70 + 20 * math.exp(-u * 4) local pw = t < T.fireT and 0 or (t < T.fireT + 0.02 and (t - T.fireT) / 0.02 or math.clamp(1 - (t - T.fireT - 0.02) / 0.9, 0, 1)) f = math.max(f, 0.9 * pw) end f = math.max(f, pulseWin(t, T.ascentEnd, 0.01, 1.1)) f = math.max(f, pulseWin(t, T.groundT, 0.25, 0.01) * (t > T.groundT - 0.25 and 1 or 0))
-        else if not groundFlag then groundFlag = true if chargeSnd then chargeSnd:Destroy() chargeSnd = nil end if ambientSnd then ambientSnd:Destroy() ambientSnd = nil end if countdownSnd then countdownSnd:Destroy() countdownSnd = nil end if beamSnd then beamSnd:Destroy() beamSnd = nil end if stage.folder then stage.folder:Destroy() stage.folder = nil end restoreLighting() fx.bloom.Intensity = 0.9 fx.bloom.Threshold = 0.95 fx.cc.Saturation = 0 tween(fx.cc, 1.4, { TintColor = Color3.fromRGB(233, 217, 255), Brightness = -0.035, Contrast = 0.12, Saturation = -0.08 }) setCaption("命中  ·  IMPACT", Color3.fromRGB(255, 90, 90)) end if not impacted and t >= imp then impacted = true afterSnd = playSound(SOUNDS.after, 0.75, 0.92) task.spawn(doImpact, target, true) end local g = t - T.groundT local ang = math.max(0, t - imp) * 0.06 local offs = CFrame.Angles(0, ang, 0) * (groundCamBase * (1 - 0.08 * clamp01(g / (imp - T.groundT)))) cf = CFrame.lookAt(target + offs, target + Vector3.new(0, 45, 0)) fov = lerp(70, 62, clamp01(g / 6)) f = math.max(f, (t > T.groundT - 0.01 and t < T.groundT + 0.8) and (1 - (t - T.groundT) / 0.8) or 0) reticle.update(t) if t > imp + 3 then setCaption("") end end
-        f = math.max(f, impactFlashValue()) local ia = impactShakeAmount() shakeAmp += ia rotAmp += ia * 0.0015 if t > T.endT - 0.8 then setFlash(clamp01((t - (T.endT - 0.8)) / 0.8), Color3.new(0, 0, 0)) else setFlash(f) end camera.FieldOfView = fov camera.CFrame = shakeCF(cf, shakeAmp, t, rotAmp) end
-    conn = RunService.RenderStepped:Connect(function() if finished then return end local t = os.clock() - t0 if t >= T.endT then finished = true reticle.destroy() lockLaser.destroy() if ascentSnd then ascentSnd:Destroy() end if beamSnd then beamSnd:Destroy() end if chargeSnd then chargeSnd:Destroy() end if ambientSnd then ambientSnd:Destroy() end if countdownSnd then countdownSnd:Destroy() end if afterSnd then afterSnd:Destroy() end finishCinematic(stage, conn) return end local ok, err = pcall(step, t) if not ok then warn("[SpaceCannon]", err) finished = true reticle.destroy() lockLaser.destroy() if beamSnd then beamSnd:Destroy() end if chargeSnd then chargeSnd:Destroy() end if ambientSnd then ambientSnd:Destroy() end if countdownSnd then countdownSnd:Destroy() end if ascentSnd then ascentSnd:Destroy() end if afterSnd then afterSnd:Destroy() end finishCinematic(stage, conn) end end)
+    local targetInSpace = spaceTarget + Vector3.new(0, -100000, 0)
+    t0 = tick()
+    task.spawn(function()
+        while tick() - t0 < 2 do
+            local shake = Vector3.new(math.random(-15, 15), math.random(-15, 15), 0)
+            camera.CFrame = CFrame.lookAt(spaceTarget + shake, jupiterPos)
+            RunService.RenderStepped:Wait()
+        end
+    end)
+    task.wait(2)
+    
+    setCaption("木星引力锁定  ·  JUPITER LOCKED", Color3.fromRGB(255, 150, 50))
+    playSound(SOUNDS.lock, 1.5, 0.5)
+    
+    local darkBeam = Instance.new("Part")
+    darkBeam.Anchored = true
+    darkBeam.CanCollide = false
+    darkBeam.Material = Enum.Material.SmoothPlastic
+    darkBeam.Color = Color3.fromRGB(15, 10, 10)
+    darkBeam.Size = Vector3.new(120, 0, 120)
+    darkBeam.Position = targetPos + Vector3.new(0, 2000, 0)
+    darkBeam.Parent = workspace
+    
+    for i = 1, 5 do
+        local ring = Instance.new("Part")
+        ring.Shape = Enum.PartType.Cylinder
+        ring.Anchored = true
+        ring.CanCollide = false
+        ring.Material = Enum.Material.Neon
+        ring.Color = Color3.fromRGB(255, 80, 0)
+        ring.Size = Vector3.new(10, 130, 130)
+        ring.CFrame = CFrame.new(targetPos + Vector3.new(0, 500 + i * 300, 0)) * CFrame.Angles(0, 0, math.rad(90))
+        ring.Parent = workspace
+    end
+    
+    TweenService:Create(darkBeam, TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), {Size = Vector3.new(120, 2000, 120), Position = targetPos + Vector3.new(0, 1000, 0)}):Play()
+    camera.CFrame = CFrame.lookAt(targetPos + Vector3.new(200, 50, 200), targetPos + Vector3.new(0, 1000, 0))
+    camera.FieldOfView = 100 
+    
+    task.wait(0.5)
+    
+    playSound(SOUNDS.boom, 2, 0.4)
+    impactShake = { t = os.clock(), amp = 35 }
+    setFlash(1, Color3.new(1, 1, 1))
+    task.wait(0.1)
+    setFlash(0.5, Color3.new(1, 1, 1))
+    task.wait(0.2)
+    setFlash(0, Color3.new(1, 1, 1))
+    
+    local craterFolder = Instance.new("Folder")
+    craterFolder.Parent = workspace
+    local pitSize = 400
+    
+    local pitBottom = Instance.new("Part")
+    pitBottom.Anchored = true
+    pitBottom.Size = Vector3.new(pitSize, 10, pitSize)
+    pitBottom.Position = targetPos - Vector3.new(0, 100, 0)
+    pitBottom.Color = Color3.fromRGB(20, 20, 20)
+    pitBottom.Material = Enum.Material.Basalt
+    pitBottom.Parent = craterFolder
+    
+    for _, offset in ipairs({Vector3.new(pitSize/2, -50, 0), Vector3.new(-pitSize/2, -50, 0), Vector3.new(0, -50, pitSize/2), Vector3.new(0, -50, -pitSize/2)}) do
+        local wall = Instance.new("Part")
+        wall.Anchored = true
+        wall.Size = Vector3.new(pitSize, 100, 10)
+        wall.CFrame = CFrame.lookAt(targetPos + offset, targetPos)
+        wall.Color = Color3.fromRGB(25, 20, 20)
+        wall.Material = Enum.Material.Slate
+        wall.Parent = craterFolder
+    end
+    
+    for i = -10, 10 do
+        local lineX = Instance.new("Part")
+        lineX.Anchored = true
+        lineX.Size = Vector3.new(pitSize * 0.9, 1, 3)
+        lineX.Position = targetPos + Vector3.new(0, -95, i * (pitSize / 20))
+        lineX.Color = Color3.fromRGB(255, 100, 0)
+        lineX.Material = Enum.Material.Neon
+        lineX.Parent = craterFolder
+        
+        local lineZ = Instance.new("Part")
+        lineZ.Anchored = true
+        lineZ.Size = Vector3.new(3, 1, pitSize * 0.9)
+        lineZ.Position = targetPos + Vector3.new(i * (pitSize / 20), -95, 0)
+        lineZ.Color = Color3.fromRGB(255, 100, 0)
+        lineZ.Material = Enum.Material.Neon
+        lineZ.Parent = craterFolder
+    end
+    
+    for i = 1, 60 do
+        local rock = Instance.new("Part")
+        rock.Size = Vector3.new(math.random(5, 20), math.random(5, 20), math.random(5, 20))
+        rock.Position = targetPos + Vector3.new(math.random(-pitSize/2, pitSize/2), 0, math.random(-pitSize/2, pitSize/2))
+        rock.Anchored = false
+        rock.Color = Color3.fromRGB(30, 30, 30)
+        rock.Material = Enum.Material.Slate
+        rock.Parent = workspace
+        rock.AssemblyLinearVelocity = Vector3.new(math.random(-150, 150), math.random(200, 400), math.random(-150, 150))
+        Debris:AddItem(rock, 5)
+    end
+    
+    task.wait(3)
+    jGui:Destroy()
+    jupiterModel:Destroy()
+    darkBeam:Destroy()
+    Debris:AddItem(craterFolder, 20)
+    
+    finishCinematic(nil, nil)
 end
-_G.TriggerStarDestroyer = runSequence
+_G.TriggerJupiter = runJupiterStrike
 end)
