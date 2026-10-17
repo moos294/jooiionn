@@ -254,11 +254,74 @@ GojoSection:Button({Title="变身五条悟 (获取物品)",Callback=function()
     StarterGui:SetCore("SendNotification",{Title="获得物品",Text="已获得【无量空处】，请手持并点击屏幕释放",Duration=5})
 end})
 
-local SG=Instance.new("ScreenGui")SG.Name="PowerCrownUI"SG.ResetOnSpawn=false SG.IgnoreGuiInset=true
-pcall(function()SG.Parent=game:GetService("CoreGui")end)if not SG.Parent then SG.Parent=player.PlayerGui end
-local DataHUD=Instance.new("Frame")DataHUD.Size=UDim2.new(0,210,0,105)DataHUD.Position=UDim2.new(0,20,0.3,0)DataHUD.BackgroundColor3=Color3.fromRGB(20,24,34)DataHUD.BackgroundTransparency=0.1 DataHUD.BorderSizePixel=0 DataHUD.Parent=SG
-local HUDTitle=Instance.new("TextLabel")HUDTitle.Size=UDim2.new(1,0,0,24)HUDTitle.BackgroundTransparency=1 HUDTitle.Text="📊 力量之冠 V6.1"HUDTitle.TextColor3=Color3.fromRGB(60,150,230)HUDTitle.Font=Enum.Font.GothamBold HUDTitle.TextSize=12 HUDTitle.Parent=DataHUD
-local LabelReps=Instance.new("TextLabel")LabelReps.Size=UDim2.new(0.5,-10,0,18)LabelReps.Position=UDim2.new(0,10,0,30)LabelReps.BackgroundTransparency=1 LabelReps.Text="总训练: 0"LabelReps.TextColor3=Color3.fromRGB(230,230,235)LabelReps.Font=Enum.Font.Gotham LabelReps.TextSize=11 LabelReps.TextXAlignment=Enum.TextXAlignment.Left LabelReps.Parent=DataHUD
+local SG=Instance.new("ScreenGui")
+SG.Name="PowerCrownUI"
+SG.ResetOnSpawn=false 
+SG.IgnoreGuiInset=true
+pcall(function()SG.Parent=game:GetService("CoreGui")end)
+if not SG.Parent then SG.Parent=player.PlayerGui end
+
+local DataHUD=Instance.new("Frame")
+DataHUD.Size=UDim2.new(0,210,0,105)
+DataHUD.Position=UDim2.new(0, 20, 0.3, 0) 
+DataHUD.BackgroundColor3=Color3.fromRGB(20,24,34)
+DataHUD.BackgroundTransparency=0.1 
+DataHUD.BorderSizePixel=0 
+DataHUD.Active = true 
+DataHUD.Parent=SG
+
+local HUDTitle=Instance.new("TextLabel")
+HUDTitle.Size=UDim2.new(1,0,0,24)
+HUDTitle.BackgroundTransparency=1 
+HUDTitle.Text="📊 力量之冠 V6.1"
+HUDTitle.TextColor3=Color3.fromRGB(60,150,230)
+HUDTitle.Font=Enum.Font.GothamBold 
+HUDTitle.TextSize=12 
+HUDTitle.Active = false
+HUDTitle.Parent=DataHUD
+
+local LabelReps=Instance.new("TextLabel")
+LabelReps.Size=UDim2.new(0.5,-10,0,18)
+LabelReps.Position=UDim2.new(0,10,0,30)
+LabelReps.BackgroundTransparency=1 
+LabelReps.Text="总训练: 0"
+LabelReps.TextColor3=Color3.fromRGB(230,230,235)
+LabelReps.Font=Enum.Font.Gotham 
+LabelReps.TextSize=11 
+LabelReps.TextXAlignment=Enum.TextXAlignment.Left 
+LabelReps.Active = false
+LabelReps.Parent=DataHUD
+
+-- 恢复手机端拖拽逻辑
+local dragging = false
+local dragInput, dragStart, startPos
+
+DataHUD.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = DataHUD.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+DataHUD.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        DataHUD.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
 
 task.spawn(function()
     local trainEvent 
