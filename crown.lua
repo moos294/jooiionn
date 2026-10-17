@@ -12,7 +12,9 @@ local camera = Workspace.CurrentCamera
 local children = workspace:GetChildren()
 for k, value1 in pairs(children) do
 	local result = value1.Name:lower()
-	if result:find("windui") then value1:Destroy() end
+	if result:find("windui") then
+		value1:Destroy()
+	end
 end
 
 local response = game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua")
@@ -30,7 +32,7 @@ WindUI:AddTheme({
 })
 
 local Window = WindUI:CreateWindow({
-	Title = "力量之冠封存4.0 (29UI版)",
+	Title = "力量之冠封存4.0",
 	Author = "力量之冠",
 	Folder = "PowerCrownV5",
 	HideSearchBar = true,
@@ -55,8 +57,8 @@ local Window = WindUI:CreateWindow({
 	Transparent = false
 })
 
-Window:Tag({ Title = "29 UI 框架", Color = Color3.fromHex("#00FFA3") })
-Window:Tag({ Title = "力量之冠", Color = Color3.fromHex("#FFD400") })
+Window:Tag({ Title = "封存版", Color = Color3.fromHex("#00FFA3") })
+Window:Tag({ Title = "29 UI 框架", Color = Color3.fromHex("#FFD400") })
 
 task.spawn(function()
 	task.wait(0.5)
@@ -79,7 +81,7 @@ end)
 
 local targetPosition = nil
 local isTargeting = false
-local Tab = Window:Tab({ Title = "末日武器", Icon = "crosshair" })
+local Tab = Window:Tab({ Title = "娱乐大炮", Icon = "crosshair" })
 
 Tab:Paragraph({ Title = "操作提示", Desc = "请先点击【选择目标】，在游戏里点一下地面，最后点击发射！" })
 
@@ -118,14 +120,9 @@ UserInputService.InputBegan:Connect(function(input, gp)
 			if res then
 				targetPosition = res.Position
 				local mk = Instance.new("Part")
-				mk.Shape = Enum.PartType.Ball
-				mk.Material = Enum.Material.Neon
-				mk.Color = Color3.fromRGB(255, 0, 0)
-				mk.Size = Vector3.new(14, 14, 14)
-				mk.Position = targetPosition + Vector3.new(0, 5, 0)
-				mk.Anchored = true
-				mk.CanCollide = false
-				mk.Parent = Workspace
+				mk.Shape = Enum.PartType.Ball mk.Material = Enum.Material.Neon
+				mk.Color = Color3.fromRGB(255, 0, 0) mk.Size = Vector3.new(14, 14, 14)
+				mk.Position = targetPosition + Vector3.new(0, 5, 0) mk.Anchored = true mk.CanCollide = false mk.Parent = Workspace
 				Debris:AddItem(mk, 10)
 				isTargeting = false
 				WindUI:Notify({ Title = "锁定成功", Content = "目标已标定，请点击发射！", Duration = 3 })
@@ -149,8 +146,7 @@ local function randDir() local z = math.random() * 2 - 1 local a = math.random()
 
 local flash = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 100, Active = false }, player.PlayerGui:FindFirstChildOfClass("ScreenGui"))
 local function setFlash(a, color) flash.BackgroundColor3 = color or Color3.new(1, 1, 1) flash.BackgroundTransparency = 1 - clamp01(a) end
-local impactFlash = { t = -1e9, a = 0 }
-local impactShake = { t = -1e9, amp = 0 }
+local impactFlash = { t = -1e9, a = 0 } local impactShake = { t = -1e9, amp = 0 }
 local function impactFlashValue() local e = os.clock() - impactFlash.t if e < 0 or e > 0.62 then return 0 end local rise = math.clamp(e / 0.045, 0, 1) local fall = math.clamp(1 - math.max(0, e - 0.045) / 0.575, 0, 1) return impactFlash.a * rise * fall * fall end
 local function impactShakeAmount() local e = os.clock() - impactShake.t if e < 0 or e > 3.5 then return 0 end return impactShake.amp * (1 - e / 3.5) ^ 2 end
 local function shakeCF(cf, amp, t, rotAmp) if amp <= 0.001 then return cf end local nx = math.noise(t * 23, 1.3, 0) * 2 local ny = math.noise(t * 27, 5.1, 0) * 2 local nz = math.noise(t * 19, 9.7, 0) * 2 return cf * CFrame.new(nx * amp, ny * amp, 0) * CFrame.Angles(ny * rotAmp, nx * rotAmp, nz * rotAmp * 0.5) end
@@ -162,14 +158,12 @@ local caption = new("TextLabel", { AnchorPoint = Vector2.new(0.5, 1), Position =
 local function setCaption(text, color) if text == "" then tween(caption, 0.4, { TextTransparency = 1 }) return end caption.Text = text caption.TextColor3 = color or Color3.new(1, 1, 1) caption.TextTransparency = 1 tween(caption, 0.4, { TextTransparency = 0 }) end
 local SOUNDS = { lock = { fallback = "rbxasset://sounds/electronicpingshort.wav" }, whoosh = { fallback = "rbxasset://sounds/Rocket whoosh 01.wav" }, charge = { fallback = "rbxasset://sounds/Rocket whoosh 01.wav" }, fire = { fallback = "rbxasset://sounds/Rocket shot.wav" }, boom = { fallback = "rbxasset://sounds/impact_explosion_03.mp3" } }
 local function playSound(id, volume, speed, looped) if type(id) == "table" then id = id.fallback end if not id or id == "" then return nil end local s = new("Sound", { SoundId = id, Volume = volume or 1, PlaybackSpeed = speed or 1, Looped = looped or false }, game:GetService("SoundService")) pcall(function() s:Play() end) if not looped then Debris:AddItem(s, 10) end return s end
-
 local fx = {}
 local function ensureFx() if fx.cc then return end fx.cc = new("ColorCorrectionEffect", { Name = "SC_CC" }, Lighting) fx.bloom = new("BloomEffect", { Name = "SC_Bloom", Intensity = 0.5, Size = 28, Threshold = 1 }, Lighting) fx.blur = new("BlurEffect", { Name = "SC_Blur", Size = 0 }, Lighting) end
 local function clearFx() for k, v in pairs(fx) do v:Destroy() fx[k] = nil end end
 local function setControls(enabled) pcall(function() local pm = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")) local c = pm:GetControls() if enabled then c:Enable() else c:Disable() end end) end
 local function setCoreGui(enabled) pcall(function() game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, enabled) end) end
-local state = "idle"
-local lastFire = -1e9
+local state = "idle" local lastFire = -1e9
 local DANGER_RADIUS = 480 local CRATER_RADIUS = 480 local CRATER_DEPTH = 185 local RIM_WIDTH = 190 local RIM_HEIGHT = 96 local CELL = 12 local SPACE_ORIGIN = Vector3.new(0, 300000, 0) local EARTH_RADIUS = 80 local GALAXY_RADIUS = 34000 local SUN_RADIUS = 1400 local EARTH_ORBIT_RADIUS = 3600 local T = { lockEnd = 2, ascentEnd = 6, orbitEnd = 12, moonEnd = 15, marsEnd = 18, jupiterEnd = 21, solarSystemEnd = 24, pullEnd = 28, holdEnd = 32, swoopEnd = 38, fireT = 42, groundT = 45, imp = 47, endT = 52 }
 local NK = NumberSequenceKeypoint.new local FLAT = CFrame.Angles(0, 0, math.rad(90)) local RED = Color3.fromRGB(255, 56, 56)
 local function bigSphere(parent, pos, diameter, color, material, transparency) local p if diameter <= 2048 then p = vpart({ Shape = Enum.PartType.Ball, Size = Vector3.one * diameter, Position = pos, Color = color, Material = material, Transparency = transparency }, parent) else p = vpart({ Size = Vector3.one * 2048, Position = pos, Color = color, Material = material, Transparency = transparency }, parent) new("SpecialMesh", { MeshType = Enum.MeshType.Sphere, Scale = Vector3.one * (diameter / 2048) }, p) end return p end
@@ -178,4 +172,4 @@ local function cloudAt(n) return math.noise(n.X * 3.3 + 9.1, n.Y * 3.3 + 4.2, n.
 local function plateOnSphere(folder, EC, n, r, w, color, material, transparency, thick) local p = EC + n * r return vpart({ Size = Vector3.new(w, w, thick or 2), CFrame = CFrame.lookAt(p, p + n), Color = color, Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0 }, folder) end
 
 local function buildStars(folder, GC) local palette = { Color3.fromRGB(190, 215, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 232, 190), Color3.fromRGB(255, 190, 140), Color3.fromRGB(160, 190, 255) } local bn = Vector3.new(0.35, 0.85, 0.4).Unit local e1 = bn:Cross(Vector3.yAxis).Unit local e2 = bn:Cross(e1).Unit local coreA = 1.2 local shell = GALAXY_RADIUS * 2.9 local detailed = false local function addStar(dir, radius, sizeScale) local s = (detailed and 12 or 18) + (math.random() ^ 3) * (detailed and 34 or 62) s *= sizeScale vpart({ Name = "DeepSpaceStar", Shape = Enum.PartType.Ball, Size = Vector3.one * s, Position = GC + dir * radius, Material = Enum.Material.Neon, Color = palette[math.random(1, #palette)], Transparency = math.random() * 0.18 }, folder) end local shellCount = detailed and 680 or 1100 for i = 1, shellCount do addStar(randDir(), shell + math.random() * GALAXY_RADIUS * 0.18, 0.8) if i % 170 == 0 then task.wait() end end local armCount = detailed and 980 or 1450 local made = 0 while made < armCount do local a = math.random() * math.pi * 2 local da = math.abs(((a - coreA + math.pi) % (math.pi * 2)) - math.pi) if math.random() < 0.35 + 0.65 * math.exp(-da * da / 0.9) then local dir = (e1 * math.cos(a) + e2 * math.sin(a) + bn * gauss() * 0.2).Unit addStar(dir, shell - GALAXY_RADIUS * 0.04 + math.random() * GALAXY_RADIUS * 0.14, 1 + 0.35 * math.exp(-da * da / 0.9)) made += 1 if made % 170 == 0 then task.wait() end end end local hazeCount = detailed and 22 or 38 local hazeColors = { Color3.fromRGB(100, 120, 255), Color3.fromRGB(255, 100, 170), Color3.fromRGB(255, 170, 90), Color3.fromRGB(110, 255, 230) } for i = 1, hazeCount do local a = math.random() * math.pi * 2 local dir = (e1 * math.cos(a) + e2 * math.sin(a) + bn * gauss() * 0.12).Unit bigSphere(folder, GC + dir * (GALAXY_RADIUS * 2.62), GALAXY_RADIUS * (0.045 + math.random() * 0.035), hazeColors[math.random(1, #hazeColors)], Enum.Material.Neon, 0.965 + math.random() * 0.025) end end
-local function buildGalaxy(folder, GC) local ARMS, R = 4, GALAXY_RADIUS local textured = false local brightCount = textured and 560 or 1150 local dustCount = textured and 680 or 1050 for i = 1, brightCount do local arm = i % ARMS local tt = math.random() ^ 0.68 local r = tt * R + 120 * math.random() local ang = arm * (2 * math.pi / ARMS) + tt * 4.6 + gauss() * 0.19 * (1.2 - tt) local rr = r + gauss() * R * 0.018 * (0.4 + tt) local pos = GC + Vector3.new(math.cos(ang) * rr, 78 + gauss() * (R * 0.008 * (1 - tt) + 18), math.sin(ang) * rr) local size = (18 + math.random() * 66) * (1.1 - 0.42 * tt) local col = Color3.fromRGB(255, 225, 170):Lerp(Color3.fromRGB(255, 140, 150), clamp01(tt * 1.6)):Lerp(Color3.fromRGB(110, 150, 255), clamp01((tt - 0.5) * 2)) vpart({ Name = "GalacticArmStar", Shape = Enum.PartType.Ball, Size = Vector3.one * size, Position = pos, Material = Enum.Material.Neon, Color = col, Transpare
+local function buildGalaxy(folder, GC) local ARMS, R = 4, GALAXY_RADIUS local textured = false local brightCount = textured and 560 or 1150 local dustCount = textured and 680 or 1050 for i = 1, brightCount do local arm = i % ARMS local tt = math.random() ^ 0.68 local r = tt * R + 120 * math.random() local ang = arm * (2 * math.pi / ARMS) + tt * 4.6 + gauss() * 0.19 * (1.2 - tt) local rr = r + gauss() * R * 0.018 * (0.4 + tt) local pos = GC + Vector3.new(math.cos(ang) * rr, 78 + gauss() * (R * 0.008 * (1 - tt) + 18), math.sin(ang) * rr) local size = (18 + math.random() * 66) * (1.1 - 0.42 * tt) local col = Color3.fromRGB(255, 225, 170):Lerp(Color3.fromRGB(255, 140, 150), clamp01(tt * 1.6)):Lerp(Color3.fromRGB(110, 150, 255), clamp01((tt - 0.5) * 2)) vpart({ Name = "GalacticArmStar", Shape = Enum.PartType.Ball, Size = Vector3.one * size, Position = pos, Material = Enum.Material.Neon, Color = col, Transparen
