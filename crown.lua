@@ -13,7 +13,7 @@ local camera=Workspace.CurrentCamera
 local success,WindUI=pcall(function() return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/1.6.66/main.lua"))() end)
 if not success or not WindUI then StarterGui:SetCore("SendNotification",{Title="UI加载失败",Text="网络拦截",Duration=10}) return end
 
-local Window=WindUI:CreateWindow({Title="力量之冠 V1.1 极致视觉版",Icon="zap",Author="力量之冠",Folder="PowerCrownSave",Theme="Dark",Transparent=true,Resizable=false,Size=UDim2.fromOffset(460,780)})
+local Window=WindUI:CreateWindow({Title="力量之冠 V1.1.1 极致视觉版",Icon="zap",Author="力量之冠",Folder="PowerCrownSave",Theme="Dark",Transparent=true,Resizable=false,Size=UDim2.fromOffset(460,780)})
 local FunTab=Window:Tab({Title="五条悟专属",Icon="sparkles"})
 local GojoSection=FunTab:Section({Title="全套技能获取",Icon="zap"})
 
@@ -580,8 +580,10 @@ GojoSection:Button({Title="获取全套技能物品",Callback=function()
             tool.Name = skill.Name
             tool.RequiresHandle = true
             tool.CanBeDropped = false
+            
             local handle = Instance.new("Part")
-            handle.Size = Vector3.new(1,1,1)
+            handle.Name = "Handle"  -- 这里是修复的关键！
+            handle.Size = Vector3.new(1.5, 1.5, 1.5)
             handle.Shape = Enum.PartType.Ball
             handle.Color = skill.Color
             handle.Material = Enum.Material.Neon
@@ -608,7 +610,7 @@ end})
 local SG=Instance.new("ScreenGui")SG.Name="PowerCrownUI"SG.ResetOnSpawn=false SG.IgnoreGuiInset=true
 pcall(function()SG.Parent=game:GetService("CoreGui")end)if not SG.Parent then SG.Parent=player.PlayerGui end
 local DataHUD=Instance.new("Frame")DataHUD.Size=UDim2.new(0,210,0,105)DataHUD.Position=UDim2.new(0,20,0.3,0)DataHUD.BackgroundColor3=Color3.fromRGB(20,24,34)DataHUD.BackgroundTransparency=0.1 DataHUD.BorderSizePixel=0 DataHUD.Active = true DataHUD.Parent=SG
-local HUDTitle=Instance.new("TextLabel")HUDTitle.Size=UDim2.new(1,0,0,24)HUDTitle.BackgroundTransparency=1 HUDTitle.Text="📊 力量之冠 V1.1"HUDTitle.TextColor3=Color3.fromRGB(60,150,230)HUDTitle.Font=Enum.Font.GothamBold HUDTitle.TextSize=12 HUDTitle.Parent=DataHUD
+local HUDTitle=Instance.new("TextLabel")HUDTitle.Size=UDim2.new(1,0,0,24)HUDTitle.BackgroundTransparency=1 HUDTitle.Text="📊 力量之冠 V1.1.1"HUDTitle.TextColor3=Color3.fromRGB(60,150,230)HUDTitle.Font=Enum.Font.GothamBold HUDTitle.TextSize=12 HUDTitle.Parent=DataHUD
 local LabelReps=Instance.new("TextLabel")LabelReps.Size=UDim2.new(0.5,-10,0,18)LabelReps.Position=UDim2.new(0,10,0,30)LabelReps.BackgroundTransparency=1 LabelReps.Text="总训练: 0"LabelReps.TextColor3=Color3.fromRGB(230,230,235)LabelReps.Font=Enum.Font.Gotham LabelReps.TextSize=11 LabelReps.TextXAlignment=Enum.TextXAlignment.Left LabelReps.Parent=DataHUD
 
 local dragging=false local dragInput,dragStart,startPos
