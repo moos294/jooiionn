@@ -61,8 +61,8 @@ GojoSection:Button({Title="领域展开·无量空处",Callback=function()
         text.Text = ""
         text.TextColor3 = Color3.new(1,1,1)
         text.Font = Enum.Font.GothamBlack
-        text.TextSize = 64
-        text.TextStrokeTransparency = 0.2
+        text.TextSize = 80
+        text.TextStrokeTransparency = 0
         text.TextTransparency = 1
         text.ZIndex = 101
         text.Parent = gui
@@ -72,19 +72,23 @@ GojoSection:Button({Title="领域展开·无量空处",Callback=function()
         domainFolder.Parent = Workspace
         
         local cc = Instance.new("ColorCorrectionEffect")
-        cc.Contrast = 1
+        cc.Contrast = 1.5
         cc.Saturation = -1
-        cc.Brightness = -0.1
-        cc.TintColor = Color3.fromRGB(220,230,255)
+        cc.Brightness = -0.15
+        cc.TintColor = Color3.fromRGB(240,245,255)
         cc.Parent = Lighting
+        
+        local origBrightness = Lighting.Brightness
+        Lighting.Brightness = 0
         
         camera.CameraType = Enum.CameraType.Scriptable
         
-        local gojoModel = Instance.new("Model")
-        gojoModel.Name = "GojoIllusion"
-        gojoModel.Parent = domainFolder
+        local dummyPos = hrp.Position + hrp.CFrame.LookVector * 10
+        local gojoPos = dummyPos + hrp.CFrame.LookVector * 4
         
-        local centerPos = hrp.Position + hrp.CFrame.LookVector * 8
+        local dummy = Instance.new("Model")
+        dummy.Name = "TargetDummy"
+        dummy.Parent = domainFolder
         
         local function makePart(name, size, color, mat, parent)
             local p = Instance.new("Part")
@@ -100,92 +104,104 @@ GojoSection:Button({Title="领域展开·无量空处",Callback=function()
             return p
         end
         
-        local body = makePart("Body", Vector3.new(2.5, 3.5, 1), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, gojoModel)
-        body.CFrame = CFrame.new(centerPos)
+        local dBody = makePart("Body", Vector3.new(2, 3, 1), Color3.fromRGB(50, 50, 60), Enum.Material.SmoothPlastic, dummy)
+        dBody.CFrame = CFrame.new(dummyPos)
+        local dHead = makePart("Head", Vector3.new(1.2, 1.2, 1.2), Color3.fromRGB(200, 180, 160), Enum.Material.SmoothPlastic, dummy)
+        dHead.Shape = Enum.PartType.Ball
+        dHead.CFrame = CFrame.new(dummyPos + Vector3.new(0, 2.1, 0))
         
-        local head = makePart("Head", Vector3.new(1.5, 1.5, 1.5), Color3.fromRGB(255, 230, 210), Enum.Material.SmoothPlastic, gojoModel)
-        head.Shape = Enum.PartType.Ball
-        head.CFrame = body.CFrame * CFrame.new(0, 2.4, 0)
+        local gojoBody = makePart("Body", Vector3.new(2.5, 3.5, 1), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, domainFolder)
+        gojoBody.CFrame = CFrame.new(gojoPos)
+        local gHead = makePart("Head", Vector3.new(1.5, 1.5, 1.5), Color3.fromRGB(255, 230, 210), Enum.Material.SmoothPlastic, domainFolder)
+        gHead.Shape = Enum.PartType.Ball
+        gHead.CFrame = gojoBody.CFrame * CFrame.new(0, 2.4, 0)
+        local gHair = makePart("Hair", Vector3.new(1.7, 0.8, 1.7), Color3.new(1,1,1), Enum.Material.Neon, domainFolder)
+        gHair.Shape = Enum.PartType.Ball
+        gHair.CFrame = gHead.CFrame * CFrame.new(0, 0.5, 0)
+        local gBlind = makePart("Blindfold", Vector3.new(1.6, 0.4, 1.6), Color3.fromRGB(10,10,10), Enum.Material.SmoothPlastic, domainFolder)
+        gBlind.CFrame = gHead.CFrame * CFrame.new(0, 0.1, 0)
         
-        local hair = makePart("Hair", Vector3.new(1.7, 0.8, 1.7), Color3.fromRGB(255, 255, 255), Enum.Material.Neon, gojoModel)
-        hair.Shape = Enum.PartType.Ball
-        hair.CFrame = head.CFrame * CFrame.new(0, 0.5, 0)
+        local lArm = makePart("LArm", Vector3.new(0.6, 2.5, 0.6), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, domainFolder)
+        lArm.CFrame = gojoBody.CFrame * CFrame.new(-1.5, 0.5, 0)
+        local rArm = makePart("RArm", Vector3.new(0.6, 2.5, 0.6), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, domainFolder)
+        rArm.CFrame = gojoBody.CFrame * CFrame.new(1.5, 0.5, 0)
         
-        local blindfold = makePart("Blindfold", Vector3.new(1.6, 0.4, 1.6), Color3.fromRGB(10, 10, 10), Enum.Material.SmoothPlastic, gojoModel)
-        blindfold.CFrame = head.CFrame * CFrame.new(0, 0.1, 0)
+        local tInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back)
+        TweenService:Create(lArm, tInfo, {CFrame = gojoBody.CFrame * CFrame.new(-0.4, 1.2, -1) * CFrame.Angles(math.rad(-45), math.rad(-30), math.rad(60))}):Play()
+        TweenService:Create(rArm, tInfo, {CFrame = gojoBody.CFrame * CFrame.new(0.4, 1.2, -1) * CFrame.Angles(math.rad(-45), math.rad(30), math.rad(-60))}):Play()
         
-        local leftArm = makePart("LeftArm", Vector3.new(0.6, 2.5, 0.6), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, gojoModel)
-        leftArm.CFrame = body.CFrame * CFrame.new(-1.5, 0.5, 0)
-        
-        local rightArm = makePart("RightArm", Vector3.new(0.6, 2.5, 0.6), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic, gojoModel)
-        rightArm.CFrame = body.CFrame * CFrame.new(1.5, 0.5, 0)
-        
-        local tweenInfo = TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-        TweenService:Create(leftArm, tweenInfo, {CFrame = body.CFrame * CFrame.new(-0.4, 1.2, -1) * CFrame.Angles(math.rad(-45), math.rad(-30), math.rad(60))}):Play()
-        TweenService:Create(rightArm, tweenInfo, {CFrame = body.CFrame * CFrame.new(0.4, 1.2, -1) * CFrame.Angles(math.rad(-45), math.rad(30), math.rad(-60))}):Play()
-        
-        local blackHole = makePart("VoidCore", Vector3.new(1,1,1), Color3.new(0,0,0), Enum.Material.SmoothPlastic, domainFolder)
+        local blackHole = makePart("Void", Vector3.new(1,1,1), Color3.new(0,0,0), Enum.Material.SmoothPlastic, domainFolder)
         blackHole.Shape = Enum.PartType.Ball
-        blackHole.CFrame = CFrame.new(centerPos + Vector3.new(0, 4, -2))
+        blackHole.CFrame = CFrame.new(dummyPos + Vector3.new(0, 2.5, -2))
         
-        local rings = {}
-        for i = 1, 6 do
-            local ringFolder = Instance.new("Folder")
-            ringFolder.Parent = domainFolder
-            local rParts = {}
-            local segments = 36 + (i * 12)
-            for j = 1, segments do
-                local p = makePart("RingPart", Vector3.new(0.2, 0.1, 1), i % 2 == 0 and Color3.new(1,1,1) or Color3.fromRGB(100, 150, 255), Enum.Material.Neon, ringFolder)
-                table.insert(rParts, {part = p, angle = (j-1) * math.pi * 2 / segments})
-            end
-            table.insert(rings, {folder = ringFolder, parts = rParts, radius = 3 + i * 1.5, speed = (i % 2 == 0 and 1 or -1) * (1 + i * 0.2), rotX = math.random(-20, 20)})
+        local shards = {}
+        for i = 1, 200 do
+            local s = makePart("Shard", Vector3.new(math.random(5,20)/10, math.random(5,20)/10, math.random(1,5)/10), i%2==0 and Color3.new(1,1,1) or Color3.fromRGB(150, 200, 255), Enum.Material.Neon, domainFolder)
+            table.insert(shards, {part = s, angle = math.random()*math.pi*2, dist = math.random(5, 15), speed = (math.random() - 0.5) * 5})
         end
         
-        local lines = {}
-        for i = 1, 50 do
-            local l = makePart("SpeedLine", Vector3.new(0.08, 0.08, 200), i % 3 == 0 and Color3.fromRGB(255, 50, 50) or Color3.new(1,1,1), Enum.Material.Neon, domainFolder)
-            table.insert(lines, {part = l, angle = math.random() * math.pi * 2, offset = math.random() * 10, speed = 150 + math.random() * 200})
+        local textFolder = Instance.new("Folder")
+        textFolder.Parent = domainFolder
+        local texts = {}
+        for i = 1, 60 do
+            local bb = Instance.new("BillboardGui")
+            bb.Size = UDim2.fromOffset(100, 40)
+            bb.AlwaysOnTop = true
+            bb.Adornee = dHead
+            bb.Parent = textFolder
+            
+            local tl = Instance.new("TextLabel")
+            tl.Size = UDim2.fromScale(1,1)
+            tl.BackgroundTransparency = 1
+            tl.Font = Enum.Font.Code
+            tl.TextSize = 20
+            tl.TextColor3 = i%3==0 and Color3.fromRGB(255,50,50) or Color3.new(1,1,1)
+            tl.Text = string.format("%x", math.random(100000, 999999))
+            tl.Parent = bb
+            table.insert(texts, {gui = bb, label = tl, offset = Vector3.new((math.random()-0.5)*4, (math.random()-0.5)*4, (math.random()-0.5)*4), speed = math.random()*2})
         end
         
         text.Text = "领域展开"
-        TweenService:Create(flash, TweenInfo.new(0.1), {BackgroundTransparency = 0}):Play()
-        TweenService:Create(text, TweenInfo.new(0.1), {TextTransparency = 0}):Play()
-        
-        task.wait(0.15)
+        TweenService:Create(flash, TweenInfo.new(0.05), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(text, TweenInfo.new(0.05), {TextTransparency = 0}):Play()
+        task.wait(0.1)
         flash.BackgroundTransparency = 1
         text.Text = "“无量空处”"
         
-        TweenService:Create(blackHole, TweenInfo.new(1.5, Enum.EasingStyle.Exponential), {Size = Vector3.new(24,24,24)}):Play()
+        TweenService:Create(blackHole, TweenInfo.new(1, Enum.EasingStyle.Exponential), {Size = Vector3.new(30,30,30)}):Play()
         
         local startTime = tick()
         local renderConn
         renderConn = RunService.RenderStepped:Connect(function()
             local t = tick() - startTime
             
-            camera.CFrame = CFrame.lookAt(hrp.Position + Vector3.new(0, 6, 15), centerPos + Vector3.new(0, 3, 0)) * CFrame.Angles(math.noise(t*20,0,0)*0.015, math.noise(0,t*20,0)*0.015, 0)
-            camera.FieldOfView = 65 + math.sin(t*8)*3
+            local shake = math.max(0, 1 - t) * 1.5
+            local camPos = (hrp.Position + hrp.CFrame.LookVector * -5 + Vector3.new(0, 5, 0))
+            local lookAt = dummyPos + Vector3.new(0, 2, 0)
             
-            for i, ringData in ipairs(rings) do
-                local rotCF = blackHole.CFrame * CFrame.Angles(math.rad(ringData.rotX), 0, 0) * CFrame.Angles(0, t * ringData.speed, 0)
-                for j, pData in ipairs(ringData.parts) do
-                    local angle = pData.angle + t * ringData.speed
-                    local pos = rotCF * CFrame.Angles(0, angle, 0) * CFrame.new(0, 0, -ringData.radius)
-                    pData.part.CFrame = CFrame.lookAt(pos.Position, blackHole.Position) * CFrame.Angles(0, math.rad(90), 0)
-                end
+            camera.CFrame = CFrame.lookAt(camPos, lookAt) * CFrame.Angles(math.noise(t*50,0,0)*shake, math.noise(0,t*50,0)*shake, math.noise(t*30,t*30,0)*shake)
+            camera.FieldOfView = 70 + math.sin(t*15)*15
+            
+            for _, s in ipairs(shards) do
+                local currDist = (s.dist - t * 10) % 15 + 2
+                local a = s.angle + t * s.speed
+                local pos = blackHole.Position + Vector3.new(math.cos(a)*currDist, math.sin(a)*currDist, math.sin(a*2)*currDist)
+                s.part.CFrame = CFrame.lookAt(pos, blackHole.Position) * CFrame.Angles(t*10, t*10, 0)
             end
             
-            for i, lData in ipairs(lines) do
-                local dist = (t * lData.speed) % 150
-                local p = blackHole.CFrame * CFrame.Angles(lData.angle, lData.angle, 0) * CFrame.new(0, 0, -dist - 10)
-                lData.part.CFrame = CFrame.lookAt(p.Position, blackHole.Position) * CFrame.Angles(math.rad(90), 0, 0)
+            for _, txt in ipairs(texts) do
+                local pos = dHead.Position + txt.offset * (1 - (t * txt.speed % 1)) 
+                txt.gui.StudsOffsetWorldSpace = pos - dHead.Position
+                txt.label.Text = string.format("%x", math.random(100000, 999999))
             end
         end)
         
-        task.wait(3.5)
+        task.wait(4)
         
         if renderConn then renderConn:Disconnect() end
         domainFolder:Destroy()
         cc:Destroy()
+        Lighting.Brightness = origBrightness
         camera.CameraType = origCamType
         camera.FieldOfView = origFOV
         gui:Destroy()
