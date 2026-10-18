@@ -13,14 +13,14 @@ for _, obj in pairs(Workspace:GetChildren()) do if obj.Name == "CinematicScene" 
 for _, eff in pairs(Lighting:GetChildren()) do if eff:IsA("BloomEffect") or eff:IsA("ColorCorrectionEffect") or eff:IsA("BlurEffect") then eff:Destroy() end end
 
 local success, WindUI = pcall(function() return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/1.6.66/main.lua"))() end)
-if not success or not WindUI then StarterGui:SetCore("SendNotification",{Title="UI加载失败",Text="网络拦截",Duration=10}) return end
+if not success or not WindUI then StarterGui:SetCore("SendNotification",{Title="UI加载失败",Text="请检查网络或执行器",Duration=10}) return end
 
-local Window = WindUI:CreateWindow({Title="封存娱乐 V1.2",Icon="film",Author="Cinematic",Folder="SpaceSave",Theme="Dark",Transparent=true,Resizable=false,Size=UDim2.fromOffset(300,200)})
+local Window = WindUI:CreateWindow({Title="封存娱乐 V1.4",Icon="film",Author="Cinematic",Folder="SpaceSave",Theme="Dark",Transparent=true,Resizable=false,Size=UDim2.fromOffset(300,200)})
 local MainTab = Window:Tab({Title="控制",Icon="play"})
 local CgSection = MainTab:Section({Title="电影级体验",Icon="video"})
 
 local isPlaying = false
-local sceneOrigin = Vector3.new(0, 200000, 0)
+local sceneOrigin = Vector3.new(0, 3000, 0)
 
 local function makePart(parent, name, size, color, mat, cf, shape, transparency)
     local p = Instance.new("Part", parent)
@@ -42,159 +42,94 @@ end
 local function buildSpace(folder)
     local planets = {}
     
-    local sun = makePart(folder, "Sun", Vector3.new(3000, 3000, 3000), Color3.fromRGB(255, 120, 50), Enum.Material.SmoothPlastic, CFrame.new(sceneOrigin), Enum.PartType.Ball)
-    sun.Material = Enum.Material.Neon
-    sun.Transparency = 0.2
+    local sun = makePart(folder, "Sun", Vector3.new(2500, 2500, 2500), Color3.fromRGB(255, 100, 50), Enum.Material.Neon, CFrame.new(sceneOrigin + Vector3.new(0, 0, -30000)), Enum.PartType.Ball, 0.2)
     local sunLight = Instance.new("PointLight", sun)
-    sunLight.Range = 30000
-    sunLight.Brightness = 2
+    sunLight.Range = 50000
+    sunLight.Brightness = 1.5
     sunLight.Color = Color3.fromRGB(255, 150, 100)
     
     local pDefs = {
-        {name="Earth", pos=Vector3.new(8000, 0, 0), size=600, col=Color3.fromRGB(20, 50, 100), atmo=Color3.fromRGB(50, 100, 200)},
-        {name="Mars", pos=Vector3.new(14000, 2000, 8000), size=400, col=Color3.fromRGB(100, 40, 30), atmo=Color3.fromRGB(150, 50, 30)},
-        {name="Jupiter", pos=Vector3.new(22000, -2000, 14000), size=1800, col=Color3.fromRGB(120, 90, 70), atmo=Color3.fromRGB(150, 120, 90)},
-        {name="Saturn", pos=Vector3.new(32000, 3000, 20000), size=1500, col=Color3.fromRGB(150, 130, 100), atmo=Color3.fromRGB(180, 160, 120)},
-        {name="Neptune", pos=Vector3.new(45000, -3000, 28000), size=1000, col=Color3.fromRGB(30, 60, 150), atmo=Color3.fromRGB(50, 100, 255)}
+        {name="Earth", pos=Vector3.new(-5000, 0, -10000), size=600, col=Color3.fromRGB(20, 40, 80), atmo=Color3.fromRGB(30, 80, 150)},
+        {name="Mars", pos=Vector3.new(5000, 2000, -18000), size=400, col=Color3.fromRGB(100, 40, 30), atmo=Color3.fromRGB(120, 40, 20)},
+        {name="Jupiter", pos=Vector3.new(-10000, -2000, -25000), size=1800, col=Color3.fromRGB(120, 90, 70), atmo=Color3.fromRGB(140, 110, 90)},
+        {name="Saturn", pos=Vector3.new(12000, 3000, -35000), size=1500, col=Color3.fromRGB(150, 130, 100), atmo=Color3.fromRGB(170, 150, 120)},
+        {name="Neptune", pos=Vector3.new(-15000, -3000, -45000), size=1000, col=Color3.fromRGB(20, 50, 150), atmo=Color3.fromRGB(40, 80, 200)}
     }
     
     for _, def in ipairs(pDefs) do
         local p = makePart(folder, def.name, Vector3.new(def.size, def.size, def.size), def.col, Enum.Material.SmoothPlastic, CFrame.new(sceneOrigin + def.pos), Enum.PartType.Ball)
-        local atmo = makePart(folder, "Atmo", Vector3.new(def.size*1.05, def.size*1.05, def.size*1.05), def.atmo, Enum.Material.ForceField, CFrame.new(sceneOrigin + def.pos), Enum.PartType.Ball, 0.6)
+        makePart(folder, "Atmo", Vector3.new(def.size*1.02, def.size*1.02, def.size*1.02), def.atmo, Enum.Material.ForceField, CFrame.new(sceneOrigin + def.pos), Enum.PartType.Ball, 0.4)
         
         if def.name == "Saturn" then
-            for i = 1, 2 do
-                local ring = makePart(folder, "Ring", Vector3.new(def.size*(2.2 + i*0.2), 20, def.size*(2.2 + i*0.2)), Color3.fromRGB(100, 90, 80), Enum.Material.SmoothPlastic, nil, Enum.PartType.Cylinder, 0.3)
-                ring.CFrame = CFrame.new(sceneOrigin + def.pos) * CFrame.Angles(math.rad(15), 0, math.rad(15)) * CFrame.Angles(0,0,math.rad(90))
+            for i = 1, 3 do
+                local ring = makePart(folder, "Ring", Vector3.new(def.size*(2 + i*0.3), 10, def.size*(2 + i*0.3)), Color3.fromRGB(100 - i*10, 90 - i*10, 80 - i*10), Enum.Material.Slate, nil, Enum.PartType.Cylinder, 0.4)
+                ring.CFrame = CFrame.new(sceneOrigin + def.pos) * CFrame.Angles(math.rad(20), 0, math.rad(10)) * CFrame.Angles(0,0,math.rad(90))
             end
         elseif def.name == "Jupiter" then
-            for i = 1, 6 do
-                local band = makePart(folder, "Band", Vector3.new(def.size*1.01, 50, def.size*1.01), Color3.fromRGB(90, 70, 60), Enum.Material.SmoothPlastic, nil, Enum.PartType.Cylinder, 0.5)
-                band.CFrame = CFrame.new(sceneOrigin + def.pos + Vector3.new(0, (i-3.5)*200, 0)) * CFrame.Angles(0,0,math.rad(90))
+            for i = 1, 8 do
+                local band = makePart(folder, "Band", Vector3.new(def.size*1.01, 60, def.size*1.01), Color3.fromRGB(90, 70, 60), Enum.Material.Slate, nil, Enum.PartType.Cylinder, 0.5)
+                band.CFrame = CFrame.new(sceneOrigin + def.pos + Vector3.new(0, (i-4.5)*200, 0)) * CFrame.Angles(0,0,math.rad(90))
             end
         end
         table.insert(planets, {pos = sceneOrigin + def.pos, name = def.name, size = def.size})
     end
     
+    local stars = Instance.new("Folder", folder)
+    for i = 1, 1000 do
+        local rPos = sceneOrigin + Vector3.new(math.random(-40000, 40000), math.random(-40000, 40000), math.random(-60000, -10000))
+        makePart(stars, "Star", Vector3.new(10,10,10), Color3.new(1,1,1), Enum.Material.SmoothPlastic, CFrame.new(rPos), Enum.PartType.Ball, math.random(0.2, 0.8))
+    end
+    
     return planets
 end
 
-local function createUI()
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "CinematicUI"
-    gui.IgnoreGuiInset = true
-    gui.DisplayOrder = 999
-    gui.Parent = player.PlayerGui
+local function createCockpit(folder)
+    local cockpit = Instance.new("Folder", folder)
     
-    local cc = Instance.new("ColorCorrectionEffect", Lighting)
-    cc.Contrast = 0.2
-    cc.Saturation = -0.2
-    cc.Brightness = -0.05
-    cc.TintColor = Color3.fromRGB(150, 170, 200)
+    local frameL = makePart(cockpit, "FrameL", Vector3.new(1, 8, 10), Color3.fromRGB(15, 18, 20), Enum.Material.Metal)
+    local frameR = makePart(cockpit, "FrameR", Vector3.new(1, 8, 10), Color3.fromRGB(15, 18, 20), Enum.Material.Metal)
+    local dash = makePart(cockpit, "Dash", Vector3.new(14, 4, 6), Color3.fromRGB(10, 12, 15), Enum.Material.Metal)
     
-    local blur = Instance.new("BlurEffect", Lighting)
-    blur.Size = 0
+    local yoke = makePart(cockpit, "Yoke", Vector3.new(0.8, 2.5, 0.8), Color3.fromRGB(30, 30, 30), Enum.Material.Metal)
+    local yokeTop = makePart(cockpit, "YokeTop", Vector3.new(3, 0.5, 1.2), Color3.fromRGB(20, 20, 20), Enum.Material.Metal)
     
-    local topBar = Instance.new("Frame", gui)
-    topBar.Size = UDim2.new(1, 0, 0, 0)
-    topBar.BackgroundColor3 = Color3.new(0,0,0)
-    topBar.ZIndex = 10
-    
-    local botBar = Instance.new("Frame", gui)
-    botBar.AnchorPoint = Vector2.new(0, 1)
-    botBar.Position = UDim2.new(0, 0, 1, 0)
-    botBar.Size = UDim2.new(1, 0, 0, 0)
-    botBar.BackgroundColor3 = Color3.new(0,0,0)
-    botBar.ZIndex = 10
-    
-    TweenService:Create(topBar, TweenInfo.new(2), {Size = UDim2.new(1, 0, 0.15, 0)}):Play()
-    TweenService:Create(botBar, TweenInfo.new(2), {Size = UDim2.new(1, 0, 0.15, 0)}):Play()
-    
-    local cockpit = Instance.new("Frame", gui)
-    cockpit.Size = UDim2.new(1, 0, 1, 0)
-    cockpit.BackgroundTransparency = 1
-    cockpit.ZIndex = 5
-    
-    local leftFrame = Instance.new("Frame", cockpit)
-    leftFrame.Size = UDim2.new(0.2, 0, 1, 0)
-    leftFrame.Position = UDim2.new(0, 0, 0, 0)
-    leftFrame.BackgroundColor3 = Color3.fromRGB(10, 12, 15)
-    leftFrame.BorderSizePixel = 0
-    
-    local rightFrame = Instance.new("Frame", cockpit)
-    rightFrame.Size = UDim2.new(0.2, 0, 1, 0)
-    rightFrame.Position = UDim2.new(0.8, 0, 0, 0)
-    rightFrame.BackgroundColor3 = Color3.fromRGB(10, 12, 15)
-    rightFrame.BorderSizePixel = 0
-    
-    local dash = Instance.new("Frame", cockpit)
-    dash.Size = UDim2.new(0.8, 0, 0.25, 0)
-    dash.Position = UDim2.new(0.1, 0, 0.75, 0)
-    dash.BackgroundColor3 = Color3.fromRGB(15, 18, 22)
-    dash.BorderSizePixel = 0
-    
-    local dashTop = Instance.new("Frame", cockpit)
-    dashTop.Size = UDim2.new(0.8, 0, 0.02, 0)
-    dashTop.Position = UDim2.new(0.1, 0, 0.73, 0)
-    dashTop.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
-    dashTop.BorderSizePixel = 0
-    
-    local radar = Instance.new("Frame", dash)
-    radar.Size = UDim2.new(0.3, 0, 0.7, 0)
-    radar.Position = UDim2.new(0.05, 0, 0.15, 0)
-    radar.BackgroundColor3 = Color3.fromRGB(0, 20, 30)
-    radar.BorderSizePixel = 2
-    radar.BorderColor3 = Color3.fromRGB(0, 100, 150)
-    
-    local radarText = Instance.new("TextLabel", radar)
-    radarText.Size = UDim2.fromScale(1, 1)
-    radarText.BackgroundTransparency = 1
-    radarText.Text = "SYSTEM\nONLINE\nCRUISE MODE"
-    radarText.TextColor3 = Color3.fromRGB(0, 200, 255)
-    radarText.Font = Enum.Font.Code
-    radarText.TextSize = 18
-    
-    local yokeBase = Instance.new("Frame", dash)
-    yokeBase.Size = UDim2.new(0.15, 0, 0.4, 0)
-    yokeBase.Position = UDim2.new(0.5, 0, 0.5, 0)
-    yokeBase.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    yokeBase.BorderSizePixel = 2
-    yokeBase.BorderColor3 = Color3.fromRGB(50, 50, 50)
-    
-    local yokeTop = Instance.new("Frame", yokeBase)
-    yokeTop.Size = UDim2.new(1.5, 0, 0.3, 0)
-    yokeTop.Position = UDim2.new(-0.25, 0, -0.2, 0)
-    yokeTop.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    yokeTop.BorderSizePixel = 2
-    yokeTop.BorderColor3 = Color3.fromRGB(80, 80, 80)
-    
-    local btnFrame = Instance.new("Frame", dash)
-    btnFrame.Size = UDim2.new(0.4, 0, 0.6, 0)
-    btnFrame.Position = UDim2.new(0.55, 0, 0.2, 0)
-    btnFrame.BackgroundTransparency = 1
-    
-    local btnLayout = Instance.new("UIListLayout", btnFrame)
-    btnLayout.FillDirection = Enum.FillDirection.Horizontal
-    btnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    btnLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-    btnLayout.Padding = UDim.new(0, 10)
-    btnLayout.Wraps = true
-    
-    for i = 1, 15 do
-        local btn = Instance.new("Frame", btnFrame)
-        btn.Size = UDim2.fromOffset(30, 30)
-        btn.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
-        btn.BorderSizePixel = 1
-        btn.BorderColor3 = Color3.fromRGB(0, 100, 150)
-        
-        local light = Instance.new("Frame", btn)
-        light.Size = UDim2.new(0.5, 0, 0.5, 0)
-        light.Position = UDim2.new(0.25, 0, 0.25, 0)
-        light.BackgroundColor3 = i % 3 == 0 and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 255, 50)
-        light.BorderSizePixel = 0
+    local buttons = Instance.new("Folder", cockpit)
+    for i = 1, 20 do
+        local xOffset = (i % 5 - 2) * 1.2
+        local zOffset = math.floor(i / 5) * 1.2 - 2
+        local btn = makePart(buttons, "Btn" .. i, Vector3.new(0.4, 0.4, 0.4), i % 3 == 0 and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 255, 50), Enum.Material.Neon, nil, Enum.PartType.Block, 0.5)
     end
     
-    return gui, cc, blur, topBar, botBar
+    local screen = makePart(cockpit, "Screen", Vector3.new(4, 2, 0.1), Color3.fromRGB(0, 50, 80), Enum.Material.Neon)
+    local sGui = Instance.new("SurfaceGui", screen)
+    sGui.Face = Enum.NormalId.Top
+    local sText = Instance.new("TextLabel", sGui)
+    sText.Size = UDim2.fromScale(1, 1)
+    sText.BackgroundTransparency = 1
+    sText.Text = "SYS: ONLINE\nVEL: 0.0\nWARP: READY"
+    sText.TextColor3 = Color3.fromRGB(0, 200, 255)
+    sText.Font = Enum.Font.Code
+    sText.TextSize = 32
+    
+    return {
+        frameL = frameL, frameR = frameR, dash = dash,
+        yoke = yoke, yokeTop = yokeTop, buttons = buttons, screen = screen
+    }
+end
+
+local function updateCockpit(cockpit, camCF)
+    cockpit.frameL.CFrame = camCF * CFrame.new(-6, -1, -3)
+    cockpit.frameR.CFrame = camCF * CFrame.new(6, -1, -3)
+    cockpit.dash.CFrame = camCF * CFrame.new(0, -4, -4.5)
+    cockpit.yoke.CFrame = camCF * CFrame.new(0, -2.8, -4) * CFrame.Angles(math.rad(-15), 0, 0)
+    cockpit.yokeTop.CFrame = cockpit.yoke.CFrame * CFrame.new(0, 1.2, 0)
+    cockpit.screen.CFrame = camCF * CFrame.new(0, -3.5, -3.8) * CFrame.Angles(math.rad(25), 0, 0)
+    
+    for i, btn in ipairs(cockpit.buttons:GetChildren()) do
+        local xOffset = (i % 5 - 2) * 1.2
+        local zOffset = math.floor(i / 5) * 0.9 - 2
+        btn.CFrame = cockpit.dash.CFrame * CFrame.new(xOffset, 2.05, zOffset)
+    end
 end
 
 local function startCinematic()
@@ -212,19 +147,41 @@ local function startCinematic()
     local sceneFolder = Instance.new("Folder", Workspace)
     sceneFolder.Name = "CinematicScene"
     
-    local gui, cc, blur, topBar, botBar = createUI()
+    local cc = Instance.new("ColorCorrectionEffect", Lighting)
+    cc.Contrast = 0.2
+    cc.Saturation = -0.1
+    cc.Brightness = -0.1
+    cc.TintColor = Color3.fromRGB(150, 180, 220)
+    
+    local blur = Instance.new("BlurEffect", Lighting)
+    blur.Size = 0
+    
+    local gui = Instance.new("ScreenGui", player.PlayerGui)
+    gui.Name = "CinematicUI"
+    gui.IgnoreGuiInset = true
+    
+    local topBar = Instance.new("Frame", gui)
+    topBar.Size = UDim2.new(1, 0, 0, 0)
+    topBar.BackgroundColor3 = Color3.new(0,0,0)
+    topBar.ZIndex = 10
+    TweenService:Create(topBar, TweenInfo.new(2), {Size = UDim2.new(1, 0, 0.15, 0)}):Play()
+    
+    local botBar = Instance.new("Frame", gui)
+    botBar.AnchorPoint = Vector2.new(0, 1)
+    botBar.Position = UDim2.new(0, 0, 1, 0)
+    botBar.Size = UDim2.new(1, 0, 0, 0)
+    botBar.BackgroundColor3 = Color3.new(0,0,0)
+    botBar.ZIndex = 10
+    TweenService:Create(botBar, TweenInfo.new(2), {Size = UDim2.new(1, 0, 0.15, 0)}):Play()
+    
     local planets = buildSpace(sceneFolder)
+    local cockpit = createCockpit(sceneFolder)
     
     local wormholeFolder = Instance.new("Folder", sceneFolder)
     local rings = {}
-    for i = 1, 50 do
-        local ring = makePart(wormholeFolder, "Ring", Vector3.new(10, 500, 500), Color3.fromRGB(10, 20, 40), Enum.Material.SmoothPlastic, nil, Enum.PartType.Cylinder, 0.8)
-        ring.CFrame = CFrame.new(sceneOrigin + Vector3.new(0, 0, -20000)) * CFrame.Angles(0, 0, math.rad(90))
-        local light = Instance.new("PointLight", ring)
-        light.Color = Color3.fromRGB(50, 100, 255)
-        light.Brightness = 0.5
-        light.Range = 1000
-        table.insert(rings, {part = ring, dist = i * 100})
+    for i = 1, 40 do
+        local ring = makePart(wormholeFolder, "Ring", Vector3.new(5, 200, 200), Color3.fromRGB(50, 100, 255), Enum.Material.Neon, nil, Enum.PartType.Cylinder, 0.6)
+        table.insert(rings, {part = ring, dist = i * 200})
     end
     
     local startTime = tick()
@@ -235,63 +192,61 @@ local function startCinematic()
         if not isPlaying then return end
         
         local t = tick() - startTime
-        flightT = flightT + dt * 150
+        flightT = flightT + dt * 100
+        
+        local camPos = sceneOrigin + Vector3.new(0, 0, 0)
+        local lookAt = sceneOrigin + Vector3.new(0, 0, -30000)
         
         if t < 6 then
-            cc.Brightness = -0.1
-            cc.Contrast = 0.4
-            cc.TintColor = Color3.fromRGB(100, 120, 150)
-            blur.Size = 0
-            
-            local camPos = sceneOrigin + Vector3.new(0, 0, 5000 - (t * 500))
-            local lookAt = sceneOrigin + Vector3.new(0, 0, -20000)
+            camPos = sceneOrigin + Vector3.new(0, 0, 1000 - t * 100)
             camera.CFrame = CFrame.lookAt(camPos, lookAt)
-            camera.FieldOfView = 60
+            camera.FieldOfView = 70
             
             for i, r in ipairs(rings) do
-                local ringZ = r.dist - flightT
-                r.part.CFrame = CFrame.new(sceneOrigin + Vector3.new(0, 0, -20000 + ringZ)) * CFrame.Angles(0, 0, math.rad(90))
-                r.part.Transparency = math.clamp(0.5 + (i/100), 0, 0.9)
+                local z = -3000 - r.dist + (flightT * 0.5)
+                r.part.CFrame = CFrame.new(sceneOrigin + Vector3.new(0, 0, z)) * CFrame.Angles(0, 0, math.rad(90))
+                local scale = 1 + (i / 10)
+                r.part.Size = Vector3.new(5, 200 * scale, 200 * scale)
+                r.part.Transparency = math.clamp(0.2 + (i / 40), 0, 0.9)
             end
-            
-            if t > 3 then
-                local pulse = math.sin((t - 3) * 10) * 0.5 + 0.5
-                cc.Contrast = 0.4 + pulse * 0.2
-            end
+            updateCockpit(cockpit, camera.CFrame)
             
         elseif t >= 6 and t < 8 then
             local warp = (t - 6) / 2
+            camera.CFrame = CFrame.lookAt(sceneOrigin + Vector3.new(0, 0, 1000 + warp * 2000), lookAt)
+            camera.FieldOfView = 70 + warp * 50
             blur.Size = warp * 20
-            cc.Contrast = 0.6 + warp
             cc.TintColor = Color3.fromRGB(200, 220, 255)
-            camera.FieldOfView = 60 + warp * 40
-            camera.CFrame = CFrame.lookAt(sceneOrigin + Vector3.new(0,0, -flightT), sceneOrigin + Vector3.new(0,0,-20000))
+            
+            for i, r in ipairs(rings) do
+                r.part.Transparency = math.clamp(r.part.Transparency + warp * 0.5, 0, 1)
+            end
+            updateCockpit(cockpit, camera.CFrame)
             
         else
             blur.Size = 0
-            cc.Contrast = 0.2
-            cc.TintColor = Color3.fromRGB(150, 170, 200)
+            cc.TintColor = Color3.fromRGB(150, 180, 220)
             
             local cruiseTime = t - 8
-            local totalCruise = 22
+            local totalCruise = 24
             local progress = math.min(cruiseTime / totalCruise, 1)
             
-            local targetPlanet = planets[3]
-            local startPos = sceneOrigin + Vector3.new(0, 0, 0)
-            local endPos = targetPlanet.pos + Vector3.new(targetPlanet.size * 1.5, targetPlanet.size * 0.5, targetPlanet.size * 1.5)
+            local pathStart = sceneOrigin
+            local targetPlanet = planets[1]
+            local pathEnd = targetPlanet.pos
             
-            local currentPos = startPos:Lerp(endPos, progress)
-            local lookTarget = currentPos + Vector3.new(0, 0, -500)
+            local currentPos = pathStart:Lerp(pathEnd, progress)
+            local currentLook = currentPos + Vector3.new(0, 0, -5000)
             
             if progress > 0.1 and progress < 0.9 then
                 local idx = math.floor(progress * #planets) + 1
                 if idx > #planets then idx = #planets end
-                lookTarget = planets[idx].pos
+                currentLook = planets[idx].pos
             elseif progress >= 0.9 then
-                lookTarget = targetPlanet.pos
+                currentLook = targetPlanet.pos
             end
             
-            local camCF = CFrame.lookAt(currentPos, lookTarget)
+            local camCF = CFrame.lookAt(currentPos, currentLook)
             local shake = 0.1 + math.sin(cruiseTime * 5) * 0.05
             if progress > 0.9 then shake = 1 end
             
@@ -299,17 +254,18 @@ local function startCinematic()
             camera.CFrame = camCF
             
             if progress > 0.9 then
-                camera.FieldOfView = 70 + (progress - 0.9) * 200
+                camera.FieldOfView = 70 + (progress - 0.9) * 150
                 blur.Size = (progress - 0.9) * 40
-                cc.Contrast = (progress - 0.9) * 4
+                cc.Contrast = (progress - 0.9) * 3
             else
-                camera.FieldOfView = 60 + math.sin(cruiseTime * 1.5) * 5
+                camera.FieldOfView = 70 + math.sin(cruiseTime * 2) * 10
             end
+            
+            updateCockpit(cockpit, camera.CFrame)
             
             if progress >= 1 then
                 cc.Saturation = -1
                 cc.Contrast = 1
-                cc.Brightness = -0.2
                 blur.Size = 20
                 topBar.Size = UDim2.new(1, 0, 0, 0)
                 botBar.Size = UDim2.new(1, 0, 0, 0)
@@ -331,7 +287,7 @@ local function startCinematic()
     end)
 end
 
-CgSection:Button({Title="启动星际巡航", Callback=function()
+CgSection:Button({Title="启动光速巡航", Callback=function()
     if not isPlaying then
         startCinematic()
     end
