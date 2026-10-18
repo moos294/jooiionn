@@ -10,7 +10,7 @@ local camera=Workspace.CurrentCamera
 
 for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI" then v:Destroy()end end
 for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI" then v:Destroy()end end
-for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="WormholeFX" or v.Name=="CineShip" or v.Name=="SpeedLines" then v:Destroy()end end
+for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="WormholeFX" or v.Name=="CineShip" or v.Name=="SpeedLines" or v.Name=="SpaceStage" then v:Destroy()end end
 for _,v in pairs(Lighting:GetChildren())do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect") then v:Destroy()end end
 
 local gui = Instance.new("ScreenGui")
@@ -28,18 +28,21 @@ mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
 local stroke = Instance.new("UIStroke", mainFrame)
 stroke.Color = Color3.fromRGB(0, 200, 255)
 stroke.Thickness = 1.5
+
 local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V6.0"
+title.Text = "封存娱乐 V8.0 原版宇宙"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
 title.Active = false
+
 local minimizeBtn = Instance.new("TextButton", mainFrame)
 minimizeBtn.Size = UDim2.fromOffset(30, 30)
 minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
@@ -49,6 +52,7 @@ minimizeBtn.TextColor3 = Color3.fromRGB(0, 200, 255)
 minimizeBtn.TextSize = 30
 minimizeBtn.Font = Enum.Font.GothamBold
 minimizeBtn.AutoButtonColor = false
+
 local startBtn = Instance.new("TextButton", mainFrame)
 startBtn.Size = UDim2.new(0.8, 0, 0, 40)
 startBtn.Position = UDim2.new(0.1, 0, 0, 60)
@@ -92,7 +96,11 @@ minimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 local isPlaying = false
-local SPACE_ORIGIN = Vector3.new(0, 50000, 0)
+local SPACE_ORIGIN = Vector3.new(0, 300000, 0)
+local EARTH_RADIUS = 80
+local GALAXY_RADIUS = 34000
+local SUN_RADIUS = 1400
+local EARTH_ORBIT_RADIUS = 3600
 
 local function new(class, props, parent)
     local inst = Instance.new(class)
@@ -105,8 +113,35 @@ local function vpart(props, parent)
     for k, v in pairs(props) do p[k] = v end
     return p
 end
+local function bigSphere(parent, pos, diameter, color, material, transparency)
+    local p
+    if diameter <= 2048 then
+        p = vpart({ Shape = Enum.PartType.Ball, Size = Vector3.one * diameter, Position = pos, Color = color, Material = material, Transparency = transparency }, parent)
+    else
+        p = vpart({ Size = Vector3.one * 2048, Position = pos, Color = color, Material = material, Transparency = transparency }, parent)
+        new("SpecialMesh", { MeshType = Enum.MeshType.Sphere, Scale = Vector3.one * (diameter / 2048) }, p)
+    end
+    return p
+end
+local function texturedSphere(parent, pos, diameter, textureId, color, material, transparency, name)
+    if not textureId then return nil end
+    local baseDiameter = math.min(diameter, 2048)
+    local p = vpart({ Name = name or "TexturedCelestialBody", Size = Vector3.one * baseDiameter, Position = pos, Color = color or Color3.new(1, 1, 1), Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0 }, parent)
+    local ok = pcall(function() new("SpecialMesh", { MeshType = Enum.MeshType.Sphere, Scale = Vector3.one * (diameter / baseDiameter), TextureId = textureId }, p) end)
+    if not ok then p:Destroy() return nil end
+    return p
+end
+local function gauss() return math.random() + math.random() + math.random() - 1.5 end
+local function randDir() local z = math.random() * 2 - 1 local a = math.random() * math.pi * 2 local r = math.sqrt(1 - z * z) return Vector3.new(r * math.cos(a), z, r * math.sin(a)) end
+
+local TEXTURES = {
+    earth = "rbxassetid://218579141", moon = "rbxassetid://159128304", mercury = "rbxassetid://6218473454", venus = "rbxassetid://6218473772",
+    sun = "rbxassetid://6218473826", mars = "rbxassetid://6218473454", jupiter = "rbxassetid://6218473826", saturn = "rbxassetid://6218473826",
+    uranus = "rbxassetid://6218473866", neptune = "rbxassetid://6218473866"
+}
+
 local function buildHighPrecisionShip(parent, cf)
-    local SCALE = 15
+    local SCALE = 20
     local model = new("Model", { Name = "CineShip" }, parent)
     model.WorldPivot = cf
     local HULL = Color3.fromRGB(40, 45, 55)
@@ -125,7 +160,7 @@ local function buildHighPrecisionShip(parent, cf)
     box("WingR", 5, 0, 2, 8, 0.3, 5, HULL, Enum.Material.Metal, math.rad(15))
     box("Door", 0, -2, -3, 2, 2.5, 0.2, Color3.fromRGB(60, 70, 80), Enum.Material.Metal)
     box("Ladder", 0, -4, -3.5, 1.5, 5, 0.2, METAL, Enum.Material.Metal, math.rad(20))
-    local thr = vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5*SCALE, 1.5*SCALE, 1.5*SCALE), CFrame = cf * CFrame.new(0,0,6.5*SCALE) * CFrame.Angles(0,math.rad(90),0), Color = RED, Material = Enum.Material.Neon }, model)
+    local thr = vpart({ Name = "Thruster", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5*SCALE, 1.5*SCALE, 1.5*SCALE), CFrame = cf * CFrame.new(0,0,6.5*SCALE) * CFrame.Angles(0,math.rad(90),0), Color = RED, Material = Enum.Material.Neon }, model)
     new("PointLight", { Color = RED, Range = 40, Brightness = 3 }, thr)
     return model
 end
@@ -146,12 +181,12 @@ local function startCinematic()
     local oldBrightness = Lighting.Brightness
     local oldAmbient = Lighting.Ambient
     local oldOutdoor = Lighting.OutdoorAmbient
-    Lighting.Brightness = 1.5
-    Lighting.Ambient = Color3.fromRGB(60, 60, 70)
-    Lighting.OutdoorAmbient = Color3.fromRGB(70, 70, 80)
+    Lighting.Brightness = 1
+    Lighting.Ambient = Color3.fromRGB(30, 40, 50)
+    Lighting.OutdoorAmbient = Color3.fromRGB(40, 50, 60)
     Lighting.ClockTime = 0
     
-    local cc = new("ColorCorrectionEffect", { Contrast = 0.1, Saturation = -0.1, Brightness = 0, TintColor = Color3.fromRGB(200,220,255) }, Lighting)
+    local cc = new("ColorCorrectionEffect", { Contrast = 0.1, Saturation = -0.1, Brightness = 0 }, Lighting)
     local blur = new("BlurEffect", { Size = 0 }, Lighting)
     
     local subGui = new("ScreenGui", { Name = "SubtitleUI", IgnoreGuiInset = true, DisplayOrder = 1000 }, player.PlayerGui)
@@ -159,13 +194,15 @@ local function startCinematic()
     
     local loadingGui = new("ScreenGui", { Name = "LoadingUI", IgnoreGuiInset = true, DisplayOrder = 1000 }, player.PlayerGui)
     new("Frame", { Size = UDim2.fromScale(1,1), BackgroundColor3 = Color3.fromRGB(10,10,12), BorderSizePixel = 0 }, loadingGui)
-    local loadTxt = new("TextLabel", { Size = UDim2.fromScale(1,0.4), Position = UDim2.fromScale(0,0.2), BackgroundTransparency = 1, Text = "正在装载全星系环境 0%", TextColor3 = Color3.fromRGB(0,200,255), Font = Enum.Font.GothamBold, TextSize = 28 }, loadingGui)
+    local loadTxt = new("TextLabel", { Size = UDim2.fromScale(1,0.4), Position = UDim2.fromScale(0,0.2), BackgroundTransparency = 1, Text = "加载原版宇宙模型中 0%", TextColor3 = Color3.fromRGB(0,200,255), Font = Enum.Font.GothamBold, TextSize = 28 }, loadingGui)
     local barBg = new("Frame", { Size = UDim2.fromOffset(300,10), Position = UDim2.fromScale(0.5,0.5), AnchorPoint = Vector2.new(0.5,0.5), BackgroundColor3 = Color3.fromRGB(30,30,35), BorderSizePixel = 0 }, loadingGui)
     new("UICorner", { CornerRadius = UDim.new(1,0) }, barBg)
     local barFill = new("Frame", { Size = UDim2.fromScale(0,1), BackgroundColor3 = Color3.fromRGB(0,200,255), BorderSizePixel = 0 }, barBg)
     new("UICorner", { CornerRadius = UDim.new(1,0) }, barFill)
 
     local sceneFolder = new("Folder", { Name = "CinematicScene" }, Workspace)
+    local stageFolder = new("Folder", { Name = "SpaceStage" }, sceneFolder)
+    
     local startCF = CFrame.new(SPACE_ORIGIN + Vector3.new(200, 100, 0))
     local landCF = CFrame.new(SPACE_ORIGIN + Vector3.new(0, 15, 0))
     
@@ -174,34 +211,37 @@ local function startCinematic()
     table.insert(buildQueue, function() shipModel = buildHighPrecisionShip(sceneFolder, startCF) end)
     
     local planets = {}
+    local GC = SPACE_ORIGIN
+    local EC = GC + Vector3.new(5000, 0, 5000)
+    
     local pDefs = {
-        {name="Sun", pos=SPACE_ORIGIN+Vector3.new(0,0,-5000), size=800, col=Color3.fromRGB(255,200,100)},
-        {name="Mercury", pos=SPACE_ORIGIN+Vector3.new(1000,200,-10000), size=100, col=Color3.fromRGB(120,120,120)},
-        {name="Venus", pos=SPACE_ORIGIN+Vector3.new(-1500,-300,-15000), size=200, col=Color3.fromRGB(220,180,120)},
-        {name="Earth", pos=SPACE_ORIGIN+Vector3.new(2000,500,-20000), size=250, col=Color3.fromRGB(20,60,150)},
-        {name="Mars", pos=SPACE_ORIGIN+Vector3.new(-2500,-800,-25000), size=150, col=Color3.fromRGB(150,50,40)},
-        {name="Jupiter", pos=SPACE_ORIGIN+Vector3.new(3000,1000,-30000), size=500, col=Color3.fromRGB(200,170,140)},
-        {name="Saturn", pos=SPACE_ORIGIN+Vector3.new(-3500,-1200,-35000), size=400, col=Color3.fromRGB(220,200,160)},
-        {name="Uranus", pos=SPACE_ORIGIN+Vector3.new(4000,1500,-40000), size=300, col=Color3.fromRGB(100,200,220)},
-        {name="Neptune", pos=SPACE_ORIGIN+Vector3.new(-4500,-1800,-45000), size=280, col=Color3.fromRGB(50,100,230)}
+        {name="Sun", pos=GC, size=SUN_RADIUS*2, tex=TEXTURES.sun},
+        {name="Mercury", pos=GC+Vector3.new(6000, 1000, 2000), size=100, tex=TEXTURES.mercury},
+        {name="Venus", pos=GC+Vector3.new(10000, -2000, 8000), size=200, tex=TEXTURES.venus},
+        {name="Earth", pos=EC, size=EARTH_RADIUS*2, tex=TEXTURES.earth},
+        {name="Mars", pos=GC+Vector3.new(20000, -4000, 18000), size=150, tex=TEXTURES.mars},
+        {name="Jupiter", pos=GC+Vector3.new(30000, 5000, 25000), size=500, tex=TEXTURES.jupiter},
+        {name="Saturn", pos=GC+Vector3.new(45000, -6000, 35000), size=400, tex=TEXTURES.saturn},
+        {name="Uranus", pos=GC+Vector3.new(60000, 7000, 45000), size=300, tex=TEXTURES.uranus},
+        {name="Neptune", pos=GC+Vector3.new(80000, -8000, 60000), size=280, tex=TEXTURES.neptune}
     }
     
     for _, def in ipairs(pDefs) do
         table.insert(buildQueue, function()
-            local p = vpart({ Name = def.name, Shape = Enum.PartType.Ball, Size = Vector3.new(def.size, def.size, def.size), Position = def.pos, Color = def.col, Material = def.name=="Sun" and Enum.Material.Neon or Enum.Material.SmoothPlastic }, sceneFolder)
+            local p = texturedSphere(stageFolder, def.pos, def.size, def.tex, Color3.new(1,1,1), Enum.Material.SmoothPlastic, 0, def.name)
             planets[def.name] = p
             if def.name == "Saturn" then
-                for i=1, 2 do
-                    vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(def.size*(2+i*0.2), 10, def.size*(2+i*0.2)), CFrame = CFrame.new(def.pos) * CFrame.Angles(math.rad(20),0,math.rad(10)) * CFrame.Angles(0,0,math.rad(90)), Color = Color3.fromRGB(180,160,130), Material = Enum.Material.Slate }, sceneFolder)
+                for i = 1, 3 do
+                    vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(def.size*(2+i*0.3), 15, def.size*(2+i*0.3)), CFrame = CFrame.new(def.pos) * CFrame.Angles(math.rad(25),0,math.rad(10)) * CFrame.Angles(0,0,math.rad(90)), Color = Color3.fromRGB(150-i*10,130-i*10,100-i*10), Material = Enum.Material.Slate, Transparency = 0.2 + i*0.1 }, stageFolder)
                 end
             end
         end)
     end
 
     table.insert(buildQueue, function()
-        local stars = new("Folder", { Name = "Stars" }, sceneFolder)
-        for i=1, 100 do
-            vpart({ Shape = Enum.PartType.Ball, Size = Vector3.new(15,15,15), Position = SPACE_ORIGIN + Vector3.new(math.random(-10000,10000), math.random(-10000,10000), math.random(-50000, 0)), Color = Color3.new(1,1,1), Material = Enum.Material.Neon, Transparency = math.random(0.2, 0.8) }, stars)
+        local stars = new("Folder", { Name = "Stars" }, stageFolder)
+        for i = 1, 200 do
+            vpart({ Shape = Enum.PartType.Ball, Size = Vector3.new(20,20,20), Position = GC + randDir() * math.random(10000, 100000), Color = Color3.new(1,1,1), Material = Enum.Material.Neon, Transparency = math.random(0.2, 0.8) }, stars)
         end
     end)
 
@@ -217,7 +257,7 @@ local function startCinematic()
             pcall(taskFunc)
             completedTasks = completedTasks + 1
             barFill.Size = UDim2.fromScale(completedTasks / totalTasks, 1)
-            loadTxt.Text = "正在装载全星系环境 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
+            loadTxt.Text = "加载原版宇宙模型中 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
         else
             isBuilding = false
             buildConn:Disconnect()
@@ -227,7 +267,7 @@ local function startCinematic()
             
             camera.CameraType = Enum.CameraType.Scriptable
             camera.FieldOfView = 90
-            camera.CFrame = CFrame.lookAt(landCF.Position + Vector3.new(60, 30, 60), landCF.Position)
+            camera.CFrame = CFrame.lookAt(landCF.Position + Vector3.new(200, 80, 200), landCF.Position)
             
             task.spawn(function()
                 task.wait(1)
@@ -246,9 +286,9 @@ local function startCinematic()
                 task.wait(1.5)
                 
                 subText.Text = "正在登机..."
-                TweenService:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = landCF * CFrame.new(0, -4, -4)}):Play()
+                TweenService:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = landCF * CFrame.new(0, -4, -6)}):Play()
                 task.wait(2)
-                TweenService:Create(hrp, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {CFrame = landCF * CFrame.new(0, 0, -2)}):Play()
+                TweenService:Create(hrp, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {CFrame = landCF * CFrame.new(0, 0, -3)}):Play()
                 task.wait(1.5)
                 
                 hrp.Transparency = 1
@@ -258,27 +298,26 @@ local function startCinematic()
                 TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
                 task.wait(1)
                 
-                camera.CFrame = landCF * CFrame.new(0, 5, -15)
+                camera.CFrame = landCF * CFrame.new(0, 10, -30)
                 subText.Text = "正在制造虫洞，请稍等..."; TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
                 
-                local wormholePos = landCF.Position + landCF.LookVector * 150
+                local wormholePos = landCF.Position + landCF.LookVector * 200
                 local wormholeFolder = new("Folder", { Name = "WormholeFX" }, Workspace)
                 
-                local voidSphere = vpart({ Shape = Enum.PartType.Ball, Size = Vector3.new(1,1,1), Color = Color3.new(0,0,0), Material = Enum.Material.SmoothPlastic, CFrame = CFrame.new(wormholePos) }, wormholeFolder)
-                local blueRings = {}
-                for i=1, 10 do
-                    local ring = vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 5, 5), Color = Color3.fromRGB(50, 150, 255), Material = Enum.Material.Neon, CFrame = CFrame.new(wormholePos) * CFrame.Angles(math.rad(90), 0, 0), Transparency = 0.3 }, wormholeFolder)
-                    table.insert(blueRings, ring)
+                local voidPart = vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 0.1, 0.1), Color = Color3.new(0,0,0), Material = Enum.Material.SmoothPlastic, CFrame = CFrame.new(wormholePos) * CFrame.Angles(0, math.rad(90), 0) }, wormholeFolder)
+                local greenSwirls = {}
+                for i=1, 20 do
+                    local swirl = vpart({ Size = Vector3.new(0.5, 0.5, 10), Color = Color3.fromRGB(0,255,100), Material = Enum.Material.Neon, CFrame = CFrame.new(wormholePos) * CFrame.Angles(math.rad(math.random(0,360)), math.rad(math.random(0,360)), 0) }, wormholeFolder)
+                    table.insert(greenSwirls, swirl)
                 end
                 
-                TweenService:Create(voidSphere, TweenInfo.new(4, Enum.EasingStyle.Quad), {Size = Vector3.new(80, 80, 80)}):Play()
-                for i, r in ipairs(blueRings) do
-                    TweenService:Create(r, TweenInfo.new(4, Enum.EasingStyle.Quad), {Size = Vector3.new(1, 10 + i*10, 10 + i*10)}):Play()
+                TweenService:Create(voidPart, TweenInfo.new(4, Enum.EasingStyle.Quad), {Size = Vector3.new(1, 250, 250)}):Play()
+                for _, s in ipairs(greenSwirls) do
+                    TweenService:Create(s, TweenInfo.new(4, Enum.EasingStyle.Quad), {Size = Vector3.new(2, 2, 150)}):Play()
                 end
                 
                 task.wait(4)
                 TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-                TweenService:Create(blur, TweenInfo.new(1), {Size = 20}):Play()
                 
                 for _, p in pairs(shipModel:GetChildren()) do
                     if p:IsA("BasePart") then
@@ -290,63 +329,49 @@ local function startCinematic()
                 for _, p in pairs(shipModel:GetChildren()) do p.Transparency = 1 end
                 wormholeFolder:Destroy()
                 
-                task.wait(0.5); blur.Size = 0
-                
-                local tunnelGui = new("ScreenGui", { IgnoreGuiInset = true, DisplayOrder = 999 }, player.PlayerGui)
-                local tunnelBg = new("Frame", { Size = UDim2.fromScale(1,1), BackgroundColor3 = Color3.fromRGB(5, 10, 20) }, tunnelGui)
-                local hexGrid = new("ImageLabel", { Size = UDim2.fromScale(1,1), BackgroundTransparency = 1, Image = "rbxassetid://8305647025", ImageTransparency = 0.5 }, tunnelBg)
-                local tunnelCenter = new("Frame", { AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.fromScale(0.5,0.5), Size = UDim2.fromOffset(50, 50), BackgroundColor3 = Color3.new(0,0,0) }, tunnelBg)
-                new("UICorner", { CornerRadius = UDim.new(1,0) }, tunnelCenter)
-                
-                local lines = {}
-                for i=1, 100 do
-                    local line = new("Frame", { AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.fromScale(0.5,0.5), Size = UDim2.fromOffset(2, math.random(50, 200)), BackgroundColor3 = i%3==0 and Color3.fromRGB(255, 200, 50) or Color3.fromRGB(100, 200, 255), Rotation = math.random(0,360) }, tunnelBg)
-                    table.insert(lines, line)
+                local speedGui = new("ScreenGui", { Name = "SpeedUI", IgnoreGuiInset = true, DisplayOrder = 999 }, player.PlayerGui)
+                local speedLines = {}
+                for i = 1, 300 do
+                    local line = new("Frame", { AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.fromScale(0.5,0.5), Size = UDim2.fromOffset(math.random(2,5), 0), BackgroundColor3 = Color3.new(1,1,1), Rotation = math.random(0,360) }, speedGui)
+                    table.insert(speedLines, line)
                 end
                 
-                local travelConn
-                travelConn = RunService.RenderStepped:Connect(function(dt)
-                    if not isPlaying then return end
-                    for i, line in ipairs(lines) do
-                        line.Position = line.Position + UDim2.fromOffset(0, 10)
-                        if line.Position.Y.Scale > 1 then
-                            line.Position = UDim2.fromScale(0.5, 0)
-                            line.Rotation = math.random(0,360)
+                task.spawn(function()
+                    local t0 = tick()
+                    while isPlaying and tick() - t0 < 5 do
+                        for _, line in ipairs(speedLines) do
+                            local length = line.AbsoluteSize.Y + 100
+                            line.Size = UDim2.fromOffset(line.Size.X.Offset, length)
+                            line.Position = UDim2.new(0.5, math.cos(math.rad(line.Rotation)) * length/2, 0.5, math.sin(math.rad(line.Rotation)) * length/2)
                         end
+                        task.wait()
                     end
-                    local size = tunnelCenter.AbsoluteSize.X + dt * 500
-                    tunnelCenter.Size = UDim2.fromOffset(size, size)
                 end)
                 
-                task.wait(4)
-                if travelConn then travelConn:Disconnect() end
-                tunnelGui:Destroy()
+                task.wait(5)
+                speedGui:Destroy()
                 
-                task.wait(0.5)
-                TweenService:Create(blur, TweenInfo.new(1), {Size = 20}):Play()
-                task.wait(1)
-                
+                camera.FieldOfView = 90
                 local planetsOrder = {"Sun", "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"}
                 for _, pName in ipairs(planetsOrder) do
                     local targetP = planets[pName]
-                    local lookAt = CFrame.lookAt(targetP.Position + Vector3.new(0, 100, 500), targetP.Position)
+                    local lookAt = CFrame.lookAt(targetP.Position + Vector3.new(0, 200, 800), targetP.Position)
                     TweenService:Create(camera, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {CFrame = lookAt}):Play()
                     task.wait(1.5)
                 end
                 
                 local earthObj = planets["Earth"]
-                local landPos2 = earthObj.Position + Vector3.new(0, earthObj.Size.Y/2 + 20, 0)
-                local platform = vpart({ Size = Vector3.new(400, 2, 400), Color = Color3.fromRGB(40, 80, 40), Material = Enum.Material.Grass, CFrame = CFrame.new(landPos2) }, sceneFolder)
+                local landPos2 = earthObj.Position + Vector3.new(0, earthObj.Size.Y/2 + 10, 0)
+                local platform = vpart({ Size = Vector3.new(400, 2, 400), Color = Color3.fromRGB(30, 100, 30), Material = Enum.Material.Grass, CFrame = CFrame.new(landPos2) }, sceneFolder)
                 local shipLandCF2 = CFrame.new(landPos2 + Vector3.new(0, 5, 0)) * CFrame.Angles(0, math.rad(math.random(0,360)), 0)
                 
-                camera.CFrame = shipLandCF2 * CFrame.new(50, 20, 50) * CFrame.Angles(0, math.rad(45), 0)
-                TweenService:Create(blur, TweenInfo.new(1), {Size = 0}):Play()
+                camera.CFrame = shipLandCF2 * CFrame.new(100, 50, 100) * CFrame.Angles(0, math.rad(45), 0)
                 
                 for _, p in pairs(shipModel:GetChildren()) do
                     if p:IsA("BasePart") then
                         p.Transparency = 0
-                        p.CFrame = shipLandCF2 * (p.CFrame - wormholePos) + Vector3.new(0, 80, 0)
-                        TweenService:Create(p, TweenInfo.new(3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = p.CFrame - Vector3.new(0, 80, 0)}):Play()
+                        p.CFrame = shipLandCF2 * (p.CFrame - wormholePos) + Vector3.new(0, 100, 0)
+                        TweenService:Create(p, TweenInfo.new(3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = p.CFrame - Vector3.new(0, 100, 0)}):Play()
                     end
                 end
                 task.wait(3)
