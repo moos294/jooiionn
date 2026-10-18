@@ -37,7 +37,7 @@ local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V3.5"
+title.Text = "封存娱乐 V3.6"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 20
@@ -80,6 +80,7 @@ end
 
 mainFrame.InputBegan:Connect(updateDrag)
 minimizeBtn.InputBegan:Connect(updateDrag)
+startBtn.InputBegan:Connect(updateDrag)
 
 mainFrame.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
@@ -114,8 +115,11 @@ minimizeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-local isPlaying=false
-local sceneOrigin=Vector3.new(0,5000,0)
+local isPlaying = false
+local sceneOrigin = Vector3.new(0, 5000, 0)
+
+local buildQueue = {}
+local isBuilding = false
 
 local function makePart(parent,name,size,color,mat,cf,shape,trans)
     local p=Instance.new("Part")
@@ -129,263 +133,277 @@ end
 
 local function startCinematic()
     if isPlaying then return end
-    isPlaying=true
+    isPlaying = true
     mainFrame.Visible = false
     
-    local char=player.Character
-    local hrp=char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.Anchored=true end
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then hrp.Anchored = true end
     
-    local origCamType=camera.CameraType
-    local origFOV=camera.FieldOfView
+    local origCamType = camera.CameraType
+    local origFOV = camera.FieldOfView
     
-    local cc=Instance.new("ColorCorrectionEffect",Lighting)
-    cc.Contrast=0.2;cc.Saturation=-0.1;cc.Brightness=-0.1
+    local cc = Instance.new("ColorCorrectionEffect", Lighting)
+    cc.Contrast = 0.2; cc.Saturation = -0.1; cc.Brightness = -0.1
     
-    local blur=Instance.new("BlurEffect",Lighting)
-    blur.Size=0
+    local blur = Instance.new("BlurEffect", Lighting)
+    blur.Size = 0
     
-    local loadingGui=Instance.new("ScreenGui",player.PlayerGui)
-    loadingGui.Name="LoadingUI";loadingGui.IgnoreGuiInset=true;loadingGui.DisplayOrder=1000
+    local loadingGui = Instance.new("ScreenGui", player.PlayerGui)
+    loadingGui.Name = "LoadingUI"; loadingGui.IgnoreGuiInset = true; loadingGui.DisplayOrder = 1000
     
-    local whiteBg=Instance.new("Frame",loadingGui)
-    whiteBg.Size=UDim2.fromScale(1,1);whiteBg.BackgroundColor3=Color3.fromRGB(10,10,12);whiteBg.BorderSizePixel=0
+    local whiteBg = Instance.new("Frame", loadingGui)
+    whiteBg.Size = UDim2.fromScale(1,1); whiteBg.BackgroundColor3 = Color3.fromRGB(10,10,12); whiteBg.BorderSizePixel = 0
     
-    local loadText=Instance.new("TextLabel",loadingGui)
-    loadText.Size=UDim2.fromScale(1,0.4);loadText.Position=UDim2.fromScale(0,0.2);loadText.BackgroundTransparency=1
-    loadText.Text="正在建立通讯链接...";loadText.TextColor3=Color3.fromRGB(0,200,255);loadText.Font=Enum.Font.GothamBold;loadText.TextSize=28
+    local loadText = Instance.new("TextLabel", loadingGui)
+    loadText.Size = UDim2.fromScale(1,0.4); loadText.Position = UDim2.fromScale(0,0.2); loadText.BackgroundTransparency = 1
+    loadText.Text = "系统准备就绪..."; loadText.TextColor3 = Color3.fromRGB(0,200,255); loadText.Font = Enum.Font.GothamBold; loadText.TextSize = 28
     
-    local barBg=Instance.new("Frame",loadingGui)
-    barBg.Size=UDim2.fromOffset(300,10);barBg.Position=UDim2.fromScale(0.5,0.5);barBg.AnchorPoint=Vector2.new(0.5,0.5)
-    barBg.BackgroundColor3=Color3.fromRGB(30,30,35);barBg.BorderSizePixel=0
-    Instance.new("UICorner",barBg).CornerRadius=UDim.new(1,0)
+    local barBg = Instance.new("Frame", loadingGui)
+    barBg.Size = UDim2.fromOffset(300,10); barBg.Position = UDim2.fromScale(0.5,0.5); barBg.AnchorPoint = Vector2.new(0.5,0.5)
+    barBg.BackgroundColor3 = Color3.fromRGB(30,30,35); barBg.BorderSizePixel = 0
+    Instance.new("UICorner", barBg).CornerRadius = UDim.new(1,0)
     
-    local barFill=Instance.new("Frame",barBg)
-    barFill.Size=UDim2.fromScale(0,1);barFill.BackgroundColor3=Color3.fromRGB(0,200,255);barFill.BorderSizePixel=0
-    Instance.new("UICorner",barFill).CornerRadius=UDim.new(1,0)
+    local barFill = Instance.new("Frame", barBg)
+    barFill.Size = UDim2.fromScale(0,1); barFill.BackgroundColor3 = Color3.fromRGB(0,200,255); barFill.BorderSizePixel = 0
+    Instance.new("UICorner", barFill).CornerRadius = UDim.new(1,0)
     
-    task.spawn(function()
-        local successLoad, errLoad = pcall(function()
-            local pFolder=Instance.new("Folder",Workspace)
-            pFolder.Name="PrecisionCockpit"
+    local pFolder = Instance.new("Folder", Workspace)
+    pFolder.Name = "PrecisionCockpit"
+    
+    local sceneFolder = Instance.new("Folder", Workspace)
+    sceneFolder.Name = "CinematicScene"
+    
+    local wormhole = Instance.new("Folder", Workspace)
+    wormhole.Name = "WormholeFX"
+    
+    local baseCF = CFrame.new(sceneOrigin + Vector3.new(0, -5, 0))
+    local planets = {}
+    
+    table.clear(buildQueue)
+    
+    table.insert(buildQueue, function()
+        makePart(pFolder,"Dash",Vector3.new(24,6,10),Color3.fromRGB(10,12,15),Enum.Material.Metal, baseCF * CFrame.new(0, -5, -8) * CFrame.Angles(math.rad(15), 0, 0))
+    end)
+    table.insert(buildQueue, function()
+        local dash = pFolder:FindFirstChild("Dash")
+        makePart(pFolder,"DashTop",Vector3.new(22,1,8),Color3.fromRGB(15,18,22), Enum.Material.SmoothPlastic, dash.CFrame * CFrame.new(0, 3.5, 0))
+    end)
+    table.insert(buildQueue, function()
+        local dash = pFolder:FindFirstChild("Dash")
+        makePart(pFolder,"Yoke",Vector3.new(1,4,1),Color3.fromRGB(20,20,20),Enum.Material.Metal, dash.CFrame * CFrame.new(0, 2, -3) * CFrame.Angles(math.rad(15), 0, 0))
+    end)
+    table.insert(buildQueue, function()
+        local yoke = pFolder:FindFirstChild("Yoke")
+        makePart(pFolder,"YokeTop",Vector3.new(4,0.8,1.5),Color3.fromRGB(25,25,25),Enum.Material.Metal, yoke.CFrame * CFrame.new(0, 2, 0))
+    end)
+    table.insert(buildQueue, function()
+        makePart(pFolder,"GL",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(-5, -1, -8) * CFrame.Angles(0, math.rad(15), 0), nil, 0.9)
+    end)
+    table.insert(buildQueue, function()
+        makePart(pFolder,"GR",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(5, -1, -8) * CFrame.Angles(0, math.rad(-15), 0), nil, 0.9)
+    end)
+    
+    table.insert(buildQueue, function()
+        local earth = makePart(sceneFolder,"Earth",Vector3.new(1000,1000,1000),Color3.fromRGB(20,60,150),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(6000,0,-12000)),Enum.PartType.Ball)
+        makePart(sceneFolder,"EAtmo",Vector3.new(1030,1030,1030),Color3.fromRGB(50,150,255),Enum.Material.ForceField,earth.CFrame,Enum.PartType.Ball,0.4)
+        planets.earth = earth
+    end)
+    
+    table.insert(buildQueue, function()
+        local jupiter = makePart(sceneFolder,"Jupiter",Vector3.new(2400,2400,2400),Color3.fromRGB(200,170,140),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(-8000,3000,-25000)),Enum.PartType.Ball)
+        planets.jupiter = jupiter
+    end)
+    for i=1,3 do
+        table.insert(buildQueue, function()
+            local j = planets.jupiter
+            makePart(sceneFolder, "Band", Vector3.new(2420, 100, 2420), Color3.fromRGB(150, 110, 90), Enum.Material.Slate, j.CFrame * CFrame.new(0, (i-2)*400, 0) * CFrame.Angles(0,0,math.rad(90)))
+        end)
+    end
+    
+    table.insert(buildQueue, function()
+        local saturn = makePart(sceneFolder,"Saturn",Vector3.new(1800,1800,1800),Color3.fromRGB(220,200,160),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(10000,-4000,-35000)),Enum.PartType.Ball)
+        planets.saturn = saturn
+    end)
+    table.insert(buildQueue, function()
+        local s = planets.saturn
+        local ring = makePart(sceneFolder,"Ring",Vector3.new(1800*2.4,10,1800*2.4),Color3.fromRGB(160,140,110),Enum.Material.Slate,nil,Enum.PartType.Cylinder,0.3)
+        ring.CFrame = s.CFrame*CFrame.Angles(math.rad(25),0,math.rad(10))*CFrame.Angles(0,0,math.rad(90))
+    end)
+    
+    table.insert(buildQueue, function()
+        local stars = Instance.new("Folder",sceneFolder)
+        stars.Name = "Stars"
+    end)
+    for i=1,30 do
+        table.insert(buildQueue, function()
+            local stars = sceneFolder:FindFirstChild("Stars")
+            local s = makePart(stars, "Star", Vector3.new(40,40,40), Color3.white, Enum.Material.Neon, CFrame.new(sceneOrigin + Vector3.new(math.random(-40000,40000), math.random(-40000,40000), math.random(-80000,-10000))), Enum.PartType.Ball)
+            s.Transparency = math.random(10,80)/100
+        end)
+    end
+    
+    local rings = {}
+    for i=1,15 do
+        table.insert(buildQueue, function()
+            local r = makePart(wormhole,"Ring",Vector3.new(5,300,300),Color3.fromRGB(30,60,150),Enum.Material.Neon,nil,Enum.PartType.Cylinder,0.6)
+            table.insert(rings,{part=r,dist=i*200})
+        end)
+    end
+    
+    isBuilding = true
+    local totalTasks = #buildQueue
+    local completedTasks = 0
+    
+    local buildConn
+    buildConn = RunService.Heartbeat:Connect(function()
+        if not isBuilding then return end
+        
+        if #buildQueue > 0 then
+            local taskFunc = table.remove(buildQueue, 1)
+            pcall(taskFunc)
+            completedTasks = completedTasks + 1
+            barFill.Size = UDim2.fromScale(completedTasks / totalTasks, 1)
+            loadText.Text = "系统加载中 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
+        else
+            isBuilding = false
+            buildConn:Disconnect()
             
-            local frameCol=Color3.fromRGB(10,12,15)
-            local metal=Enum.Material.Metal
-            local baseCF = CFrame.new(sceneOrigin + Vector3.new(0, -5, 0))
-            
-            local dash=makePart(pFolder,"Dash",Vector3.new(24,6,10),frameCol,metal, baseCF * CFrame.new(0, -5, -8) * CFrame.Angles(math.rad(15), 0, 0))
-            task.wait(0.2)
-            local dashTop=makePart(pFolder,"DashTop",Vector3.new(22,1,8),Color3.fromRGB(15,18,22), Enum.Material.SmoothPlastic, dash.CFrame * CFrame.new(0, 3.5, 0))
-            task.wait(0.2)
-            local yoke=makePart(pFolder,"Yoke",Vector3.new(1,4,1),Color3.fromRGB(20,20,20),metal, dash.CFrame * CFrame.new(0, 2, -3) * CFrame.Angles(math.rad(15), 0, 0))
-            task.wait(0.2)
-            local yokeTop=makePart(pFolder,"YokeTop",Vector3.new(4,0.8,1.5),Color3.fromRGB(25,25,25),metal, yoke.CFrame * CFrame.new(0, 2, 0))
-            task.wait(0.2)
-            local glassL=makePart(pFolder,"GL",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(-5, -1, -8) * CFrame.Angles(0, math.rad(15), 0), nil, 0.9)
-            task.wait(0.2)
-            local glassR=makePart(pFolder,"GR",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(5, -1, -8) * CFrame.Angles(0, math.rad(-15), 0), nil, 0.9)
-            task.wait(0.2)
-            
-            barFill.Size=UDim2.fromScale(0.15,1); loadText.Text="控制台校准 15%"
-            
-            local sceneFolder=Instance.new("Folder",Workspace)
-            sceneFolder.Name="CinematicScene"
-            local planets={}
-            
-            loadText.Text="构建地球..."
-            task.wait(0.5)
-            local earth=makePart(sceneFolder,"Earth",Vector3.new(1000,1000,1000),Color3.fromRGB(20,60,150),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(6000,0,-12000)),Enum.PartType.Ball)
-            makePart(sceneFolder,"EAtmo",Vector3.new(1030,1030,1030),Color3.fromRGB(50,150,255),Enum.Material.ForceField,earth.CFrame,Enum.PartType.Ball,0.4)
-            task.wait(0.5)
-            
-            barFill.Size=UDim2.fromScale(0.3,1); loadText.Text="构建地球 30%"
-            
-            loadText.Text="构建木星..."
-            task.wait(0.5)
-            local jupiter=makePart(sceneFolder,"Jupiter",Vector3.new(2400,2400,2400),Color3.fromRGB(200,170,140),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(-8000,3000,-25000)),Enum.PartType.Ball)
-            task.wait(0.2)
-            for i=1,3 do
-                makePart(sceneFolder, "Band", Vector3.new(2420, 100, 2420), Color3.fromRGB(150, 110, 90), Enum.Material.Slate, jupiter.CFrame * CFrame.new(0, (i-2)*400, 0) * CFrame.Angles(0,0,math.rad(90)))
-                task.wait(0.2)
-            end
-            
-            barFill.Size=UDim2.fromScale(0.5,1); loadText.Text="构建木星 50%"
-            
-            loadText.Text="构建土星..."
-            task.wait(0.5)
-            local saturn=makePart(sceneFolder,"Saturn",Vector3.new(1800,1800,1800),Color3.fromRGB(220,200,160),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(10000,-4000,-35000)),Enum.PartType.Ball)
-            task.wait(0.2)
-            local ring=makePart(sceneFolder,"Ring",Vector3.new(1800*2.4,10,1800*2.4),Color3.fromRGB(160,140,110),Enum.Material.Slate,nil,Enum.PartType.Cylinder,0.3)
-            ring.CFrame=saturn.CFrame*CFrame.Angles(math.rad(25),0,math.rad(10))*CFrame.Angles(0,0,math.rad(90))
-            
-            planets={earth=earth,jupiter=jupiter,saturn=saturn}
-            barFill.Size=UDim2.fromScale(0.7,1); loadText.Text="构建土星 70%"
-            
-            loadText.Text="构建星海..."
-            task.wait(0.5)
-            local stars=Instance.new("Folder",sceneFolder)
-            local starTemplate = makePart(stars, "Star", Vector3.new(40,40,40), Color3.white, Enum.Material.Neon, nil, Enum.PartType.Ball)
-            starTemplate.Parent = nil
-            
-            for i=1,20 do
-                local clone = starTemplate:Clone()
-                clone.Transparency = math.random(10,80)/100
-                clone.CFrame = CFrame.new(sceneOrigin + Vector3.new(math.random(-40000,40000), math.random(-40000,40000), math.random(-80000,-10000)))
-                clone.Parent = stars
-                if i%5==0 then task.wait(0.2) end
-            end
-            starTemplate:Destroy()
-            
-            barFill.Size=UDim2.fromScale(0.85,1); loadText.Text="构建星海 85%"
-            
-            loadText.Text="建立虫洞..."
-            task.wait(0.5)
-            local wormhole=Instance.new("Folder",Workspace)
-            wormhole.Name="WormholeFX"
-            local rings={}
-            for i=1,15 do
-                local r=makePart(wormhole,"Ring",Vector3.new(5,300,300),Color3.fromRGB(30,60,150),Enum.Material.Neon,nil,Enum.PartType.Cylinder,0.6)
-                table.insert(rings,{part=r,dist=i*200})
-                if i%5==0 then task.wait(0.2) end
-            end
-            
-            barFill.Size=UDim2.fromScale(1,1); loadText.Text="就绪 100%"
+            loadText.Text = "加载完毕，即将跃迁"
             task.wait(1)
-            
             loadingGui:Destroy()
             
-            camera.CameraType=Enum.CameraType.Scriptable
-            local startCamPos=hrp.CFrame*CFrame.new(0,5,-15)
-            camera.CFrame=startCamPos
+            camera.CameraType = Enum.CameraType.Scriptable
+            local startCamPos = hrp.CFrame * CFrame.new(0,5,-15)
+            camera.CFrame = startCamPos
             
-            local eyeGui=Instance.new("ScreenGui",player.PlayerGui)
-            eyeGui.Name="CinematicUI";eyeGui.IgnoreGuiInset=true
+            local eyeGui = Instance.new("ScreenGui",player.PlayerGui)
+            eyeGui.Name = "CinematicUI"; eyeGui.IgnoreGuiInset = true
             
-            local topBar=Instance.new("Frame",eyeGui)
-            topBar.Size=UDim2.new(1,0,0.5,0);topBar.Position=UDim2.new(0,0,0,0);topBar.BackgroundColor3=Color3.new(0,0,0);topBar.ZIndex=10
+            local topBar = Instance.new("Frame",eyeGui)
+            topBar.Size=UDim2.new(1,0,0.5,0); topBar.Position=UDim2.new(0,0,0,0); topBar.BackgroundColor3=Color3.new(0,0,0); topBar.ZIndex=10
             
-            local botBar=Instance.new("Frame",eyeGui)
-            botBar.Size=UDim2.new(1,0,0.5,0);botBar.Position=UDim2.new(0,0,0.5,0);botBar.BackgroundColor3=Color3.new(0,0,0);botBar.ZIndex=10
+            local botBar = Instance.new("Frame",eyeGui)
+            botBar.Size=UDim2.new(1,0,0.5,0); botBar.Position=UDim2.new(0,0,0.5,0); botBar.BackgroundColor3=Color3.new(0,0,0); botBar.ZIndex=10
             
-            blur.Size=30
-            cc.Brightness=-0.5
+            blur.Size = 30
+            cc.Brightness = -0.5
             
             TweenService:Create(topBar,TweenInfo.new(1.5,Enum.EasingStyle.Quart),{Size=UDim2.new(1,0,0.1,0)}):Play()
             TweenService:Create(botBar,TweenInfo.new(1.5,Enum.EasingStyle.Quart),{Size=UDim2.new(1,0,0.1,0),Position=UDim2.new(0,0,0.9,0)}):Play()
             TweenService:Create(blur,TweenInfo.new(1.5),{Size=0}):Play()
             TweenService:Create(cc,TweenInfo.new(1.5),{Brightness=-0.1}):Play()
             
-            local startTime=tick()
-            local flightT=0
+            local startTime = tick()
+            local flightT = 0
+            local boardEnd = 3
+            local taxiEnd = 8
+            local warpEnd = 11
+            local cruiseEnd = 28
             
-            local boardEnd=3
-            local taxiEnd=8
-            local warpEnd=11
-            local cruiseEnd=28
-            
-            local startCamCF=startCamPos
-            local targetCamCF=CFrame.new(sceneOrigin+Vector3.new(0,-4,-2))
+            local startCamCF = startCamPos
+            local targetCamCF = CFrame.new(sceneOrigin + Vector3.new(0,-4,-2))
             
             local renderConn
-            renderConn=RunService.RenderStepped:Connect(function(dt)
+            renderConn = RunService.RenderStepped:Connect(function(dt)
                 if not isPlaying then return end
                 
-                local t=tick()-startTime
-                flightT=flightT+dt*200
+                local t = tick() - startTime
+                flightT = flightT + dt * 200
                 
-                local cockpit=Workspace:FindFirstChild("PrecisionCockpit")
+                local cockpit = Workspace:FindFirstChild("PrecisionCockpit")
                 if cockpit then
-                    local Dash=cockpit:FindFirstChild("Dash")
+                    local Dash = cockpit:FindFirstChild("Dash")
                     if Dash then
-                        Dash.CFrame=camera.CFrame*CFrame.new(0,-6,-8)*CFrame.Angles(math.rad(15),0,0)
-                        local DashTop=cockpit:FindFirstChild("DashTop")
-                        if DashTop then DashTop.CFrame=Dash.CFrame*CFrame.new(0,3.5,0) end
-                        local Yoke=cockpit:FindFirstChild("Yoke")
+                        Dash.CFrame = camera.CFrame * CFrame.new(0,-6,-8) * CFrame.Angles(math.rad(15),0,0)
+                        local DashTop = cockpit:FindFirstChild("DashTop")
+                        if DashTop then DashTop.CFrame = Dash.CFrame * CFrame.new(0,3.5,0) end
+                        local Yoke = cockpit:FindFirstChild("Yoke")
                         if Yoke then
-                            Yoke.CFrame=Dash.CFrame*CFrame.new(0,2,-3)*CFrame.Angles(math.rad(15),0,0)
-                            local YokeTop=cockpit:FindFirstChild("YokeTop")
-                            if YokeTop then YokeTop.CFrame=Yoke.CFrame*CFrame.new(0,2,0) end
+                            Yoke.CFrame = Dash.CFrame * CFrame.new(0,2,-3) * CFrame.Angles(math.rad(15),0,0)
+                            local YokeTop = cockpit:FindFirstChild("YokeTop")
+                            if YokeTop then YokeTop.CFrame = Yoke.CFrame * CFrame.new(0,2,0) end
                         end
                     end
-                    local GL=cockpit:FindFirstChild("GL")
-                    if GL then GL.CFrame=camera.CFrame*CFrame.new(-5,-1,-8)*CFrame.Angles(0,math.rad(15),0) end
-                    local GR=cockpit:FindFirstChild("GR")
-                    if GR then GR.CFrame=camera.CFrame*CFrame.new(5,-1,-8)*CFrame.Angles(0,math.rad(-15),0) end
+                    local GL = cockpit:FindFirstChild("GL")
+                    if GL then GL.CFrame = camera.CFrame * CFrame.new(-5,-1,-8) * CFrame.Angles(0,math.rad(15),0) end
+                    local GR = cockpit:FindFirstChild("GR")
+                    if GR then GR.CFrame = camera.CFrame * CFrame.new(5,-1,-8) * CFrame.Angles(0,math.rad(-15),0) end
                 end
                 
-                if t<boardEnd then
-                    local alpha=math.min(t/boardEnd,1)
-                    local smoothAlpha=alpha*alpha*(3-2*alpha)
-                    camera.CFrame=startCamCF:Lerp(targetCamCF,smoothAlpha)
-                    camera.FieldOfView=70-smoothAlpha*5
+                if t < boardEnd then
+                    local alpha = math.min(t / boardEnd, 1)
+                    local smoothAlpha = alpha * alpha * (3 - 2 * alpha)
+                    camera.CFrame = startCamCF:Lerp(targetCamCF, smoothAlpha)
+                    camera.FieldOfView = 70 - smoothAlpha * 5
                     
-                elseif t<taxiEnd then
-                    camera.CFrame=targetCamCF*CFrame.Angles(math.sin(t*3)*0.005,math.sin(t*2)*0.005,0)
-                    camera.FieldOfView=65+math.sin(t*2)*2
+                elseif t < taxiEnd then
+                    camera.CFrame = targetCamCF * CFrame.Angles(math.sin(t*3)*0.005, math.sin(t*2)*0.005, 0)
+                    camera.FieldOfView = 65 + math.sin(t*2)*2
                     
                     for i,r in ipairs(rings) do
-                        local z=-5000-r.dist+(flightT*0.5)
-                        r.part.CFrame=CFrame.new(sceneOrigin+Vector3.new(0,0,z))*CFrame.Angles(0,0,math.rad(90))
-                        r.part.Size=Vector3.new(5,300*(1+i/10),300*(1+i/10))
-                        r.part.Transparency=math.clamp(0.3+(i/40),0,0.9)
+                        local z = -5000 - r.dist + (flightT * 0.5)
+                        r.part.CFrame = CFrame.new(sceneOrigin + Vector3.new(0,0,z)) * CFrame.Angles(0,0,math.rad(90))
+                        r.part.Size = Vector3.new(5,300*(1+i/10),300*(1+i/10))
+                        r.part.Transparency = math.clamp(0.3+(i/40),0,0.9)
                     end
                     
-                    if t>5.5 then
-                        local warpUp=(t-5.5)/(taxiEnd-5.5)
-                        blur.Size=warpUp*20
-                        cc.TintColor=Color3.fromRGB(150,170+warpUp*50,200+warpUp*55)
-                        camera.FieldOfView=65+warpUp*30
+                    if t > 5.5 then
+                        local warpUp = (t - 5.5) / (taxiEnd - 5.5)
+                        blur.Size = warpUp * 20
+                        cc.TintColor = Color3.fromRGB(150, 170 + warpUp*50, 200 + warpUp*55)
+                        camera.FieldOfView = 65 + warpUp * 30
                     end
                     
-                elseif t<warpEnd then
-                    local warp=(t-taxiEnd)/(warpEnd-taxiEnd)
-                    camera.FieldOfView=95+warp*40
-                    blur.Size=20+warp*30
-                    cc.TintColor=Color3.white
-                    cc.Contrast=warp*2
+                elseif t < warpEnd then
+                    local warp = (t - taxiEnd) / (warpEnd - taxiEnd)
+                    camera.FieldOfView = 95 + warp * 40
+                    blur.Size = 20 + warp * 30
+                    cc.TintColor = Color3.white
+                    cc.Contrast = warp * 2
                     
-                elseif t<cruiseEnd then
-                    blur.Size=0
-                    cc.TintColor=Color3.fromRGB(150,170,200)
-                    cc.Contrast=0.2
+                elseif t < cruiseEnd then
+                    blur.Size = 0
+                    cc.TintColor = Color3.fromRGB(150,170,200)
+                    cc.Contrast = 0.2
                     
-                    local cruiseTime=t-warpEnd
-                    local totalCruise=cruiseEnd-warpEnd
-                    local progress=math.min(cruiseTime/totalCruise,1)
+                    local cruiseTime = t - warpEnd
+                    local totalCruise = cruiseEnd - warpEnd
+                    local progress = math.min(cruiseTime / totalCruise, 1)
                     
-                    local startPos=sceneOrigin+Vector3.new(0,-4,-2)
+                    local startPos = sceneOrigin + Vector3.new(0,-4,-2)
                     local pathPos
                     local lookAt
                     
-                    if progress<0.33 then
-                        local p=progress/0.33
-                        pathPos=startPos:Lerp(planets.earth.CFrame.Position+Vector3.new(1000,0,1000),p)
-                        lookAt=planets.earth.CFrame.Position
-                    elseif progress<0.66 then
-                        local p=(progress-0.33)/0.33
-                        pathPos=(planets.earth.CFrame.Position+Vector3.new(1000,0,1000)):Lerp(planets.jupiter.CFrame.Position+Vector3.new(2400,0,2400),p)
-                        lookAt=planets.jupiter.CFrame.Position
+                    if progress < 0.33 then
+                        local p = progress / 0.33
+                        pathPos = startPos:Lerp(planets.earth.CFrame.Position + Vector3.new(1000,0,1000), p)
+                        lookAt = planets.earth.CFrame.Position
+                    elseif progress < 0.66 then
+                        local p = (progress - 0.33) / 0.33
+                        pathPos = (planets.earth.CFrame.Position + Vector3.new(1000,0,1000)):Lerp(planets.jupiter.CFrame.Position + Vector3.new(2400,0,2400), p)
+                        lookAt = planets.jupiter.CFrame.Position
                     else
-                        local p=(progress-0.66)/0.34
-                        pathPos=(planets.jupiter.CFrame.Position+Vector3.new(2400,0,2400)):Lerp(planets.saturn.CFrame.Position+Vector3.new(1800,0,1800),p)
-                        lookAt=planets.saturn.CFrame.Position
+                        local p = (progress - 0.66) / 0.34
+                        pathPos = (planets.jupiter.CFrame.Position + Vector3.new(2400,0,2400)):Lerp(planets.saturn.CFrame.Position + Vector3.new(1800,0,1800), p)
+                        lookAt = planets.saturn.CFrame.Position
                     end
                     
-                    local camCF=CFrame.lookAt(pathPos,lookAt)
-                    local shake=0.02+math.sin(cruiseTime*8)*0.01
-                    camCF=camCF*CFrame.Angles(math.noise(cruiseTime*20,0,0)*shake,math.noise(0,cruiseTime*20,0)*shake,0)
+                    local camCF = CFrame.lookAt(pathPos, lookAt)
+                    local shake = 0.02 + math.sin(cruiseTime*8)*0.01
+                    camCF = camCF * CFrame.Angles(math.noise(cruiseTime*20,0,0)*shake, math.noise(0,cruiseTime*20,0)*shake, 0)
                     
-                    camera.CFrame=camCF
-                    camera.FieldOfView=70+math.sin(cruiseTime*1.5)*5
+                    camera.CFrame = camCF
+                    camera.FieldOfView = 70 + math.sin(cruiseTime*1.5)*5
                     
                 else
-                    cc.Saturation=-1
-                    cc.Contrast=1
-                    blur.Size=20
-                    topBar.Size=UDim2.new(1,0,0,0)
-                    botBar.Size=UDim2.new(1,0,0,0)
+                    cc.Saturation = -1
+                    cc.Contrast = 1
+                    blur.Size = 20
+                    topBar.Size = UDim2.new(1,0,0,0)
+                    botBar.Size = UDim2.new(1,0,0,0)
                     
-                    if t>cruiseEnd+2 then
+                    if t > cruiseEnd + 2 then
                         renderConn:Disconnect()
                         sceneFolder:Destroy()
                         wormhole:Destroy()
@@ -394,23 +412,14 @@ local function startCinematic()
                         cc:Destroy()
                         blur:Destroy()
                         
-                        camera.CameraType=origCamType
-                        camera.FieldOfView=origFOV
-                        if hrp then hrp.Anchored=false end
-                        isPlaying=false
+                        camera.CameraType = origCamType
+                        camera.FieldOfView = origFOV
+                        if hrp then hrp.Anchored = false end
+                        isPlaying = false
                         mainFrame.Visible = true
                     end
                 end
             end)
-        end)
-        
-        if not successLoad then
-            warn("Cinematic Error: ", errLoad)
-            loadingGui:Destroy()
-            if hrp then hrp.Anchored=false end
-            isPlaying=false
-            mainFrame.Visible = true
-            StarterGui:SetCore("SendNotification",{Title="生成失败",Text="模型生成超时",Duration=5})
         end
     end)
 end
