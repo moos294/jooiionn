@@ -26,6 +26,7 @@ mainFrame.Position = UDim2.new(0.5, -130, 0.5, -60)
 mainFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 
 local stroke = Instance.new("UIStroke", mainFrame)
@@ -36,10 +37,11 @@ local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V3.4"
+title.Text = "封存娱乐 V3.5"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 20
+title.Active = false
 
 local minimizeBtn = Instance.new("TextButton", mainFrame)
 minimizeBtn.Size = UDim2.fromOffset(30, 30)
@@ -64,7 +66,8 @@ Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
 
 local dragging = false
 local dragInput, dragStart, startPos
-mainFrame.InputBegan:Connect(function(input)
+
+local function updateDrag(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
@@ -73,12 +76,17 @@ mainFrame.InputBegan:Connect(function(input)
             if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
-end)
+end
+
+mainFrame.InputBegan:Connect(updateDrag)
+minimizeBtn.InputBegan:Connect(updateDrag)
+
 mainFrame.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         dragInput = input
     end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
@@ -94,12 +102,14 @@ minimizeBtn.MouseButton1Click:Connect(function()
         TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
         TweenService:Create(startBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
         minimizeBtn.Text = "+"
-        minimizeBtn.Position = UDim2.new(0.5, -15, 0.5, -15)
+        minimizeBtn.Size = UDim2.fromOffset(40, 40)
+        minimizeBtn.Position = UDim2.new(0, 0, 0, 0)
     else
         TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.fromOffset(260, 120)}):Play()
         TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
         TweenService:Create(startBtn, TweenInfo.new(0.3), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
         minimizeBtn.Text = "-"
+        minimizeBtn.Size = UDim2.fromOffset(30, 30)
         minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
     end
 end)
@@ -164,17 +174,17 @@ local function startCinematic()
             local baseCF = CFrame.new(sceneOrigin + Vector3.new(0, -5, 0))
             
             local dash=makePart(pFolder,"Dash",Vector3.new(24,6,10),frameCol,metal, baseCF * CFrame.new(0, -5, -8) * CFrame.Angles(math.rad(15), 0, 0))
-            task.wait(0.1)
+            task.wait(0.2)
             local dashTop=makePart(pFolder,"DashTop",Vector3.new(22,1,8),Color3.fromRGB(15,18,22), Enum.Material.SmoothPlastic, dash.CFrame * CFrame.new(0, 3.5, 0))
-            task.wait(0.1)
+            task.wait(0.2)
             local yoke=makePart(pFolder,"Yoke",Vector3.new(1,4,1),Color3.fromRGB(20,20,20),metal, dash.CFrame * CFrame.new(0, 2, -3) * CFrame.Angles(math.rad(15), 0, 0))
-            task.wait(0.1)
+            task.wait(0.2)
             local yokeTop=makePart(pFolder,"YokeTop",Vector3.new(4,0.8,1.5),Color3.fromRGB(25,25,25),metal, yoke.CFrame * CFrame.new(0, 2, 0))
-            task.wait(0.1)
+            task.wait(0.2)
             local glassL=makePart(pFolder,"GL",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(-5, -1, -8) * CFrame.Angles(0, math.rad(15), 0), nil, 0.9)
-            task.wait(0.1)
+            task.wait(0.2)
             local glassR=makePart(pFolder,"GR",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(5, -1, -8) * CFrame.Angles(0, math.rad(-15), 0), nil, 0.9)
-            task.wait(0.1)
+            task.wait(0.2)
             
             barFill.Size=UDim2.fromScale(0.15,1); loadText.Text="控制台校准 15%"
             
@@ -183,28 +193,28 @@ local function startCinematic()
             local planets={}
             
             loadText.Text="构建地球..."
-            task.wait(0.2)
+            task.wait(0.5)
             local earth=makePart(sceneFolder,"Earth",Vector3.new(1000,1000,1000),Color3.fromRGB(20,60,150),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(6000,0,-12000)),Enum.PartType.Ball)
             makePart(sceneFolder,"EAtmo",Vector3.new(1030,1030,1030),Color3.fromRGB(50,150,255),Enum.Material.ForceField,earth.CFrame,Enum.PartType.Ball,0.4)
-            task.wait(0.2)
+            task.wait(0.5)
             
             barFill.Size=UDim2.fromScale(0.3,1); loadText.Text="构建地球 30%"
             
             loadText.Text="构建木星..."
-            task.wait(0.2)
+            task.wait(0.5)
             local jupiter=makePart(sceneFolder,"Jupiter",Vector3.new(2400,2400,2400),Color3.fromRGB(200,170,140),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(-8000,3000,-25000)),Enum.PartType.Ball)
-            task.wait(0.1)
+            task.wait(0.2)
             for i=1,3 do
                 makePart(sceneFolder, "Band", Vector3.new(2420, 100, 2420), Color3.fromRGB(150, 110, 90), Enum.Material.Slate, jupiter.CFrame * CFrame.new(0, (i-2)*400, 0) * CFrame.Angles(0,0,math.rad(90)))
-                task.wait(0.1)
+                task.wait(0.2)
             end
             
             barFill.Size=UDim2.fromScale(0.5,1); loadText.Text="构建木星 50%"
             
             loadText.Text="构建土星..."
-            task.wait(0.2)
+            task.wait(0.5)
             local saturn=makePart(sceneFolder,"Saturn",Vector3.new(1800,1800,1800),Color3.fromRGB(220,200,160),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(10000,-4000,-35000)),Enum.PartType.Ball)
-            task.wait(0.1)
+            task.wait(0.2)
             local ring=makePart(sceneFolder,"Ring",Vector3.new(1800*2.4,10,1800*2.4),Color3.fromRGB(160,140,110),Enum.Material.Slate,nil,Enum.PartType.Cylinder,0.3)
             ring.CFrame=saturn.CFrame*CFrame.Angles(math.rad(25),0,math.rad(10))*CFrame.Angles(0,0,math.rad(90))
             
@@ -212,35 +222,35 @@ local function startCinematic()
             barFill.Size=UDim2.fromScale(0.7,1); loadText.Text="构建土星 70%"
             
             loadText.Text="构建星海..."
-            task.wait(0.2)
+            task.wait(0.5)
             local stars=Instance.new("Folder",sceneFolder)
             local starTemplate = makePart(stars, "Star", Vector3.new(40,40,40), Color3.white, Enum.Material.Neon, nil, Enum.PartType.Ball)
             starTemplate.Parent = nil
             
-            for i=1,30 do
+            for i=1,20 do
                 local clone = starTemplate:Clone()
                 clone.Transparency = math.random(10,80)/100
                 clone.CFrame = CFrame.new(sceneOrigin + Vector3.new(math.random(-40000,40000), math.random(-40000,40000), math.random(-80000,-10000)))
                 clone.Parent = stars
-                if i%10==0 then task.wait(0.1) end
+                if i%5==0 then task.wait(0.2) end
             end
             starTemplate:Destroy()
             
             barFill.Size=UDim2.fromScale(0.85,1); loadText.Text="构建星海 85%"
             
             loadText.Text="建立虫洞..."
-            task.wait(0.2)
+            task.wait(0.5)
             local wormhole=Instance.new("Folder",Workspace)
             wormhole.Name="WormholeFX"
             local rings={}
-            for i=1,20 do
+            for i=1,15 do
                 local r=makePart(wormhole,"Ring",Vector3.new(5,300,300),Color3.fromRGB(30,60,150),Enum.Material.Neon,nil,Enum.PartType.Cylinder,0.6)
                 table.insert(rings,{part=r,dist=i*200})
-                if i%10==0 then task.wait(0.1) end
+                if i%5==0 then task.wait(0.2) end
             end
             
             barFill.Size=UDim2.fromScale(1,1); loadText.Text="就绪 100%"
-            task.wait(0.5)
+            task.wait(1)
             
             loadingGui:Destroy()
             
