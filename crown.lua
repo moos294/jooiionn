@@ -1,412 +1,91 @@
-local Players=game:GetService("Players")
-local TweenService=game:GetService("TweenService")
-local RunService=game:GetService("RunService")
-local Lighting=game:GetService("Lighting")
-local StarterGui=game:GetService("StarterGui")
-local Workspace=game:GetService("Workspace")
-local UserInputService=game:GetService("UserInputService")
-local Debris=game:GetService("Debris")
-local player=Players.LocalPlayer
-local camera=Workspace.CurrentCamera
-
-for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI" or v.Name=="SpeedUI" then v:Destroy()end end
-for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI" or v.Name=="SpeedUI" then v:Destroy()end end
-for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="CineShip" or v.Name=="SpaceStage" or v.Name=="WormholeFX" then v:Destroy()end end
-for _,v in pairs(Lighting:GetChildren())do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect") then v:Destroy()end end
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "PowerCrownUI"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-pcall(function() gui.Parent = game:GetService("CoreGui") end)
-if not gui.Parent then gui.Parent = player.PlayerGui end
-
-local mainFrame = Instance.new("Frame", gui)
-mainFrame.Size = UDim2.fromOffset(260, 120)
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -60)
-mainFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
-mainFrame.BackgroundTransparency = 0.1
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
-local stroke = Instance.new("UIStroke", mainFrame)
-stroke.Color = Color3.fromRGB(0, 200, 255)
-stroke.Thickness = 1.5
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Position = UDim2.new(0, 0, 0, 10)
-title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V14.0 歼星舰"
-title.TextColor3 = Color3.fromRGB(0, 200, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 18
-title.Active = false
-local minimizeBtn = Instance.new("TextButton", mainFrame)
-minimizeBtn.Size = UDim2.fromOffset(30, 30)
-minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
-minimizeBtn.BackgroundTransparency = 1
-minimizeBtn.Text = "-"
-minimizeBtn.TextColor3 = Color3.fromRGB(0, 200, 255)
-minimizeBtn.TextSize = 30
-minimizeBtn.Font = Enum.Font.GothamBold
-minimizeBtn.AutoButtonColor = false
-local startBtn = Instance.new("TextButton", mainFrame)
-startBtn.Size = UDim2.new(0.8, 0, 0, 40)
-startBtn.Position = UDim2.new(0.1, 0, 0, 60)
-startBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 220)
-startBtn.Text = "启动星际巡航"
-startBtn.TextColor3 = Color3.new(1, 1, 1)
-startBtn.Font = Enum.Font.GothamBold
-startBtn.TextSize = 16
-startBtn.AutoButtonColor = false
-Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
-
-local dragging = false
-local dragInput, dragStart, startPos
-mainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true; dragStart = input.Position; startPos = mainFrame.Position
-        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-    end
-end)
-mainFrame.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-local isMinimized = false
-minimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.fromOffset(40, 40)}):Play()
-        TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-        TweenService:Create(startBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
-        minimizeBtn.Text = "+"; minimizeBtn.Size = UDim2.fromOffset(40, 40); minimizeBtn.Position = UDim2.new(0, 0, 0, 0)
-    else
-        TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.fromOffset(260, 120)}):Play()
-        TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-        TweenService:Create(startBtn, TweenInfo.new(0.3), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
-        minimizeBtn.Text = "-"; minimizeBtn.Size = UDim2.fromOffset(30, 30); minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
-    end
-end)
-
-local isPlaying = false
-local SPACE_ORIGIN = Vector3.new(0, 300000, 0)
-local EARTH_RADIUS = 80
-local TEXTURES = {
-    earth = "rbxassetid://218579141", mercury = "rbxassetid://6218473454", venus = "rbxassetid://6218473772",
-    sun = "rbxassetid://6218473826", mars = "rbxassetid://6218473454", jupiter = "rbxassetid://6218473826", saturn = "rbxassetid://6218473826",
-    uranus = "rbxassetid://6218473866", neptune = "rbxassetid://6218473866"
-}
-
-local function new(class, props, parent)
-    local inst = Instance.new(class)
-    for k, v in pairs(props) do inst[k] = v end
-    if parent then inst.Parent = parent end
-    return inst
+local P=game:GetService("Players").LocalPlayer
+local T=game:GetService("TweenService")
+local R=game:GetService("RunService")
+local L=game:GetService("Lighting")
+local C=workspace.CurrentCamera
+local PG=P:WaitForChild("PlayerGui")
+local F=Instance.new("Folder");F.Name="LocalCinema";F.Parent=workspace
+local rng=Random.new(42)
+local running=false
+local originalType=C.CameraType
+local originalSubject=C.CameraSubject
+local function part(n,s,p,c,m,sh,parent)
+ local x=Instance.new("Part");x.Name=n;x.Size=s;x.CFrame=typeof(p)=="CFrame" and p or CFrame.new(p);x.Color=c;x.Material=m or Enum.Material.SmoothPlastic;x.Shape=sh or Enum.PartType.Block;x.Anchored=true;x.CanCollide=false;x.CanTouch=false;x.CanQuery=false;x.Parent=parent or F;return x
 end
-local function vpart(props, parent)
-    local p = new("Part", { Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false, Material = Enum.Material.SmoothPlastic }, parent)
-    for k, v in pairs(props) do p[k] = v end
-    return p
+local function ball(n,p,r,c,m)return part(n,Vector3.one*r*2,p,c,m,Enum.PartType.Ball)end
+local function tw(o,d,g,style)local t=T:Create(o,TweenInfo.new(d,style or Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),g);t:Play();return t end
+local function waitFor(d)local t=os.clock();while running and os.clock()-t<d do R.RenderStepped:Wait()end end
+local function cam(p,q,d,f)if not running then return end;C.CameraType=Enum.CameraType.Scriptable;local t=tw(C,d,{CFrame=CFrame.lookAt(p,q),FieldOfView=f or 70});t.Completed:Wait()end
+local function say(s)
+ if not running then return end
+ local old=PG:FindFirstChild("CinemaCaption");if old then old:Destroy()end
+ local g=Instance.new("ScreenGui");g.Name="CinemaCaption";g.IgnoreGuiInset=true;g.Parent=PG
+ local a=Instance.new("TextLabel");a.Size=UDim2.new(.8,0,0,48);a.Position=UDim2.new(.1,0,.1,0);a.BackgroundTransparency=1;a.Text=s;a.TextColor3=Color3.fromRGB(90,220,255);a.TextTransparency=1;a.TextScaled=true;a.Font=Enum.Font.GothamBold;a.Parent=g
+ tw(a,.4,{TextTransparency=0});task.delay(2.5,function()if g.Parent then tw(a,.4,{TextTransparency=1});task.wait(.5);g:Destroy()end end)
 end
-local function texturedSphere(parent, pos, diameter, textureId, color, material, transparency, name)
-    if not textureId then return nil end
-    local baseDiameter = math.min(diameter, 2048)
-    local p = vpart({ Name = name or "TexturedCelestialBody", Size = Vector3.one * baseDiameter, Position = pos, Color = color or Color3.new(1, 1, 1), Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0 }, parent)
-    local ok = pcall(function() new("SpecialMesh", { MeshType = Enum.MeshType.Sphere, Scale = Vector3.one * (diameter / baseDiameter), TextureId = textureId }, p) end)
-    if not ok then p:Destroy() return nil end
-    return p
+local ship=Instance.new("Model");ship.Name="ORION_IX";ship.Parent=F
+local hull=part("Hull",Vector3.new(7,2,13),Vector3.zero,Color3.fromRGB(100,120,150),Enum.Material.Metal,nil,ship);ship.PrimaryPart=hull
+part("Nose",Vector3.new(5,1.5,4),Vector3.new(0,.2,-7),Color3.fromRGB(180,195,215),Enum.Material.Metal,nil,ship)
+part("Cockpit",Vector3.new(4,1.5,4),Vector3.new(0,1.4,-3),Color3.fromRGB(35,170,230),Enum.Material.Glass,nil,ship)
+for _,v in ipairs({-1,1})do
+ part("Wing",Vector3.new(7,.4,5),Vector3.new(v*6,-.5,1),Color3.fromRGB(65,80,105),Enum.Material.Metal,nil,ship)
+ part("Engine",Vector3.new(1.4,1.4,1),Vector3.new(v*2,0,7),Color3.fromRGB(30,175,255),Enum.Material.Neon,nil,ship)
+ part("EngineGlow",Vector3.new(1,1,4),Vector3.new(v*2,0,9),Color3.fromRGB(20,120,255),Enum.Material.Neon,nil,ship)
 end
-local function randDir() local z = math.random() * 2 - 1 local a = math.random() * math.pi * 2 local r = math.sqrt(1 - z * z) return Vector3.new(r * math.cos(a), z, r * math.sin(a)) end
-
-local function buildStarDestroyer(parent, cf)
-    local SCALE = 15
-    local model = new("Model", { Name = "CineShip" }, parent)
-    model.WorldPivot = cf
-    local HULL = Color3.fromRGB(35, 40, 50)
-    local METAL = Color3.fromRGB(120, 130, 140)
-    local DARK = Color3.fromRGB(15, 18, 22)
-    local RED = Color3.fromRGB(255, 50, 50)
-    local BLUE = Color3.fromRGB(50, 150, 255)
-    
-    local function L(x, y, z) return Vector3.new(x * SCALE, y * SCALE, z * SCALE) end
-    local function box(name, x, y, z, sx, sy, sz, col, mat, rz)
-        return vpart({ Name = name, Size = L(sx, sy, sz), Color = col, Material = mat, CFrame = cf * CFrame.new(L(x, y, z)) * CFrame.Angles(0, 0, rz or 0) }, model)
-    end
-    local function octRing(name, z, outer, inner, thickness, col, mat)
-        for i = 0, 7 do
-            local a = i * math.pi / 4
-            local mid = (outer + inner) * 0.5
-            local tangential = 2 * outer * math.tan(math.pi / 8) * 1.04
-            box(name, math.cos(a) * mid, math.sin(a) * mid, z, outer - inner, tangential, thickness, col, mat, a)
-        end
-    end
-    
-    box("MainHull", 0, 0, 0, 10, 3, 24, HULL, Enum.Material.Metal)
-    box("NoseTip", 0, -0.5, -14, 4, 2, 6, DARK, Enum.Material.Metal)
-    box("CockpitGlass", 0, 2, -8, 4, 1.5, 4, Color3.fromRGB(100, 200, 255), Enum.Material.Glass)
-    box("WingL", -6, 0, 4, 8, 0.4, 12, HULL, Enum.Material.Metal, math.rad(-15))
-    box("WingR", 6, 0, 4, 8, 0.4, 12, HULL, Enum.Material.Metal, math.rad(15))
-    box("Door", 0, -2, -6, 3, 4, 0.2, Color3.fromRGB(40, 45, 50), Enum.Material.Metal)
-    box("Ladder", 0, -4.5, -6.5, 2, 6, 0.2, METAL, Enum.Material.Metal, math.rad(20))
-    
-    octRing("EngineRing1", 10, 5, 4, 1, METAL, Enum.Material.Metal)
-    octRing("EngineRing2", 11, 4.5, 3.5, 1, METAL, Enum.Material.Metal)
-    octRing("EngineRing3", 12, 4, 3, 1, METAL, Enum.Material.Metal)
-    
-    local thrL = vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.5*SCALE, 1.5*SCALE, 1.5*SCALE), CFrame = cf * CFrame.new(-3*SCALE, 0, 12.5*SCALE) * CFrame.Angles(0, math.rad(90), 0), Color = RED, Material = Enum.Material.Neon }, model)
-    local thrR = vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.5*SCALE, 1.5*SCALE, 1.5*SCALE), CFrame = cf * CFrame.new(3*SCALE, 0, 12.5*SCALE) * CFrame.Angles(0, math.rad(90), 0), Color = BLUE, Material = Enum.Material.Neon }, model)
-    new("PointLight", { Color = RED, Range = 50, Brightness = 5 }, thrL)
-    new("PointLight", { Color = BLUE, Range = 50, Brightness = 5 }, thrR)
-    
-    return model
+local base=Vector3.new(0,12000,0)
+local worm=base+Vector3.new(0,0,-150)
+for i=1,16 do local r=18+i*1.5;local q=part("WormholeRing",Vector3.new(r*2,.5,r*2),CFrame.new(worm)*CFrame.Angles(math.rad(90),0,math.rad(i*12)),i%2==0 and Color3.fromRGB(30,180,255) or Color3.fromRGB(165,45,255),Enum.Material.Neon,Enum.PartType.Cylinder);task.spawn(function()while q.Parent do q.CFrame=q.CFrame*CFrame.Angles(0,0,.01);R.Heartbeat:Wait()end end)end
+ball("Singularity",worm,20,Color3.fromRGB(5,0,20),Enum.Material.Neon)
+local data={{"SUN",Vector3.new(0,0,-400),45,Color3.fromRGB(255,170,55)},{"MERCURY",Vector3.new(70,10,-550),10,Color3.fromRGB(145,135,125)},{"VENUS",Vector3.new(-80,20,-700),17,Color3.fromRGB(220,170,100)},{"EARTH",Vector3.new(70,-10,-900),28,Color3.fromRGB(30,100,230)},{"MARS",Vector3.new(-100,15,-1100),17,Color3.fromRGB(200,75,45)},{"JUPITER",Vector3.new(100,25,-1350),45,Color3.fromRGB(205,155,115)},{"SATURN",Vector3.new(-120,0,-1600),38,Color3.fromRGB(220,190,135)},{"URANUS",Vector3.new(80,20,-1850),26,Color3.fromRGB(100,220,220)},{"NEPTUNE",Vector3.new(-90,0,-2100),25,Color3.fromRGB(40,75,230)},{"PLUTO",Vector3.new(50,10,-2300),10,Color3.fromRGB(180,145,125)}}
+local planets={}
+for _,v in ipairs(data)do
+ local p=base+v[2];local m=Instance.new("Model");m.Name=v[1];m.Parent=F
+ local b=ball(v[1],p,v[3],v[4],Enum.Material.SmoothPlastic);b.Parent=m;m.PrimaryPart=b
+ for i=1,24 do local d=Vector3.new(rng:NextNumber(-1,1),rng:NextNumber(-1,1),rng:NextNumber(-1,1)).Unit;local patch=ball("SurfaceDetail",p+d*v[3]*.9,v[3]*rng:NextNumber(.08,.2),v[4]:Lerp(Color3.new(1,1,1),rng:NextNumber(0,.25)));patch.Parent=m end
+ local at=ball("Atmosphere",p,v[3]*1.06,v[4],Enum.Material.ForceField);at.Transparency=.85;at.Parent=m
+ if v[1]=="SATURN"then for i=1,3 do local r=v[3]*(2.5+i*.4);local ring=part("PlanetaryRing",Vector3.new(r*2,.2,r*2),CFrame.new(p)*CFrame.Angles(math.rad(90),0,math.rad(15)),Color3.fromRGB(190,160,115),Enum.Material.SmoothPlastic,Enum.PartType.Cylinder);ring.Parent=m end end
+ table.insert(planets,{v[1],p,v[3]})
 end
-
-local function startCinematic()
-    if isPlaying then return end
-    isPlaying = true
-    mainFrame.Visible = false
-    
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-    if hrp and humanoid then hrp.Anchored = true; humanoid.WalkSpeed = 0 end
-    
-    local origCamType = camera.CameraType
-    local origFOV = camera.FieldOfView
-    
-    local oldBrightness = Lighting.Brightness
-    local oldAmbient = Lighting.Ambient
-    local oldOutdoor = Lighting.OutdoorAmbient
-    Lighting.Brightness = 1
-    Lighting.Ambient = Color3.fromRGB(40, 50, 60)
-    Lighting.OutdoorAmbient = Color3.fromRGB(50, 60, 70)
-    Lighting.ClockTime = 0
-    
-    local cc = new("ColorCorrectionEffect", { Contrast = 0.1, Saturation = -0.1, Brightness = 0 }, Lighting)
-    local blur = new("BlurEffect", { Size = 0 }, Lighting)
-    
-    local subGui = new("ScreenGui", { Name = "SubtitleUI", IgnoreGuiInset = true, DisplayOrder = 1000 }, player.PlayerGui)
-    local subText = new("TextLabel", { Size = UDim2.new(1,0,0,50), Position = UDim2.new(0,0,0.8,0), BackgroundTransparency = 1, TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold, TextSize = 24, TextStrokeTransparency = 0, TextTransparency = 1, Text = "" }, subGui)
-    
-    local loadingGui = new("ScreenGui", { Name = "LoadingUI", IgnoreGuiInset = true, DisplayOrder = 1000 }, player.PlayerGui)
-    new("Frame", { Size = UDim2.fromScale(1,1), BackgroundColor3 = Color3.fromRGB(10,10,12), BorderSizePixel = 0 }, loadingGui)
-    local loadTxt = new("TextLabel", { Size = UDim2.fromScale(1,0.4), Position = UDim2.fromScale(0,0.2), BackgroundTransparency = 1, Text = "装载歼星舰及星系 0%", TextColor3 = Color3.fromRGB(0,200,255), Font = Enum.Font.GothamBold, TextSize = 28 }, loadingGui)
-    local barBg = new("Frame", { Size = UDim2.fromOffset(300,10), Position = UDim2.fromScale(0.5,0.5), AnchorPoint = Vector2.new(0.5,0.5), BackgroundColor3 = Color3.fromRGB(30,30,35), BorderSizePixel = 0 }, loadingGui)
-    new("UICorner", { CornerRadius = UDim.new(1,0) }, barBg)
-    local barFill = new("Frame", { Size = UDim2.fromScale(0,1), BackgroundColor3 = Color3.fromRGB(0,200,255), BorderSizePixel = 0 }, barBg)
-    new("UICorner", { CornerRadius = UDim.new(1,0) }, barFill)
-
-    local sceneFolder = new("Folder", { Name = "CinematicScene" }, Workspace)
-    local stageFolder = new("Folder", { Name = "SpaceStage" }, sceneFolder)
-    
-    local startCF = CFrame.new(SPACE_ORIGIN + Vector3.new(200, 100, 0))
-    local landCF = CFrame.new(SPACE_ORIGIN + Vector3.new(0, 15, 0))
-    
-    local buildQueue = {}
-    local shipModel
-    table.insert(buildQueue, function() shipModel = buildStarDestroyer(sceneFolder, startCF) end)
-    
-    local planets = {}
-    local GC = SPACE_ORIGIN
-    local EC = GC + Vector3.new(5000, 0, 5000)
-    
-    local pDefs = {
-        {name="Sun", pos=GC, size=1500, tex=TEXTURES.sun},
-        {name="Earth", pos=EC, size=EARTH_RADIUS*4, tex=TEXTURES.earth},
-        {name="Jupiter", pos=GC+Vector3.new(-8000, 3000, -12000), size=1000, tex=TEXTURES.jupiter},
-        {name="Saturn", pos=GC+Vector3.new(10000, -4000, -16000), size=900, tex=TEXTURES.saturn}
-    }
-    
-    for _, def in ipairs(pDefs) do
-        table.insert(buildQueue, function()
-            local p = texturedSphere(stageFolder, def.pos, def.size, def.tex, Color3.new(1,1,1), Enum.Material.SmoothPlastic, 0, def.name)
-            planets[def.name] = p
-            if def.name == "Saturn" then
-                for i = 1, 3 do
-                    vpart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(def.size*(2+i*0.3), 20, def.size*(2+i*0.3)), CFrame = CFrame.new(def.pos) * CFrame.Angles(math.rad(25),0,math.rad(10)) * CFrame.Angles(0,0,math.rad(90)), Color = Color3.fromRGB(150-i*10,130-i*10,100-i*10), Material = Enum.Material.Slate, Transparency = 0.2 + i*0.1 }, stageFolder)
-                end
-            end
-        end)
-    end
-
-    table.insert(buildQueue, function()
-        local stars = new("Folder", { Name = "Stars" }, stageFolder)
-        for i = 1, 300 do
-            vpart({ Shape = Enum.PartType.Ball, Size = Vector3.new(30,30,30), Position = GC + randDir() * math.random(10000, 100000), Color = Color3.new(1,1,1), Material = Enum.Material.Neon, Transparency = math.random(0.2, 0.8) }, stars)
-        end
-    end)
-
-    local isBuilding = true
-    local totalTasks = #buildQueue
-    local completedTasks = 0
-    
-    local buildConn
-    buildConn = RunService.Heartbeat:Connect(function()
-        if not isBuilding then return end
-        if #buildQueue > 0 then
-            local taskFunc = table.remove(buildQueue, 1)
-            pcall(taskFunc)
-            completedTasks = completedTasks + 1
-            barFill.Size = UDim2.fromScale(completedTasks / totalTasks, 1)
-            loadTxt.Text = "装载歼星舰及星系 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
-        else
-            isBuilding = false
-            buildConn:Disconnect()
-            loadTxt.Text = "模型就绪，渲染光影..."
-            task.wait(3)
-            loadingGui:Destroy()
-            
-            camera.CameraType = Enum.CameraType.Scriptable
-            camera.FieldOfView = 100
-            camera.CFrame = CFrame.lookAt(landCF.Position + Vector3.new(200, 50, 200), landCF.Position)
-            
-            task.spawn(function()
-                task.wait(1)
-                subText.Text = "飞船正在降落..."; TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-                
-                for _, p in pairs(shipModel:GetChildren()) do
-                    if p:IsA("BasePart") then
-                        TweenService:Create(p, TweenInfo.new(6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = p.CFrame - startCF.Position + landCF.Position}):Play()
-                    end
-                end
-                task.wait(6)
-                
-                subText.Text = "舱门开启..."
-                local door = shipModel:FindFirstChild("Door")
-                TweenService:Create(door, TweenInfo.new(1), {CFrame = door.CFrame * CFrame.new(0, 6, 0)}):Play()
-                task.wait(1.5)
-                
-                subText.Text = "正在登机..."
-                TweenService:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = landCF * CFrame.new(0, -6, -6)}):Play()
-                task.wait(2)
-                TweenService:Create(hrp, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {CFrame = landCF * CFrame.new(0, 0, -3)}):Play()
-                task.wait(1.5)
-                
-                hrp.Transparency = 1
-                for _,p in pairs(char:GetChildren()) do if p:IsA("BasePart") then p.Transparency = 1 end end
-                
-                TweenService:Create(door, TweenInfo.new(1), {CFrame = door.CFrame}):Play()
-                TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-                task.wait(1)
-                
-                camera.CFrame = landCF * CFrame.new(0, 15, -50)
-                subText.Text = "正在制造虫洞，请稍等..."; TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-                
-                local wormholePos = landCF.Position + landCF.LookVector * 150
-                local wormholeFolder = new("Folder", { Name = "WormholeFX" }, Workspace)
-                local voidPart = vpart({ Shape = Enum.PartType.Ball, Size = Vector3.new(10,10,10), Color = Color3.new(0,0,0), Material = Enum.Material.SmoothPlastic, CFrame = CFrame.new(wormholePos) }, wormholeFolder)
-                local greenSwirls = {}
-                for i=1, 30 do
-                    local swirl = vpart({ Size = Vector3.new(1, 1, 10), Color = Color3.fromRGB(0,255,100), Material = Enum.Material.Neon, CFrame = CFrame.new(wormholePos) * CFrame.Angles(math.rad(math.random(0,360)), math.rad(math.random(0,360)), 0) }, wormholeFolder)
-                    table.insert(greenSwirls, swirl)
-                end
-                
-                TweenService:Create(voidPart, TweenInfo.new(4, Enum.EasingStyle.Quad), {Size = Vector3.new(200, 200, 200)}):Play()
-                for _, s in ipairs(greenSwirls) do
-                    TweenService:Create(s, TweenInfo.new(4, Enum.EasingStyle.Quad), {Size = Vector3.new(5, 5, 60)}):Play()
-                end
-                
-                task.wait(4)
-                TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-                
-                for _, p in pairs(shipModel:GetChildren()) do
-                    if p:IsA("BasePart") then
-                        TweenService:Create(p, TweenInfo.new(2, Enum.EasingStyle.Exponential), {CFrame = p.CFrame + p.CFrame.LookVector * 200}):Play()
-                    end
-                end
-                task.wait(2)
-                
-                for _, p in pairs(shipModel:GetChildren()) do p.Transparency = 1 end
-                wormholeFolder:Destroy()
-                
-                local speedGui = new("ScreenGui", { Name = "SpeedUI", IgnoreGuiInset = true, DisplayOrder = 999 }, player.PlayerGui)
-                local speedLines = {}
-                for i = 1, 300 do
-                    local line = new("Frame", { AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.fromScale(0.5,0.5), Size = UDim2.fromOffset(math.random(2,6), 0), BackgroundColor3 = Color3.new(1,1,1), Rotation = math.random(0,360) }, speedGui)
-                    table.insert(speedLines, line)
-                end
-                
-                task.spawn(function()
-                    local t0 = tick()
-                    while isPlaying and tick() - t0 < 6 do
-                        for _, line in ipairs(speedLines) do
-                            local length = line.AbsoluteSize.Y + 200
-                            line.Size = UDim2.fromOffset(line.Size.X.Offset, length)
-                            line.Position = UDim2.new(0.5, math.cos(math.rad(line.Rotation)) * length/2, 0.5, math.sin(math.rad(line.Rotation)) * length/2)
-                        end
-                        task.wait()
-                    end
-                end)
-                
-                task.wait(6)
-                speedGui:Destroy()
-                
-                camera.CFrame = CFrame.lookAt(GC + Vector3.new(0, 500, 6000), GC)
-                
-                local planetsOrder = {"Sun", "Earth", "Jupiter", "Saturn"}
-                for _, pName in ipairs(planetsOrder) do
-                    local targetP = planets[pName]
-                    local lookAt = CFrame.lookAt(targetP.Position + Vector3.new(0, 300, 1200), targetP.Position)
-                    TweenService:Create(camera, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = lookAt}):Play()
-                    task.wait(2)
-                end
-                
-                local earthObj = planets["Earth"]
-                local landPos2 = earthObj.Position + Vector3.new(0, earthObj.Size.Y/2 + 20, 0)
-                local platform = vpart({ Size = Vector3.new(800, 4, 800), Color = Color3.fromRGB(40, 100, 40), Material = Enum.Material.Grass, CFrame = CFrame.new(landPos2) }, sceneFolder)
-                local shipLandCF2 = CFrame.new(landPos2 + Vector3.new(0, 5, 0)) * CFrame.Angles(0, math.rad(math.random(0,360)), 0)
-                
-                camera.CFrame = shipLandCF2 * CFrame.new(200, 80, 200) * CFrame.Angles(0, math.rad(45), 0)
-                
-                for _, p in pairs(shipModel:GetChildren()) do
-                    if p:IsA("BasePart") then
-                        p.Transparency = 0
-                        p.CFrame = shipLandCF2 * (p.CFrame - landCF.Position) + Vector3.new(0, 200, 0)
-                        TweenService:Create(p, TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = p.CFrame - Vector3.new(0, 200, 0)}):Play()
-                    end
-                end
-                task.wait(5)
-                
-                subText.Text = "已到达目标星球，舱门开启..."; TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-                TweenService:Create(door, TweenInfo.new(1), {CFrame = door.CFrame * CFrame.new(0, 6, 0)}):Play()
-                task.wait(1.5)
-                
-                hrp.CFrame = shipLandCF2 * CFrame.new(0, 2, -3)
-                TweenService:Create(hrp, TweenInfo.new(0.5), {Transparency = 0}):Play()
-                for _,p in pairs(char:GetChildren()) do if p:IsA("BasePart") then TweenService:Create(p, TweenInfo.new(0.5), {Transparency = 0}):Play() end end
-                
-                TweenService:Create(hrp, TweenInfo.new(3, Enum.EasingStyle.Linear), {CFrame = shipLandCF2 * CFrame.new(0, -6, -10)}):Play()
-                task.wait(3)
-                TweenService:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = shipLandCF2 * CFrame.new(0, -10, -20)}):Play()
-                task.wait(2)
-                
-                TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-                TweenService:Create(door, TweenInfo.new(1), {CFrame = door.CFrame}):Play()
-                task.wait(1)
-                
-                for _, p in pairs(shipModel:GetChildren()) do
-                    if p:IsA("BasePart") then
-                        TweenService:Create(p, TweenInfo.new(3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = p.CFrame + Vector3.new(0, 300, 0)}):Play()
-                    end
-                end
-                task.wait(3)
-                
-                shipModel:Destroy(); sceneFolder:Destroy()
-                camera.CameraType = origCamType; camera.FieldOfView = origFOV
-                if hrp then hrp.Anchored = false end
-                if humanoid then humanoid.WalkSpeed = 16 end
-                Lighting.Brightness = oldBrightness
-                Lighting.Ambient = oldAmbient
-                Lighting.OutdoorAmbient = oldOutdoor
-                cc:Destroy(); blur:Destroy(); subGui:Destroy()
-                isPlaying = false; mainFrame.Visible = true
-            end)
-        end
-    end)
+for i=1,250 do local d=Vector3.new(rng:NextNumber(-1,1),rng:NextNumber(-1,1),rng:NextNumber(-1,1)).Unit;local s=ball("Star",d*rng:NextNumber(300,1000),rng:NextNumber(.2,.7),Color3.fromRGB(190,220,255),Enum.Material.Neon);s.CastShadow=false end
+for i=1,90 do local a=rng:NextNumber(0,math.pi*2);local r=rng:NextNumber(45,110);ball("Asteroid",base+Vector3.new(math.cos(a)*r,rng:NextNumber(-20,20),-1250+math.sin(a)*r),rng:NextNumber(1,4),Color3.fromRGB(95,90,85),Enum.Material.Slate)end
+local function moveShip(p,d,target)
+ if not running then return end
+ local v=Instance.new("CFrameValue");v.Value=ship:GetPivot();local c=v:GetPropertyChangedSignal("Value"):Connect(function()if ship.Parent then ship:PivotTo(v.Value)end end)
+ local t=tw(v,d,{Value=CFrame.lookAt(p,target or p+Vector3.new(0,0,-1))});t.Completed:Wait();c:Disconnect();v:Destroy()
 end
-
-startBtn.MouseButton1Click:Connect(startCinematic)
+local function movie()
+ if running then return end
+ running=true
+ local cc=Instance.new("ColorCorrectionEffect");cc.Name="LocalCinemaGrade";cc.Contrast=.18;cc.Saturation=.08;cc.Parent=L
+ local bloom=Instance.new("BloomEffect");bloom.Intensity=.8;bloom.Size=32;bloom.Parent=L
+ ship:PivotTo(CFrame.new(base))
+ local ok,err=pcall(function()
+  say("ORION IX  |  DEEP SPACE");cam(base+Vector3.new(24,12,30),base,3,55);cam(base+Vector3.new(-20,7,20),base,3,60)
+  say("WORMHOLE APPROACH");moveShip(worm+Vector3.new(0,0,45),3,worm);cam(worm+Vector3.new(20,12,80),worm,3,75)
+  say("WORMHOLE TRANSIT")
+  for i=1,10 do if not running then return end;local p=worm+Vector3.new(math.sin(i)*3,math.cos(i)*3,40-i*10);ship:PivotTo(CFrame.lookAt(p,p+Vector3.new(0,0,-1)));C.CFrame=CFrame.lookAt(p+Vector3.new(8,4,20),p);C.FieldOfView=95;cc.TintColor=Color3.fromRGB(150,100,255);R.RenderStepped:Wait()end
+  cc.TintColor=Color3.fromRGB(190,215,255);C.FieldOfView=70;say("SOLAR SYSTEM");moveShip(base+Vector3.new(0,10,-300),2)
+  for _,v in ipairs(planets)do if not running then return end;say(v[1]);local p,r=v[2],v[3];moveShip(p+Vector3.new(0,r*.4,r*2.5),2.2,p);cam(p+Vector3.new(r*2,r,r*3),p,1.7,65);waitFor(.3)end
+  say("EARTH RETURN");local earth=base+Vector3.new(70,-10,-900);moveShip(earth+Vector3.new(0,20,-100),3,earth);cam(earth+Vector3.new(30,20,-60),earth,3,65)
+  say("ATMOSPHERIC ENTRY");cc.TintColor=Color3.fromRGB(255,170,120);moveShip(base+Vector3.new(0,-20,-2500),4,base+Vector3.new(0,-30,-2600))
+  local g=base+Vector3.new(0,-30,-2600);part("LandingGround",Vector3.new(500,4,500),g,Color3.fromRGB(45,95,55),Enum.Material.Grass);part("LandingPad",Vector3.new(60,1,60),g+Vector3.new(0,2.5,0),Color3.fromRGB(55,65,80),Enum.Material.Metal)
+  cc.TintColor=Color3.fromRGB(190,215,255);say("LANDING SEQUENCE");moveShip(g+Vector3.new(0,12,0),3,g);moveShip(g+Vector3.new(0,5,0),2,g);cam(g+Vector3.new(25,12,30),g,3,55);say("MISSION COMPLETE");waitFor(3)
+ end)
+ running=false;C.CameraType=originalType;C.CameraSubject=originalSubject;cc:Destroy();bloom:Destroy()
+ if not ok then warn(err)end
+end
+local G=Instance.new("ScreenGui");G.Name="CinemaControl";G.ResetOnSpawn=false;G.IgnoreGuiInset=true;G.Parent=PG
+local main=Instance.new("Frame");main.Name="Panel";main.Size=UDim2.fromOffset(235,125);main.Position=UDim2.new(.04,0,.35,0);main.BackgroundColor3=Color3.fromRGB(12,17,29);main.BackgroundTransparency=.08;main.Parent=G
+Instance.new("UICorner",main).CornerRadius=UDim.new(0,10)
+local stroke=Instance.new("UIStroke",main);stroke.Color=Color3.fromRGB(35,170,255);stroke.Transparency=.25
+local top=Instance.new("TextButton");top.Size=UDim2.new(1,0,0,35);top.BackgroundColor3=Color3.fromRGB(20,30,48);top.Text="✦  ORION CINEMA     ─";top.TextColor3=Color3.fromRGB(130,220,255);top.Font=Enum.Font.GothamBold;top.TextSize=13;top.Parent=main
+Instance.new("UICorner",top).CornerRadius=UDim.new(0,9)
+local start=Instance.new("TextButton");start.Size=UDim2.new(1,-24,0,42);start.Position=UDim2.new(0,12,0,52);start.BackgroundColor3=Color3.fromRGB(20,110,170);start.Text="▶   启动电影";start.TextColor3=Color3.new(1,1,1);start.Font=Enum.Font.GothamBold;start.TextSize=15;start.Parent=main
+Instance.new("UICorner",start).CornerRadius=UDim.new(0,8)
+local small=false
+top.Activated:Connect(function()small=not small;main:TweenSize(small and UDim2.fromOffset(235,35) or UDim2.fromOffset(235,125),Enum.EasingDirection.Out,Enum.EasingStyle.Quint,.25,true);top.Text=small and "✦  ORION CINEMA     +" or "✦  ORION CINEMA     ─"end)
+local dragging,dragStart,startPos
+top.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true;dragStart=i.Position;startPos=main.Position end end)
+top.InputChanged:Connect(function(i)if dragging and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)then local d=i.Position-dragStart;main.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)end end)
+top.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=false end end)
+start.Activated:Connect(function()if running then return end;start.Text="⏳  播放中...";task.spawn(function()movie();start.Text="▶   再次播放"end)end)
