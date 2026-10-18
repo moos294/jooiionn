@@ -10,7 +10,7 @@ local camera=Workspace.CurrentCamera
 
 for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
 for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
-for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="PrecisionCockpit" or v.Name=="WormholeFX" or v.Name=="CineShip" then v:Destroy()end end
+for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="PrecisionCockpit" or v.Name=="WormholeFX" or v.Name=="CineShip" or v.Name=="SpeedLines" or v.Name=="EarthTarget" then v:Destroy()end end
 for _,v in pairs(Lighting:GetChildren())do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect")then v:Destroy()end end
 
 local gui = Instance.new("ScreenGui")
@@ -37,7 +37,7 @@ local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V5.0 导演剪辑版"
+title.Text = "封存娱乐 V4.1"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
@@ -196,19 +196,23 @@ local function startCinematic()
         
         subText.Text = "正在登机..."
         
-        local walkTarget1 = shipLandCF * CFrame.new(0, 2, -8)
+        hrp.Anchored = false
+        if humanoid then humanoid.WalkSpeed = 16 end
+        
+        local walkTarget1 = shipLandCF * CFrame.new(0, -2, -6)
         local walkTarget2 = shipLandCF * CFrame.new(0, 2, -2)
-        local tweenWalk = TweenService:Create(hrp, TweenInfo.new(3, Enum.EasingStyle.Linear), {CFrame = walkTarget2})
         
         if humanoid then
             humanoid:MoveTo(walkTarget1.Position)
             humanoid.MoveToFinished:Wait()
-            hrp.CFrame = walkTarget2
+            humanoid:MoveTo(walkTarget2.Position)
+            humanoid.MoveToFinished:Wait()
         else
-            tweenWalk:Play()
-            tweenWalk.Completed:Wait()
+            hrp.CFrame = walkTarget2
         end
         
+        hrp.Anchored = true
+        if humanoid then humanoid.WalkSpeed = 0 end
         TweenService:Create(hrp, TweenInfo.new(0.5), {Transparency = 1}):Play()
         for _,p in pairs(char:GetChildren()) do if p:IsA("BasePart") then TweenService:Create(p, TweenInfo.new(0.5), {Transparency = 1}):Play() end end
         
@@ -285,8 +289,8 @@ local function startCinematic()
         speedLines:Destroy()
         
         local earthPos = camera.CFrame.Position + camera.CFrame.LookVector * 5000
-        local earth = makePart(Workspace, "Earth", Vector3.new(2000,2000,2000), Color3.fromRGB(20, 60, 150), Enum.Material.SmoothPlastic, CFrame.new(earthPos), Enum.PartType.Ball)
-        local earthAtmo = makePart(Workspace, "EarthAtmo", Vector3.new(2050,2050,2050), Color3.fromRGB(50, 150, 255), Enum.Material.ForceField, CFrame.new(earthPos), Enum.PartType.Ball, 0.5)
+        local earth = makePart(Workspace, "EarthTarget", Vector3.new(2000,2000,2000), Color3.fromRGB(20, 60, 150), Enum.Material.SmoothPlastic, CFrame.new(earthPos), Enum.PartType.Ball)
+        local earthAtmo = makePart(Workspace, "EarthTarget", Vector3.new(2050,2050,2050), Color3.fromRGB(50, 150, 255), Enum.Material.ForceField, CFrame.new(earthPos), Enum.PartType.Ball, 0.5)
         
         local landPos = earthPos + Vector3.new(0, 1100, 0)
         
@@ -310,6 +314,8 @@ local function startCinematic()
         TweenService:Create(door, TweenInfo.new(1), {CFrame = door.CFrame * CFrame.new(0, 4, 0)}):Play()
         task.wait(1.5)
         
+        hrp.Anchored = false
+        if humanoid then humanoid.WalkSpeed = 16 end
         hrp.CFrame = shipLandCF2 * CFrame.new(0, 2, -2)
         TweenService:Create(hrp, TweenInfo.new(0.5), {Transparency = 0}):Play()
         for _,p in pairs(char:GetChildren()) do if p:IsA("BasePart") then TweenService:Create(p, TweenInfo.new(0.5), {Transparency = 0}):Play() end end
@@ -322,7 +328,12 @@ local function startCinematic()
             humanoid.MoveToFinished:Wait()
             humanoid:MoveTo(walkOff2.Position)
             humanoid.MoveToFinished:Wait()
+        else
+            hrp.CFrame = walkOff2
         end
+        
+        hrp.Anchored = true
+        if humanoid then humanoid.WalkSpeed = 0 end
         
         task.wait(1)
         TweenService:Create(subText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
