@@ -8,13 +8,11 @@ local UserInputService=game:GetService("UserInputService")
 local player=Players.LocalPlayer
 local camera=Workspace.CurrentCamera
 
--- 清理旧数据
 for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
 for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
 for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="PrecisionCockpit" or v.Name=="WormholeFX"then v:Destroy()end end
 for _,v in pairs(Lighting:GetChildren())do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect")then v:Destroy()end end
 
--- 1. 绘制 UI
 local gui = Instance.new("ScreenGui")
 gui.Name = "PowerCrownUI"
 gui.ResetOnSpawn = false
@@ -38,12 +36,11 @@ local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V3.3"
+title.Text = "封存娱乐 V3.4"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 20
 
--- 缩小按钮
 local minimizeBtn = Instance.new("TextButton", mainFrame)
 minimizeBtn.Size = UDim2.fromOffset(30, 30)
 minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
@@ -65,7 +62,6 @@ startBtn.TextSize = 16
 startBtn.AutoButtonColor = false
 Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
 
--- 拖拽逻辑
 local dragging = false
 local dragInput, dragStart, startPos
 mainFrame.InputBegan:Connect(function(input)
@@ -90,7 +86,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- 缩小逻辑
 local isMinimized = false
 minimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
@@ -125,7 +120,7 @@ end
 local function startCinematic()
     if isPlaying then return end
     isPlaying=true
-    mainFrame.Visible = false -- 启动时隐藏面板防遮挡
+    mainFrame.Visible = false
     
     local char=player.Character
     local hrp=char and char:FindFirstChild("HumanoidRootPart")
