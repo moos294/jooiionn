@@ -4,14 +4,17 @@ local RunService=game:GetService("RunService")
 local Lighting=game:GetService("Lighting")
 local StarterGui=game:GetService("StarterGui")
 local Workspace=game:GetService("Workspace")
+local UserInputService=game:GetService("UserInputService")
 local player=Players.LocalPlayer
 local camera=Workspace.CurrentCamera
 
+-- 清理旧数据
 for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
 for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
 for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="PrecisionCockpit" or v.Name=="WormholeFX"then v:Destroy()end end
 for _,v in pairs(Lighting:GetChildren())do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect")then v:Destroy()end end
 
+-- 1. 绘制 UI
 local gui = Instance.new("ScreenGui")
 gui.Name = "PowerCrownUI"
 gui.ResetOnSpawn = false
@@ -35,10 +38,21 @@ local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V3.2"
+title.Text = "封存娱乐 V3.3"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 20
+
+-- 缩小按钮
+local minimizeBtn = Instance.new("TextButton", mainFrame)
+minimizeBtn.Size = UDim2.fromOffset(30, 30)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
+minimizeBtn.BackgroundTransparency = 1
+minimizeBtn.Text = "-"
+minimizeBtn.TextColor3 = Color3.fromRGB(0, 200, 255)
+minimizeBtn.TextSize = 30
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.AutoButtonColor = false
 
 local startBtn = Instance.new("TextButton", mainFrame)
 startBtn.Size = UDim2.new(0.8, 0, 0, 40)
@@ -50,6 +64,50 @@ startBtn.Font = Enum.Font.GothamBold
 startBtn.TextSize = 16
 startBtn.AutoButtonColor = false
 Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
+
+-- 拖拽逻辑
+local dragging = false
+local dragInput, dragStart, startPos
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- 缩小逻辑
+local isMinimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.fromOffset(40, 40)}):Play()
+        TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        TweenService:Create(startBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+        minimizeBtn.Text = "+"
+        minimizeBtn.Position = UDim2.new(0.5, -15, 0.5, -15)
+    else
+        TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.fromOffset(260, 120)}):Play()
+        TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        TweenService:Create(startBtn, TweenInfo.new(0.3), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
+        minimizeBtn.Text = "-"
+        minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
+    end
+end)
 
 local isPlaying=false
 local sceneOrigin=Vector3.new(0,5000,0)
@@ -67,6 +125,7 @@ end
 local function startCinematic()
     if isPlaying then return end
     isPlaying=true
+    mainFrame.Visible = false -- 启动时隐藏面板防遮挡
     
     local char=player.Character
     local hrp=char and char:FindFirstChild("HumanoidRootPart")
@@ -89,7 +148,7 @@ local function startCinematic()
     
     local loadText=Instance.new("TextLabel",loadingGui)
     loadText.Size=UDim2.fromScale(1,0.4);loadText.Position=UDim2.fromScale(0,0.2);loadText.BackgroundTransparency=1
-    loadText.Text="正在建立深空通讯链接 0%";loadText.TextColor3=Color3.fromRGB(0,200,255);loadText.Font=Enum.Font.GothamBold;loadText.TextSize=28
+    loadText.Text="正在建立通讯链接...";loadText.TextColor3=Color3.fromRGB(0,200,255);loadText.Font=Enum.Font.GothamBold;loadText.TextSize=28
     
     local barBg=Instance.new("Frame",loadingGui)
     barBg.Size=UDim2.fromOffset(300,10);barBg.Position=UDim2.fromScale(0.5,0.5);barBg.AnchorPoint=Vector2.new(0.5,0.5)
@@ -122,24 +181,21 @@ local function startCinematic()
             local glassR=makePart(pFolder,"GR",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(5, -1, -8) * CFrame.Angles(0, math.rad(-15), 0), nil, 0.9)
             task.wait(0.1)
             
-            barFill.Size=UDim2.fromScale(0.15,1); loadText.Text="控制台姿态校准完成 15%"
+            barFill.Size=UDim2.fromScale(0.15,1); loadText.Text="控制台校准 15%"
             
             local sceneFolder=Instance.new("Folder",Workspace)
             sceneFolder.Name="CinematicScene"
             local planets={}
             
-            loadText.Text="正在渲染大气层，构建地球..."
+            loadText.Text="构建地球..."
             task.wait(0.2)
             local earth=makePart(sceneFolder,"Earth",Vector3.new(1000,1000,1000),Color3.fromRGB(20,60,150),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(6000,0,-12000)),Enum.PartType.Ball)
-            task.wait(0.1)
             makePart(sceneFolder,"EAtmo",Vector3.new(1030,1030,1030),Color3.fromRGB(50,150,255),Enum.Material.ForceField,earth.CFrame,Enum.PartType.Ball,0.4)
-            task.wait(0.1)
-            local eCloud = makePart(sceneFolder,"ECloud",Vector3.new(1010,1010,1010),Color3.fromRGB(220,240,255),Enum.Material.SmoothPlastic,earth.CFrame,Enum.PartType.Ball,0.7)
-            task.wait(0.1)
+            task.wait(0.2)
             
-            barFill.Size=UDim2.fromScale(0.3,1); loadText.Text="地球构建完成 30%"
+            barFill.Size=UDim2.fromScale(0.3,1); loadText.Text="构建地球 30%"
             
-            loadText.Text="正在注入风暴气旋，构建木星..."
+            loadText.Text="构建木星..."
             task.wait(0.2)
             local jupiter=makePart(sceneFolder,"Jupiter",Vector3.new(2400,2400,2400),Color3.fromRGB(200,170,140),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(-8000,3000,-25000)),Enum.PartType.Ball)
             task.wait(0.1)
@@ -148,23 +204,21 @@ local function startCinematic()
                 task.wait(0.1)
             end
             
-            barFill.Size=UDim2.fromScale(0.5,1); loadText.Text="木星构建完成 50%"
+            barFill.Size=UDim2.fromScale(0.5,1); loadText.Text="构建木星 50%"
             
-            loadText.Text="正在铺设冰晶星环，构建土星..."
+            loadText.Text="构建土星..."
             task.wait(0.2)
             local saturn=makePart(sceneFolder,"Saturn",Vector3.new(1800,1800,1800),Color3.fromRGB(220,200,160),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(10000,-4000,-35000)),Enum.PartType.Ball)
             task.wait(0.1)
-            
             local ring=makePart(sceneFolder,"Ring",Vector3.new(1800*2.4,10,1800*2.4),Color3.fromRGB(160,140,110),Enum.Material.Slate,nil,Enum.PartType.Cylinder,0.3)
             ring.CFrame=saturn.CFrame*CFrame.Angles(math.rad(25),0,math.rad(10))*CFrame.Angles(0,0,math.rad(90))
             
             planets={earth=earth,jupiter=jupiter,saturn=saturn}
-            barFill.Size=UDim2.fromScale(0.7,1); loadText.Text="土星构建完成 70%"
+            barFill.Size=UDim2.fromScale(0.7,1); loadText.Text="构建土星 70%"
             
-            loadText.Text="正在点亮繁星，构建星海..."
+            loadText.Text="构建星海..."
             task.wait(0.2)
             local stars=Instance.new("Folder",sceneFolder)
-            
             local starTemplate = makePart(stars, "Star", Vector3.new(40,40,40), Color3.white, Enum.Material.Neon, nil, Enum.PartType.Ball)
             starTemplate.Parent = nil
             
@@ -173,16 +227,13 @@ local function startCinematic()
                 clone.Transparency = math.random(10,80)/100
                 clone.CFrame = CFrame.new(sceneOrigin + Vector3.new(math.random(-40000,40000), math.random(-40000,40000), math.random(-80000,-10000)))
                 clone.Parent = stars
-                if i%10==0 then 
-                    barFill.Size=UDim2.fromScale(0.7 + (i/30)*0.15, 1)
-                    task.wait(0.1) 
-                end
+                if i%10==0 then task.wait(0.1) end
             end
             starTemplate:Destroy()
             
-            barFill.Size=UDim2.fromScale(0.85,1); loadText.Text="星空构建完成 85%"
+            barFill.Size=UDim2.fromScale(0.85,1); loadText.Text="构建星海 85%"
             
-            loadText.Text="正在撕开虫洞，建立空间通道..."
+            loadText.Text="建立虫洞..."
             task.wait(0.2)
             local wormhole=Instance.new("Folder",Workspace)
             wormhole.Name="WormholeFX"
@@ -190,14 +241,10 @@ local function startCinematic()
             for i=1,20 do
                 local r=makePart(wormhole,"Ring",Vector3.new(5,300,300),Color3.fromRGB(30,60,150),Enum.Material.Neon,nil,Enum.PartType.Cylinder,0.6)
                 table.insert(rings,{part=r,dist=i*200})
-                if i%10==0 then 
-                    barFill.Size=UDim2.fromScale(0.85 + (i/20)*0.15, 1)
-                    loadText.Text="正在撕开虫洞 " .. math.floor(85 + (i/20)*15) .. "%"
-                    task.wait(0.1)
-                end
+                if i%10==0 then task.wait(0.1) end
             end
             
-            barFill.Size=UDim2.fromScale(1,1); loadText.Text="全部系统就绪，正在跃迁 100%"
+            barFill.Size=UDim2.fromScale(1,1); loadText.Text="就绪 100%"
             task.wait(0.5)
             
             loadingGui:Destroy()
@@ -346,6 +393,7 @@ local function startCinematic()
                         camera.FieldOfView=origFOV
                         if hrp then hrp.Anchored=false end
                         isPlaying=false
+                        mainFrame.Visible = true
                     end
                 end
             end)
@@ -356,6 +404,7 @@ local function startCinematic()
             loadingGui:Destroy()
             if hrp then hrp.Anchored=false end
             isPlaying=false
+            mainFrame.Visible = true
             StarterGui:SetCore("SendNotification",{Title="生成失败",Text="模型生成超时",Duration=5})
         end
     end)
