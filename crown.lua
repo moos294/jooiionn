@@ -37,7 +37,7 @@ local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V3.6"
+title.Text = "封存娱乐 V4.0"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 20
@@ -116,8 +116,7 @@ minimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 local isPlaying = false
-local sceneOrigin = Vector3.new(0, 5000, 0)
-
+local sceneOrigin = Vector3.new(0, 50000, 0)
 local buildQueue = {}
 local isBuilding = false
 
@@ -157,7 +156,7 @@ local function startCinematic()
     
     local loadText = Instance.new("TextLabel", loadingGui)
     loadText.Size = UDim2.fromScale(1,0.4); loadText.Position = UDim2.fromScale(0,0.2); loadText.BackgroundTransparency = 1
-    loadText.Text = "系统准备就绪..."; loadText.TextColor3 = Color3.fromRGB(0,200,255); loadText.Font = Enum.Font.GothamBold; loadText.TextSize = 28
+    loadText.Text = "系统初始化..."; loadText.TextColor3 = Color3.fromRGB(0,200,255); loadText.Font = Enum.Font.GothamBold; loadText.TextSize = 28
     
     local barBg = Instance.new("Frame", loadingGui)
     barBg.Size = UDim2.fromOffset(300,10); barBg.Position = UDim2.fromScale(0.5,0.5); barBg.AnchorPoint = Vector2.new(0.5,0.5)
@@ -170,10 +169,8 @@ local function startCinematic()
     
     local pFolder = Instance.new("Folder", Workspace)
     pFolder.Name = "PrecisionCockpit"
-    
     local sceneFolder = Instance.new("Folder", Workspace)
     sceneFolder.Name = "CinematicScene"
-    
     local wormhole = Instance.new("Folder", Workspace)
     wormhole.Name = "WormholeFX"
     
@@ -203,54 +200,71 @@ local function startCinematic()
     table.insert(buildQueue, function()
         makePart(pFolder,"GR",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(5, -1, -8) * CFrame.Angles(0, math.rad(-15), 0), nil, 0.9)
     end)
-    
     table.insert(buildQueue, function()
-        local earth = makePart(sceneFolder,"Earth",Vector3.new(1000,1000,1000),Color3.fromRGB(20,60,150),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(6000,0,-12000)),Enum.PartType.Ball)
-        makePart(sceneFolder,"EAtmo",Vector3.new(1030,1030,1030),Color3.fromRGB(50,150,255),Enum.Material.ForceField,earth.CFrame,Enum.PartType.Ball,0.4)
-        planets.earth = earth
+        for i=1,20 do
+            local btn=makePart(pFolder,"Btn",Vector3.new(0.3,0.1,0.3),i%3==0 and Color3.fromRGB(255,50,50) or Color3.fromRGB(50,255,50),Enum.Material.Neon)
+            local dashTop=pFolder:FindFirstChild("DashTop")
+            local r=math.floor((i-1)/5)
+            local c=(i-1)%5
+            btn.CFrame=dashTop.CFrame*CFrame.new((c-2)*1.5,0.6,(r-1.5)*1)
+        end
     end)
-    
-    table.insert(buildQueue, function()
-        local jupiter = makePart(sceneFolder,"Jupiter",Vector3.new(2400,2400,2400),Color3.fromRGB(200,170,140),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(-8000,3000,-25000)),Enum.PartType.Ball)
-        planets.jupiter = jupiter
-    end)
-    for i=1,3 do
+
+    local pDefs = {
+        {name="Sun", pos=Vector3.new(0, 0, -80000), size=8000, col=Color3.fromRGB(255,200,100), mat=Enum.Material.Neon, isSun=true},
+        {name="Mercury", pos=Vector3.new(10000, 2000, -30000), size=400, col=Color3.fromRGB(120,120,120)},
+        {name="Venus", pos=Vector3.new(-15000, -3000, -45000), size=800, col=Color3.fromRGB(220,180,120)},
+        {name="Earth", pos=Vector3.new(20000, 5000, -60000), size=1000, col=Color3.fromRGB(20,60,150)},
+        {name="Mars", pos=Vector3.new(-25000, -8000, -75000), size=700, col=Color3.fromRGB(150,50,40)},
+        {name="Jupiter", pos=Vector3.new(30000, 10000, -90000), size=4000, col=Color3.fromRGB(200,170,140)},
+        {name="Saturn", pos=Vector3.new(-35000, -12000, -105000), size=3500, col=Color3.fromRGB(220,200,160)},
+        {name="Uranus", pos=Vector3.new(40000, 15000, -120000), size=2000, col=Color3.fromRGB(100,200,220)},
+        {name="Neptune", pos=Vector3.new(-45000, -18000, -135000), size=1900, col=Color3.fromRGB(50,100,230)},
+        {name="Pluto", pos=Vector3.new(50000, 20000, -150000), size=500, col=Color3.fromRGB(150,150,150)}
+    }
+
+    for _, def in ipairs(pDefs) do
         table.insert(buildQueue, function()
-            local j = planets.jupiter
-            makePart(sceneFolder, "Band", Vector3.new(2420, 100, 2420), Color3.fromRGB(150, 110, 90), Enum.Material.Slate, j.CFrame * CFrame.new(0, (i-2)*400, 0) * CFrame.Angles(0,0,math.rad(90)))
+            local p = makePart(sceneFolder, def.name, Vector3.new(def.size,def.size,def.size), def.col, def.mat or Enum.Material.SmoothPlastic, CFrame.new(sceneOrigin+def.pos), Enum.PartType.Ball)
+            planets[def.name] = p
+            if def.isSun then
+                local l = Instance.new("PointLight", p)
+                l.Range = 100000
+                l.Brightness = 3
+            elseif def.name == "Earth" then
+                makePart(sceneFolder, "EarthAtmo", Vector3.new(1030,1030,1030), Color3.fromRGB(50,150,255), Enum.Material.ForceField, p.CFrame, Enum.PartType.Ball, 0.5)
+            elseif def.name == "Saturn" then
+                for i=1,3 do
+                    local r = makePart(sceneFolder, "Ring", Vector3.new(3500*(2+i*0.4), 20, 3500*(2+i*0.4)), Color3.fromRGB(180-i*20, 160-i*20, 130-i*20), Enum.Material.Slate, nil, Enum.PartType.Cylinder, 0.3)
+                    r.CFrame = p.CFrame * CFrame.Angles(math.rad(25),0,math.rad(10)) * CFrame.Angles(0,0,math.rad(90))
+                end
+            end
         end)
     end
-    
+
     table.insert(buildQueue, function()
-        local saturn = makePart(sceneFolder,"Saturn",Vector3.new(1800,1800,1800),Color3.fromRGB(220,200,160),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(10000,-4000,-35000)),Enum.PartType.Ball)
-        planets.saturn = saturn
+        local belt = Instance.new("Folder", sceneFolder)
+        belt.Name = "AsteroidBelt"
+        for i=1,150 do
+            local a = makePart(belt, "Asteroid", Vector3.new(math.random(100,300), math.random(100,300), math.random(100,300)), Color3.fromRGB(80,80,80), Enum.Material.Rock, CFrame.new(sceneOrigin+Vector3.new(math.random(-20000,20000), math.random(-5000,5000), math.random(-35000,-25000))) * CFrame.Angles(math.random(0,6),math.random(0,6),math.random(0,6)))
+        end
     end)
+
     table.insert(buildQueue, function()
-        local s = planets.saturn
-        local ring = makePart(sceneFolder,"Ring",Vector3.new(1800*2.4,10,1800*2.4),Color3.fromRGB(160,140,110),Enum.Material.Slate,nil,Enum.PartType.Cylinder,0.3)
-        ring.CFrame = s.CFrame*CFrame.Angles(math.rad(25),0,math.rad(10))*CFrame.Angles(0,0,math.rad(90))
+        local galaxy = Instance.new("Folder", sceneFolder)
+        galaxy.Name = "Galaxy"
+        for i=1,300 do
+            local s = makePart(galaxy, "Star", Vector3.new(50,50,50), Color3.white, Enum.Material.Neon, CFrame.new(sceneOrigin+Vector3.new(math.random(-150000,150000), math.random(-150000,150000), math.random(-200000,-100000))), Enum.PartType.Ball, math.random(10,80)/100)
+        end
     end)
-    
-    table.insert(buildQueue, function()
-        local stars = Instance.new("Folder",sceneFolder)
-        stars.Name = "Stars"
-    end)
-    for i=1,30 do
+
+    for i=1,50 do
         table.insert(buildQueue, function()
-            local stars = sceneFolder:FindFirstChild("Stars")
-            local s = makePart(stars, "Star", Vector3.new(40,40,40), Color3.white, Enum.Material.Neon, CFrame.new(sceneOrigin + Vector3.new(math.random(-40000,40000), math.random(-40000,40000), math.random(-80000,-10000))), Enum.PartType.Ball)
-            s.Transparency = math.random(10,80)/100
+            local r = makePart(wormhole,"Ring",Vector3.new(20,600,600),Color3.fromRGB(30,100,255),Enum.Material.Neon,nil,Enum.PartType.Cylinder,0.4)
+            r.CFrame = CFrame.new(sceneOrigin + Vector3.new(0,0,-5000 + i*150)) * CFrame.Angles(0,0,math.rad(90))
         end)
     end
-    
-    local rings = {}
-    for i=1,15 do
-        table.insert(buildQueue, function()
-            local r = makePart(wormhole,"Ring",Vector3.new(5,300,300),Color3.fromRGB(30,60,150),Enum.Material.Neon,nil,Enum.PartType.Cylinder,0.6)
-            table.insert(rings,{part=r,dist=i*200})
-        end)
-    end
-    
+
     isBuilding = true
     local totalTasks = #buildQueue
     local completedTasks = 0
@@ -264,12 +278,12 @@ local function startCinematic()
             pcall(taskFunc)
             completedTasks = completedTasks + 1
             barFill.Size = UDim2.fromScale(completedTasks / totalTasks, 1)
-            loadText.Text = "系统加载中 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
+            loadText.Text = "全星系模型构建 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
         else
             isBuilding = false
             buildConn:Disconnect()
             
-            loadText.Text = "加载完毕，即将跃迁"
+            loadText.Text = "加载完毕，准备跃迁"
             task.wait(1)
             loadingGui:Destroy()
             
@@ -298,8 +312,8 @@ local function startCinematic()
             local flightT = 0
             local boardEnd = 3
             local taxiEnd = 8
-            local warpEnd = 11
-            local cruiseEnd = 28
+            local warpEnd = 12
+            local cruiseEnd = 40
             
             local startCamCF = startCamPos
             local targetCamCF = CFrame.new(sceneOrigin + Vector3.new(0,-4,-2))
@@ -341,13 +355,6 @@ local function startCinematic()
                     camera.CFrame = targetCamCF * CFrame.Angles(math.sin(t*3)*0.005, math.sin(t*2)*0.005, 0)
                     camera.FieldOfView = 65 + math.sin(t*2)*2
                     
-                    for i,r in ipairs(rings) do
-                        local z = -5000 - r.dist + (flightT * 0.5)
-                        r.part.CFrame = CFrame.new(sceneOrigin + Vector3.new(0,0,z)) * CFrame.Angles(0,0,math.rad(90))
-                        r.part.Size = Vector3.new(5,300*(1+i/10),300*(1+i/10))
-                        r.part.Transparency = math.clamp(0.3+(i/40),0,0.9)
-                    end
-                    
                     if t > 5.5 then
                         local warpUp = (t - 5.5) / (taxiEnd - 5.5)
                         blur.Size = warpUp * 20
@@ -360,7 +367,7 @@ local function startCinematic()
                     camera.FieldOfView = 95 + warp * 40
                     blur.Size = 20 + warp * 30
                     cc.TintColor = Color3.white
-                    cc.Contrast = warp * 2
+                    cc.Contrast = warp * 3
                     
                 elseif t < cruiseEnd then
                     blur.Size = 0
@@ -372,29 +379,24 @@ local function startCinematic()
                     local progress = math.min(cruiseTime / totalCruise, 1)
                     
                     local startPos = sceneOrigin + Vector3.new(0,-4,-2)
-                    local pathPos
-                    local lookAt
+                    local endPos = planets.Pluto.CFrame.Position
                     
-                    if progress < 0.33 then
-                        local p = progress / 0.33
-                        pathPos = startPos:Lerp(planets.earth.CFrame.Position + Vector3.new(1000,0,1000), p)
-                        lookAt = planets.earth.CFrame.Position
-                    elseif progress < 0.66 then
-                        local p = (progress - 0.33) / 0.33
-                        pathPos = (planets.earth.CFrame.Position + Vector3.new(1000,0,1000)):Lerp(planets.jupiter.CFrame.Position + Vector3.new(2400,0,2400), p)
-                        lookAt = planets.jupiter.CFrame.Position
-                    else
-                        local p = (progress - 0.66) / 0.34
-                        pathPos = (planets.jupiter.CFrame.Position + Vector3.new(2400,0,2400)):Lerp(planets.saturn.CFrame.Position + Vector3.new(1800,0,1800), p)
-                        lookAt = planets.saturn.CFrame.Position
+                    local pathPos = startPos:Lerp(endPos, progress)
+                    local lookAt = pathPos + Vector3.new(0,0,-5000)
+                    
+                    local names = {"Sun", "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"}
+                    local idx = math.floor(progress * #names) + 1
+                    if idx > #names then idx = #names end
+                    if planets[names[idx]] then
+                        lookAt = planets[names[idx]].CFrame.Position
                     end
                     
                     local camCF = CFrame.lookAt(pathPos, lookAt)
-                    local shake = 0.02 + math.sin(cruiseTime*8)*0.01
-                    camCF = camCF * CFrame.Angles(math.noise(cruiseTime*20,0,0)*shake, math.noise(0,cruiseTime*20,0)*shake, 0)
+                    local shake = 0.05 + math.sin(cruiseTime*10)*0.02
+                    camCF = camCF * CFrame.Angles(math.noise(cruiseTime*30,0,0)*shake, math.noise(0,cruiseTime*30,0)*shake, 0)
                     
                     camera.CFrame = camCF
-                    camera.FieldOfView = 70 + math.sin(cruiseTime*1.5)*5
+                    camera.FieldOfView = 80 + math.sin(cruiseTime*2)*10
                     
                 else
                     cc.Saturation = -1
