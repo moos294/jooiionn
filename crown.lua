@@ -7,17 +7,49 @@ local Workspace=game:GetService("Workspace")
 local player=Players.LocalPlayer
 local camera=Workspace.CurrentCamera
 
-for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="WindUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
-for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="WindUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
+for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
+for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI"then v:Destroy()end end
 for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="PrecisionCockpit" or v.Name=="WormholeFX"then v:Destroy()end end
 for _,v in pairs(Lighting:GetChildren())do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect")then v:Destroy()end end
 
-local s,WindUI=pcall(function()return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/1.6.66/main.lua"))()end)
-if not s or not WindUI then StarterGui:SetCore("SendNotification",{Title="加载失败",Text="请检查网络",Duration=10})return end
+local gui = Instance.new("ScreenGui")
+gui.Name = "PowerCrownUI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+pcall(function() gui.Parent = game:GetService("CoreGui") end)
+if not gui.Parent then gui.Parent = player.PlayerGui end
 
-local Window=WindUI:CreateWindow({Title="封存娱乐 V3.1",Icon="film",Author="Cinematic",Folder="SpaceSave",Theme="Dark",Transparent=true,Resizable=false,Size=UDim2.fromOffset(280,180)})
-local MainTab=Window:Tab({Title="控制",Icon="play"})
-local CgSection=MainTab:Section({Title="极致电影级体验",Icon="video"})
+local mainFrame = Instance.new("Frame", gui)
+mainFrame.Size = UDim2.fromOffset(260, 120)
+mainFrame.Position = UDim2.new(0.5, -130, 0.5, -60)
+mainFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
+local stroke = Instance.new("UIStroke", mainFrame)
+stroke.Color = Color3.fromRGB(0, 200, 255)
+stroke.Thickness = 1.5
+
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 10)
+title.BackgroundTransparency = 1
+title.Text = "封存娱乐 V3.2"
+title.TextColor3 = Color3.fromRGB(0, 200, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+
+local startBtn = Instance.new("TextButton", mainFrame)
+startBtn.Size = UDim2.new(0.8, 0, 0, 40)
+startBtn.Position = UDim2.new(0.1, 0, 0, 60)
+startBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 220)
+startBtn.Text = "启动星际巡航"
+startBtn.TextColor3 = Color3.new(1, 1, 1)
+startBtn.Font = Enum.Font.GothamBold
+startBtn.TextSize = 16
+startBtn.AutoButtonColor = false
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
 
 local isPlaying=false
 local sceneOrigin=Vector3.new(0,5000,0)
@@ -78,17 +110,17 @@ local function startCinematic()
             local baseCF = CFrame.new(sceneOrigin + Vector3.new(0, -5, 0))
             
             local dash=makePart(pFolder,"Dash",Vector3.new(24,6,10),frameCol,metal, baseCF * CFrame.new(0, -5, -8) * CFrame.Angles(math.rad(15), 0, 0))
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             local dashTop=makePart(pFolder,"DashTop",Vector3.new(22,1,8),Color3.fromRGB(15,18,22), Enum.Material.SmoothPlastic, dash.CFrame * CFrame.new(0, 3.5, 0))
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             local yoke=makePart(pFolder,"Yoke",Vector3.new(1,4,1),Color3.fromRGB(20,20,20),metal, dash.CFrame * CFrame.new(0, 2, -3) * CFrame.Angles(math.rad(15), 0, 0))
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             local yokeTop=makePart(pFolder,"YokeTop",Vector3.new(4,0.8,1.5),Color3.fromRGB(25,25,25),metal, yoke.CFrame * CFrame.new(0, 2, 0))
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             local glassL=makePart(pFolder,"GL",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(-5, -1, -8) * CFrame.Angles(0, math.rad(15), 0), nil, 0.9)
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             local glassR=makePart(pFolder,"GR",Vector3.new(6,10,0.2),Color3.fromRGB(50,100,150),Enum.Material.Glass, baseCF * CFrame.new(5, -1, -8) * CFrame.Angles(0, math.rad(-15), 0), nil, 0.9)
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             
             barFill.Size=UDim2.fromScale(0.15,1); loadText.Text="控制台姿态校准完成 15%"
             
@@ -97,55 +129,53 @@ local function startCinematic()
             local planets={}
             
             loadText.Text="正在渲染大气层，构建地球..."
-            RunService.Heartbeat:Wait()
+            task.wait(0.2)
             local earth=makePart(sceneFolder,"Earth",Vector3.new(1000,1000,1000),Color3.fromRGB(20,60,150),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(6000,0,-12000)),Enum.PartType.Ball)
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             makePart(sceneFolder,"EAtmo",Vector3.new(1030,1030,1030),Color3.fromRGB(50,150,255),Enum.Material.ForceField,earth.CFrame,Enum.PartType.Ball,0.4)
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             local eCloud = makePart(sceneFolder,"ECloud",Vector3.new(1010,1010,1010),Color3.fromRGB(220,240,255),Enum.Material.SmoothPlastic,earth.CFrame,Enum.PartType.Ball,0.7)
-            RunService.Heartbeat:Wait()
+            task.wait(0.1)
             
             barFill.Size=UDim2.fromScale(0.3,1); loadText.Text="地球构建完成 30%"
             
             loadText.Text="正在注入风暴气旋，构建木星..."
-            RunService.Heartbeat:Wait()
+            task.wait(0.2)
             local jupiter=makePart(sceneFolder,"Jupiter",Vector3.new(2400,2400,2400),Color3.fromRGB(200,170,140),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(-8000,3000,-25000)),Enum.PartType.Ball)
-            RunService.Heartbeat:Wait()
-            for i=1,5 do
-                makePart(sceneFolder, "Band", Vector3.new(2420, 100, 2420), Color3.fromRGB(150, 110, 90), Enum.Material.Slate, jupiter.CFrame * CFrame.new(0, (i-3)*300, 0) * CFrame.Angles(0,0,math.rad(90)))
-                RunService.Heartbeat:Wait()
+            task.wait(0.1)
+            for i=1,3 do
+                makePart(sceneFolder, "Band", Vector3.new(2420, 100, 2420), Color3.fromRGB(150, 110, 90), Enum.Material.Slate, jupiter.CFrame * CFrame.new(0, (i-2)*400, 0) * CFrame.Angles(0,0,math.rad(90)))
+                task.wait(0.1)
             end
             
             barFill.Size=UDim2.fromScale(0.5,1); loadText.Text="木星构建完成 50%"
             
             loadText.Text="正在铺设冰晶星环，构建土星..."
-            RunService.Heartbeat:Wait()
+            task.wait(0.2)
             local saturn=makePart(sceneFolder,"Saturn",Vector3.new(1800,1800,1800),Color3.fromRGB(220,200,160),Enum.Material.SmoothPlastic,CFrame.new(sceneOrigin+Vector3.new(10000,-4000,-35000)),Enum.PartType.Ball)
-            RunService.Heartbeat:Wait()
-            for i=1,3 do
-                local ring=makePart(sceneFolder,"Ring",Vector3.new(1800*(2+i*0.3),15,1800*(2+i*0.3)),Color3.fromRGB(150-i*10,130-i*10,100-i*10),Enum.Material.Slate,nil,Enum.PartType.Cylinder,0.2+i*0.1)
-                ring.CFrame=saturn.CFrame*CFrame.Angles(math.rad(25),0,math.rad(10))*CFrame.Angles(0,0,math.rad(90))
-                RunService.Heartbeat:Wait()
-            end
+            task.wait(0.1)
+            
+            local ring=makePart(sceneFolder,"Ring",Vector3.new(1800*2.4,10,1800*2.4),Color3.fromRGB(160,140,110),Enum.Material.Slate,nil,Enum.PartType.Cylinder,0.3)
+            ring.CFrame=saturn.CFrame*CFrame.Angles(math.rad(25),0,math.rad(10))*CFrame.Angles(0,0,math.rad(90))
             
             planets={earth=earth,jupiter=jupiter,saturn=saturn}
             barFill.Size=UDim2.fromScale(0.7,1); loadText.Text="土星构建完成 70%"
             
             loadText.Text="正在点亮繁星，构建星海..."
-            RunService.Heartbeat:Wait()
+            task.wait(0.2)
             local stars=Instance.new("Folder",sceneFolder)
             
-            local starTemplate = makePart(stars, "Star", Vector3.new(25,25,25), Color3.white, Enum.Material.Neon, nil, Enum.PartType.Ball)
+            local starTemplate = makePart(stars, "Star", Vector3.new(40,40,40), Color3.white, Enum.Material.Neon, nil, Enum.PartType.Ball)
             starTemplate.Parent = nil
             
-            for i=1,100 do
+            for i=1,30 do
                 local clone = starTemplate:Clone()
                 clone.Transparency = math.random(10,80)/100
                 clone.CFrame = CFrame.new(sceneOrigin + Vector3.new(math.random(-40000,40000), math.random(-40000,40000), math.random(-80000,-10000)))
                 clone.Parent = stars
                 if i%10==0 then 
-                    barFill.Size=UDim2.fromScale(0.7 + (i/100)*0.15, 1)
-                    RunService.Heartbeat:Wait() 
+                    barFill.Size=UDim2.fromScale(0.7 + (i/30)*0.15, 1)
+                    task.wait(0.1) 
                 end
             end
             starTemplate:Destroy()
@@ -153,23 +183,22 @@ local function startCinematic()
             barFill.Size=UDim2.fromScale(0.85,1); loadText.Text="星空构建完成 85%"
             
             loadText.Text="正在撕开虫洞，建立空间通道..."
-            RunService.Heartbeat:Wait()
+            task.wait(0.2)
             local wormhole=Instance.new("Folder",Workspace)
             wormhole.Name="WormholeFX"
             local rings={}
-            for i=1,30 do
+            for i=1,20 do
                 local r=makePart(wormhole,"Ring",Vector3.new(5,300,300),Color3.fromRGB(30,60,150),Enum.Material.Neon,nil,Enum.PartType.Cylinder,0.6)
-                table.insert(rings,{part=r,dist=i*150})
+                table.insert(rings,{part=r,dist=i*200})
                 if i%10==0 then 
-                    barFill.Size=UDim2.fromScale(0.85 + (i/30)*0.15, 1)
-                    loadText.Text="正在撕开虫洞 " .. math.floor(85 + (i/30)*15) .. "%"
-                    RunService.Heartbeat:Wait()
+                    barFill.Size=UDim2.fromScale(0.85 + (i/20)*0.15, 1)
+                    loadText.Text="正在撕开虫洞 " .. math.floor(85 + (i/20)*15) .. "%"
+                    task.wait(0.1)
                 end
             end
             
             barFill.Size=UDim2.fromScale(1,1); loadText.Text="全部系统就绪，正在跃迁 100%"
-            RunService.Heartbeat:Wait()
-            RunService.Heartbeat:Wait()
+            task.wait(0.5)
             
             loadingGui:Destroy()
             
@@ -332,8 +361,4 @@ local function startCinematic()
     end)
 end
 
-CgSection:Button({Title="启动星际巡航",Callback=function()
-    if not isPlaying then
-        startCinematic()
-    end
-end})
+startBtn.MouseButton1Click:Connect(startCinematic)
