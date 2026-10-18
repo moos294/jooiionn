@@ -10,7 +10,7 @@ local camera=Workspace.CurrentCamera
 
 for _,v in pairs(game:GetService("CoreGui"):GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI" then v:Destroy()end end
 for _,v in pairs(player.PlayerGui:GetChildren())do if v.Name=="PowerCrownUI" or v.Name=="CinematicUI" or v.Name=="LoadingUI" then v:Destroy()end end
-for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="WormholeFX" or v.Name=="CineShip" or v.Name=="SpeedLines" or v.Name=="SpaceStage" then v:Destroy()end end
+for _,v in pairs(Workspace:GetChildren())do if v.Name=="CinematicScene" or v.Name=="WormholeFX" or v.Name=="CineShip" or v.Name=="SpaceStage" then v:Destroy()end end
 for _,v in pairs(Lighting:GetChildren())do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect") then v:Destroy()end end
 
 local gui = Instance.new("ScreenGui")
@@ -28,21 +28,18 @@ mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
-
 local stroke = Instance.new("UIStroke", mainFrame)
 stroke.Color = Color3.fromRGB(0, 200, 255)
 stroke.Thickness = 1.5
-
 local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "封存娱乐 V8.0 原版宇宙"
+title.Text = "封存娱乐 V10.0 原版精度"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
 title.Active = false
-
 local minimizeBtn = Instance.new("TextButton", mainFrame)
 minimizeBtn.Size = UDim2.fromOffset(30, 30)
 minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
@@ -52,7 +49,6 @@ minimizeBtn.TextColor3 = Color3.fromRGB(0, 200, 255)
 minimizeBtn.TextSize = 30
 minimizeBtn.Font = Enum.Font.GothamBold
 minimizeBtn.AutoButtonColor = false
-
 local startBtn = Instance.new("TextButton", mainFrame)
 startBtn.Size = UDim2.new(0.8, 0, 0, 40)
 startBtn.Position = UDim2.new(0.1, 0, 0, 60)
@@ -140,28 +136,52 @@ local TEXTURES = {
     uranus = "rbxassetid://6218473866", neptune = "rbxassetid://6218473866"
 }
 
-local function buildHighPrecisionShip(parent, cf)
+local function buildCannonStyleShip(parent, cf)
     local SCALE = 20
     local model = new("Model", { Name = "CineShip" }, parent)
     model.WorldPivot = cf
-    local HULL = Color3.fromRGB(40, 45, 55)
-    local METAL = Color3.fromRGB(120, 130, 140)
-    local RED = Color3.fromRGB(255, 50, 50)
-    local function box(name, x, y, z, sx, sy, sz, col, mat, rz, ry, rx)
-        return vpart({ Name = name, Size = Vector3.new(sx*SCALE, sy*SCALE, sz*SCALE), Color = col, Material = mat, CFrame = cf * CFrame.new(x*SCALE, y*SCALE, z*SCALE) * CFrame.Angles(rx or 0, ry or 0, rz or 0) }, model)
+    local HULL = Color3.fromRGB(28, 31, 39)
+    local HULL_LIT = Color3.fromRGB(48, 52, 62)
+    local METAL = Color3.fromRGB(129, 136, 148)
+    local DARK = Color3.fromRGB(14, 17, 23)
+    local GOLD = Color3.fromRGB(191, 148, 62)
+    local RED = Color3.fromRGB(235, 28, 42)
+    
+    local function L(x, y, z) return Vector3.new(x * SCALE, y * SCALE, z * SCALE) end
+    local function box(name, x, y, z, sx, sy, sz, col, mat, rz)
+        return vpart({ Name = name, Size = L(sx, sy, sz), Color = col, Material = mat, CFrame = cf * CFrame.new(L(x, y, z)) * CFrame.Angles(0, 0, rz or 0) }, model)
     end
-    box("Core", 0, 0, 0, 4, 3, 12, HULL, Enum.Material.Metal)
+    local function axialCylinder(name, z, radius, length, col, mat)
+        return vpart({ Name = name, Shape = Enum.PartType.Cylinder, Size = Vector3.new(length * SCALE, radius * 2 * SCALE, radius * 2 * SCALE), Color = col, Material = mat, CFrame = cf * CFrame.new(0, 0, z * SCALE) * CFrame.Angles(0, math.rad(90), 0) }, model)
+    end
+    local function octRing(name, z, outer, inner, thickness, col, mat)
+        local parts = {}
+        for i = 0, 7 do
+            local a = i * math.pi / 4
+            local mid = (outer + inner) * 0.5
+            local tangential = 2 * outer * math.tan(math.pi / 8) * 1.04
+            parts[#parts + 1] = box(name, math.cos(a) * mid, math.sin(a) * mid, z, outer - inner, tangential, thickness, col, mat, a)
+        end
+        return parts
+    end
+
+    axialCylinder("EngineCore", 2, 1.2, 8, HULL, Enum.Material.Metal)
     for i = 0, 7 do
         local a = i * math.pi / 4
-        box("Armor", math.cos(a)*2.2, math.sin(a)*2.2, 0, 1, 1.2, 10, METAL, Enum.Material.Metal, a)
+        box("ArmorFacet", math.cos(a) * 1.4, math.sin(a) * 1.4, 1, 0.6, 1.2, 8, HULL_LIT, Enum.Material.Metal, a)
     end
-    box("Cockpit", 0, 2.2, -4, 2.5, 1.5, 4, Color3.fromRGB(0, 200, 255), Enum.Material.Glass)
-    box("WingL", -5, 0, 2, 8, 0.3, 5, HULL, Enum.Material.Metal, math.rad(-15))
-    box("WingR", 5, 0, 2, 8, 0.3, 5, HULL, Enum.Material.Metal, math.rad(15))
-    box("Door", 0, -2, -3, 2, 2.5, 0.2, Color3.fromRGB(60, 70, 80), Enum.Material.Metal)
-    box("Ladder", 0, -4, -3.5, 1.5, 5, 0.2, METAL, Enum.Material.Metal, math.rad(20))
-    local thr = vpart({ Name = "Thruster", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5*SCALE, 1.5*SCALE, 1.5*SCALE), CFrame = cf * CFrame.new(0,0,6.5*SCALE) * CFrame.Angles(0,math.rad(90),0), Color = RED, Material = Enum.Material.Neon }, model)
-    new("PointLight", { Color = RED, Range = 40, Brightness = 3 }, thr)
+    for k = 0, 8 do
+        octRing("InductionCoil", -3 + k * 1.2, 1.8, 1.2, 0.2, METAL, Enum.Material.Metal)
+    end
+    box("Cockpit", 0, 1.8, -3, 1.6, 1, 3.4, Color3.fromRGB(100, 200, 255), Enum.Material.Glass)
+    box("WingL", -4, 0, 1, 6, 0.2, 3, DARK, Enum.Material.Metal, math.rad(-10))
+    box("WingR", 4, 0, 1, 6, 0.2, 3, DARK, Enum.Material.Metal, math.rad(10))
+    box("Door", 0, -1.5, -1.5, 1.5, 2, 0.2, Color3.fromRGB(40, 45, 50), Enum.Material.Metal)
+    box("Ladder", 0, -3.5, -2, 1, 5, 0.2, METAL, Enum.Material.Metal, math.rad(20))
+    box("Bridge", 0, 2.8, 1, 1, 0.5, 2, DARK, Enum.Material.Metal)
+    local thr = axialCylinder("Thruster", 5.5, 0.8, 0.5, RED, Enum.Material.Neon)
+    new("PointLight", { Color = RED, Range = 30, Brightness = 3 }, thr)
+    
     return model
 end
 
@@ -194,7 +214,7 @@ local function startCinematic()
     
     local loadingGui = new("ScreenGui", { Name = "LoadingUI", IgnoreGuiInset = true, DisplayOrder = 1000 }, player.PlayerGui)
     new("Frame", { Size = UDim2.fromScale(1,1), BackgroundColor3 = Color3.fromRGB(10,10,12), BorderSizePixel = 0 }, loadingGui)
-    local loadTxt = new("TextLabel", { Size = UDim2.fromScale(1,0.4), Position = UDim2.fromScale(0,0.2), BackgroundTransparency = 1, Text = "加载原版宇宙模型中 0%", TextColor3 = Color3.fromRGB(0,200,255), Font = Enum.Font.GothamBold, TextSize = 28 }, loadingGui)
+    local loadTxt = new("TextLabel", { Size = UDim2.fromScale(1,0.4), Position = UDim2.fromScale(0,0.2), BackgroundTransparency = 1, Text = "加载原版宇宙中 0%", TextColor3 = Color3.fromRGB(0,200,255), Font = Enum.Font.GothamBold, TextSize = 28 }, loadingGui)
     local barBg = new("Frame", { Size = UDim2.fromOffset(300,10), Position = UDim2.fromScale(0.5,0.5), AnchorPoint = Vector2.new(0.5,0.5), BackgroundColor3 = Color3.fromRGB(30,30,35), BorderSizePixel = 0 }, loadingGui)
     new("UICorner", { CornerRadius = UDim.new(1,0) }, barBg)
     local barFill = new("Frame", { Size = UDim2.fromScale(0,1), BackgroundColor3 = Color3.fromRGB(0,200,255), BorderSizePixel = 0 }, barBg)
@@ -208,7 +228,7 @@ local function startCinematic()
     
     local buildQueue = {}
     local shipModel
-    table.insert(buildQueue, function() shipModel = buildHighPrecisionShip(sceneFolder, startCF) end)
+    table.insert(buildQueue, function() shipModel = buildCannonStyleShip(sceneFolder, startCF) end)
     
     local planets = {}
     local GC = SPACE_ORIGIN
@@ -257,7 +277,7 @@ local function startCinematic()
             pcall(taskFunc)
             completedTasks = completedTasks + 1
             barFill.Size = UDim2.fromScale(completedTasks / totalTasks, 1)
-            loadTxt.Text = "加载原版宇宙模型中 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
+            loadTxt.Text = "加载原版宇宙中 " .. math.floor((completedTasks / totalTasks) * 100) .. "%"
         else
             isBuilding = false
             buildConn:Disconnect()
@@ -267,7 +287,7 @@ local function startCinematic()
             
             camera.CameraType = Enum.CameraType.Scriptable
             camera.FieldOfView = 90
-            camera.CFrame = CFrame.lookAt(landCF.Position + Vector3.new(200, 80, 200), landCF.Position)
+            camera.CFrame = CFrame.lookAt(landCF.Position + Vector3.new(150, 50, 150), landCF.Position)
             
             task.spawn(function()
                 task.wait(1)
