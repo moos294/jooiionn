@@ -1,1119 +1,378 @@
-local VERSION = "1.3"
-local GUI_NAME = "GojoSkillUI"
-local EFFECT_NAME = "GojoSkillEffects"
-
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local UserInputService = game:GetService("UserInputService")
-
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
-for _, name in ipairs({GUI_NAME, "GojoSkillUI_V2", "GojoSkillDemo"}) do
-    local old = playerGui:FindFirstChild(name)
-    if old then
-        old:Destroy()
-    end
+local P=game:GetService("Players")
+local TS=game:GetService("TweenService")
+local RS=game:GetService("RunService")
+local UIS=game:GetService("UserInputService")
+local L=game:GetService("Lighting")
+local plr=P.LocalPlayer
+local pg=plr:WaitForChild("PlayerGui")
+local function clearOld()
+for _,v in ipairs(pg:GetChildren()) do if v.Name=="GojoV14" or v.Name=="GojoSkillUI" or v.Name=="GojoSkillUI_V2" or v.Name=="GojoSkillDemo" then v:Destroy() end end
+local f=workspace:FindFirstChild("GojoSkillEffects")
+if f then f:Destroy() end
 end
-
-local oldEffects = workspace:FindFirstChild(EFFECT_NAME)
-if oldEffects then
-    oldEffects:Destroy()
+clearOld()
+local fx=Instance.new("Folder",workspace)
+fx.Name="GojoSkillEffects"
+local gui=Instance.new("ScreenGui")
+gui.Name="GojoV14"
+gui.ResetOnSpawn=false
+gui.DisplayOrder=50
+gui.Parent=pg
+local char,hum,root
+local busy=false
+local token=0
+local cons={}
+local original={}
+local savedLight={}
+local function bind()
+char=plr.Character or plr.CharacterAdded:Wait()
+hum=char:WaitForChild("Humanoid")
+root=char:WaitForChild("HumanoidRootPart")
+original={}
+for _,v in ipairs(char:GetDescendants()) do if v:IsA("Motor6D") then original[v]=v.Transform end end
 end
-
-local effects = Instance.new("Folder")
-effects.Name = EFFECT_NAME
-effects.Parent = workspace
-
-local COLORS = {
-    Blue = Color3.fromRGB(45, 145, 255),
-    BlueLight = Color3.fromRGB(170, 230, 255),
-    Red = Color3.fromRGB(255, 55, 85),
-    Purple = Color3.fromRGB(150, 65, 255),
-    PurpleLight = Color3.fromRGB(225, 185, 255),
-    White = Color3.fromRGB(245, 250, 255),
-    Dark = Color3.fromRGB(12, 15, 30)
-}
-
-local busy = false
-local minimized = false
-local destroyed = false
-local activeTweens = {}
-local activeConnections = {}
-local savedLighting
-local domainEffect
-local actionId = 0
-
-local function addTween(instance, duration, properties, style, direction)
-    if not instance or not instance.Parent then
-        return
-    end
-
-    local animation = TweenService:Create(
-        instance,
-        TweenInfo.new(
-            duration,
-            style or Enum.EasingStyle.Quad,
-            direction or Enum.EasingDirection.Out
-        ),
-        properties
-    )
-
-    activeTweens[#activeTweens + 1] = animation
-    animation:Play()
-
-    return animation
+bind()
+plr.CharacterAdded:Connect(function() task.wait(.5) bind() end)
+local function alive()
+return char and char.Parent and hum and hum.Health>0 and root and root.Parent
 end
-
-local function addConnection(connection)
-    activeConnections[#activeConnections + 1] = connection
-    return connection
+local function valid(t)
+return token==t and alive()
 end
-
-local function getCharacter()
-    return player.Character
+local function addConn(c)
+table.insert(cons,c)
+return c
 end
-
-local function getRoot()
-    local model = getCharacter()
-    return model and model:FindFirstChild("HumanoidRootPart")
+local function tw(o,d,p,s)
+if not o or not o.Parent then return end
+local x=TS:Create(o,TweenInfo.new(d,s or Enum.EasingStyle.Quad,Enum.EasingDirection.Out),p)
+x:Play()
+return x
 end
-
-local function getHumanoid()
-    local model = getCharacter()
-    return model and model:FindFirstChildOfClass("Humanoid")
+local function mk(parent,name,size,cf,color,mat,trans,shape)
+local p=Instance.new("Part")
+p.Name=name
+p.Size=size
+p.CFrame=cf
+p.Color=color
+p.Material=mat or Enum.Material.Neon
+p.Transparency=trans or 0
+p.Shape=shape or Enum.PartType.Block
+p.Anchored=true
+p.CanCollide=false
+p.CanTouch=false
+p.CanQuery=false
+p.CastShadow=false
+p.Parent=parent
+return p
 end
-
-local function getHand()
-    local model = getCharacter()
-    if not model then
-        return nil
-    end
-
-    return model:FindFirstChild("RightHand")
-        or model:FindFirstChild("Right Arm")
-        or model:FindFirstChild("HumanoidRootPart")
+local function ball(pos,size,color,name)
+local p=mk(fx,name,Vector3.one*size,CFrame.new(pos),color,Enum.Material.Neon,.04,Enum.PartType.Ball)
+local l=Instance.new("PointLight",p)
+l.Color=color
+l.Brightness=3
+l.Range=size*7
+local a=Instance.new("Attachment",p)
+local e=Instance.new("ParticleEmitter",a)
+e.Color=ColorSequence.new(color)
+e.LightEmission=1
+e.Rate=35
+e.Lifetime=NumberRange.new(.3,.8)
+e.Speed=NumberRange.new(1,6)
+e.SpreadAngle=Vector2.new(180,180)
+e.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,size*.09),NumberSequenceKeypoint.new(.5,size*.05),NumberSequenceKeypoint.new(1,0)})
+return p
 end
-
-local function forwardPosition(distance, height)
-    local root = getRoot()
-    if not root then
-        return nil
-    end
-
-    return root.Position
-        + root.CFrame.LookVector * distance
-        + Vector3.new(0, height or 2, 0)
+local function ring(pos,r,color,d)
+local p=mk(fx,"EnergyRing",Vector3.new(.15,r*2,r*2),CFrame.new(pos)*CFrame.Angles(0,0,math.pi/2),color,Enum.Material.Neon,.1,Enum.PartType.Cylinder)
+tw(p,d,{Size=Vector3.new(.05,r*3,r*3),Transparency=1})
+task.delay(d+.1,function() if p.Parent then p:Destroy() end end)
+return p
 end
-
-local function createPart(name, size, cframe, color, material, transparency, shape)
-    local part = Instance.new("Part")
-    part.Name = name
-    part.Size = size
-    part.CFrame = cframe
-    part.Color = color
-    part.Material = material or Enum.Material.Neon
-    part.Transparency = transparency or 0
-    part.Anchored = true
-    part.CanCollide = false
-    part.CanTouch = false
-    part.CanQuery = false
-    part.CastShadow = false
-    part.Shape = shape or Enum.PartType.Block
-    part.Parent = effects
-
-    return part
+local function burst(pos,color,n)
+local p=mk(fx,"Burst",Vector3.one*.1,CFrame.new(pos),color,Enum.Material.Neon,1)
+local a=Instance.new("Attachment",p)
+local e=Instance.new("ParticleEmitter",a)
+e.Color=ColorSequence.new(color)
+e.LightEmission=1
+e.Speed=NumberRange.new(8,32)
+e.Lifetime=NumberRange.new(.3,1)
+e.SpreadAngle=Vector2.new(180,180)
+e.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,.8),NumberSequenceKeypoint.new(1,0)})
+e:Emit(n)
+task.delay(1.5,function() if p.Parent then p:Destroy() end end)
 end
-
-local function createSphere(name, position, size, color, transparency)
-    return createPart(
-        name,
-        Vector3.new(size, size, size),
-        CFrame.new(position),
-        color,
-        Enum.Material.Neon,
-        transparency or 0,
-        Enum.PartType.Ball
-    )
+local function beam(a,b,color,w)
+local p=mk(fx,"EnergyBeam",Vector3.new(w,w,(b-a).Magnitude),CFrame.lookAt((a+b)/2,b),color,Enum.Material.Neon,.05)
+tw(p,.5,{Size=Vector3.new(.03,.03,(b-a).Magnitude),Transparency=1})
+task.delay(.6,function() if p.Parent then p:Destroy() end end)
+return p
 end
-
-local function createRing(name, position, radius, thickness, color, transparency, rotation)
-    return createPart(
-        name,
-        Vector3.new(thickness, radius * 2, radius * 2),
-        CFrame.new(position)
-            * (rotation or CFrame.Angles(0, 0, math.rad(90))),
-        color,
-        Enum.Material.Neon,
-        transparency or 0.1,
-        Enum.PartType.Cylinder
-    )
+local function motor(n)
+for _,v in ipairs(char:GetDescendants()) do if v:IsA("Motor6D") and v.Name==n then return v end end
 end
-
-local function addLight(part, color, brightness, range)
-    local light = Instance.new("PointLight")
-    light.Color = color
-    light.Brightness = brightness
-    light.Range = range
-    light.Parent = part
-    return light
+local function pose(t,d,target)
+local names={"Root","Waist","Neck","RightShoulder","LeftShoulder","RightElbow","LeftElbow"}
+local ms={}
+for _,n in ipairs(names) do local m=motor(n) if m then ms[n]=m end end
+local elapsed=0
+local c
+c=RS.Heartbeat:Connect(function(dt)
+if not valid(t) then c:Disconnect() return end
+elapsed+=dt
+local a=math.clamp(elapsed/d,0,1)
+a=a*a*(3-2*a)
+for n,m in pairs(ms) do
+local base=original[m] or CFrame.identity
+m.Transform=base:Lerp(base*(target[n] or CFrame.identity),a)
 end
-
-local function createFlash(position, color, size)
-    local flash = createSphere("EnergyFlash", position, 0.5, color, 0.1)
-    addLight(flash, color, 4, size * 2)
-
-    addTween(flash, 0.2, {
-        Size = Vector3.new(size, size, size),
-        Transparency = 0.65
-    })
-
-    task.delay(0.22, function()
-        if flash.Parent then
-            addTween(flash, 0.35, {
-                Size = Vector3.new(size * 1.5, size * 1.5, size * 1.5),
-                Transparency = 1
-            })
-        end
-    end)
-
-    return flash
-end
-
-local function createParticles(position, color, count, spread, size)
-    for i = 1, count do
-        local direction = Vector3.new(
-            math.random(-100, 100) / 100,
-            math.random(-100, 100) / 100,
-            math.random(-100, 100) / 100
-        )
-
-        if direction.Magnitude < 0.05 then
-            direction = Vector3.new(0, 1, 0)
-        end
-
-        direction = direction.Unit
-
-        local particle = createSphere(
-            "EnergyParticle",
-            position,
-            math.random(5, 12) / 10 * size,
-            color,
-            0.05
-        )
-
-        local distance = math.random(50, 100) / 100 * spread
-
-        addTween(particle, math.random(6, 13) / 10, {
-            Position = position + direction * distance,
-            Transparency = 1,
-            Size = Vector3.new(0.03, 0.03, 0.03)
-        }, Enum.EasingStyle.Quint)
-    end
-end
-
-local function createBeam(startPosition, endPosition, color, thickness, transparency)
-    local distance = (endPosition - startPosition).Magnitude
-    local midpoint = (startPosition + endPosition) / 2
-
-    return createPart(
-        "EnergyBeam",
-        Vector3.new(thickness, thickness, distance),
-        CFrame.lookAt(midpoint, endPosition),
-        color,
-        Enum.Material.Neon,
-        transparency or 0
-    )
-end
-
-local function cleanupEffects()
-    for _, animation in ipairs(activeTweens) do
-        pcall(function()
-            animation:Cancel()
-        end)
-    end
-
-    table.clear(activeTweens)
-
-    for _, connection in ipairs(activeConnections) do
-        pcall(function()
-            connection:Disconnect()
-        end)
-    end
-
-    table.clear(activeConnections)
-
-    if effects and effects.Parent then
-        effects:ClearAllChildren()
-    end
-end
-
-local function restoreLighting()
-    if domainEffect then
-        domainEffect:Destroy()
-        domainEffect = nil
-    end
-
-    if savedLighting then
-        Lighting.ClockTime = savedLighting.ClockTime
-        Lighting.Brightness = savedLighting.Brightness
-        Lighting.Ambient = savedLighting.Ambient
-        Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
-        Lighting.FogEnd = savedLighting.FogEnd
-        Lighting.FogColor = savedLighting.FogColor
-        savedLighting = nil
-    end
-end
-
-local function clearAll()
-    actionId += 1
-    cleanupEffects()
-    restoreLighting()
-    busy = false
-end
-
-local function playPose(kind, duration)
-    local model = getCharacter()
-    if not model then
-        return
-    end
-
-    local poses = {
-        Blue = {
-            RightShoulder = CFrame.Angles(math.rad(-65), 0, math.rad(35)),
-            LeftShoulder = CFrame.Angles(math.rad(-25), 0, math.rad(-15)),
-            Neck = CFrame.Angles(math.rad(-8), 0, 0)
-        },
-        Red = {
-            RightShoulder = CFrame.Angles(math.rad(-60), 0, math.rad(40)),
-            LeftShoulder = CFrame.Angles(math.rad(-60), 0, math.rad(-40)),
-            Neck = CFrame.Angles(math.rad(-5), 0, 0)
-        },
-        Purple = {
-            RightShoulder = CFrame.Angles(math.rad(-75), 0, math.rad(35)),
-            LeftShoulder = CFrame.Angles(math.rad(-75), 0, math.rad(-35)),
-            Neck = CFrame.Angles(math.rad(-10), 0, 0)
-        },
-        Domain = {
-            RightShoulder = CFrame.Angles(math.rad(-85), 0, math.rad(25)),
-            LeftShoulder = CFrame.Angles(math.rad(-85), 0, math.rad(-25)),
-            Neck = CFrame.Angles(math.rad(-12), 0, 0),
-            Waist = CFrame.Angles(math.rad(-5), 0, 0)
-        }
-    }
-
-    local selected = poses[kind]
-    if not selected then
-        return
-    end
-
-    local thisAction = actionId
-    local motors = {}
-
-    for _, object in ipairs(model:GetDescendants()) do
-        if object:IsA("Motor6D") and selected[object.Name] then
-            local data = {
-                Motor = object,
-                Original = object.Transform
-            }
-
-            motors[#motors + 1] = data
-
-            addTween(object, 0.25, {
-                Transform = selected[object.Name]
-            }, Enum.EasingStyle.Sine)
-        end
-    end
-
-    task.delay(duration, function()
-        if thisAction ~= actionId then
-            return
-        end
-
-        for _, data in ipairs(motors) do
-            if data.Motor.Parent then
-                addTween(data.Motor, 0.35, {
-                    Transform = data.Original
-                }, Enum.EasingStyle.Sine)
-            end
-        end
-    end)
-end
-
-local function blueSkill()
-    local position = forwardPosition(5, 1.5)
-    if not position then
-        return
-    end
-
-    playPose("Blue", 2.2)
-
-    local core = createSphere("BlueCore", position, 0.5, COLORS.BlueLight)
-    addLight(core, COLORS.Blue, 4, 20)
-
-    local rings = {
-        createRing("BlueRingA", position, 2, 0.12, COLORS.BlueLight),
-        createRing("BlueRingB", position, 3, 0.12, COLORS.Blue, 0.15,
-            CFrame.Angles(0, math.rad(60), math.rad(35))),
-        createRing("BlueRingC", position, 1.5, 0.1, COLORS.White, 0.15,
-            CFrame.Angles(math.rad(45), 0, math.rad(20)))
-    }
-
-    addTween(core, 0.8, {
-        Size = Vector3.new(3, 3, 3)
-    })
-
-    for index, part in ipairs(rings) do
-        addTween(part, 0.9, {
-            Size = Vector3.new(0.12, 7 + index * 2, 7 + index * 2)
-        })
-    end
-
-    createParticles(position, COLORS.BlueLight, 22, 9, 0.6)
-
-    task.delay(1, function()
-        if core.Parent then
-            addTween(core, 0.4, {
-                Size = Vector3.new(5, 5, 5),
-                Transparency = 1
-            })
-        end
-
-        for _, part in ipairs(rings) do
-            if part.Parent then
-                addTween(part, 0.4, {
-                    Transparency = 1
-                })
-            end
-        end
-    end)
-end
-
-local function redSkill()
-    local position = forwardPosition(5, 1.5)
-    if not position then
-        return
-    end
-
-    playPose("Red", 2.4)
-
-    local core = createSphere("RedCore", position, 0.5, COLORS.Red)
-    addLight(core, COLORS.Red, 5, 22)
-
-    local ringA = createRing("RedRingA", position, 1.8, 0.15, COLORS.Red)
-    local ringB = createRing("RedRingB", position, 2.8, 0.12, COLORS.White, 0.2,
-        CFrame.Angles(0, math.rad(40), math.rad(30)))
-
-    addTween(core, 0.75, {
-        Size = Vector3.new(3.2, 3.2, 3.2)
-    })
-
-    addTween(ringA, 0.8, {
-        Size = Vector3.new(0.15, 8, 8)
-    })
-
-    addTween(ringB, 0.8, {
-        Size = Vector3.new(0.12, 12, 12)
-    })
-
-    task.delay(0.8, function()
-        createFlash(position, COLORS.Red, 10)
-        createParticles(position, COLORS.Red, 32, 14, 0.7)
-
-        for _, part in ipairs({core, ringA, ringB}) do
-            if part.Parent then
-                addTween(part, 0.4, {
-                    Transparency = 1
-                })
-            end
-        end
-    end)
-end
-
-local function purpleSkill()
-    local origin = forwardPosition(5, 2)
-    if not origin then
-        return
-    end
-
-    playPose("Purple", 4.5)
-
-    local bluePosition = origin + Vector3.new(-3, 0, 0)
-    local redPosition = origin + Vector3.new(3, 0, 0)
-
-    local blue = createSphere("PurpleBlueOrb", bluePosition, 0.5, COLORS.Blue)
-    local red = createSphere("PurpleRedOrb", redPosition, 0.5, COLORS.Red)
-
-    addLight(blue, COLORS.BlueLight, 3, 14)
-    addLight(red, COLORS.Red, 3, 14)
-
-    local blueRing = createRing("PurpleBlueRing", bluePosition, 1.4, 0.12, COLORS.BlueLight)
-    local redRing = createRing("PurpleRedRing", redPosition, 1.4, 0.12, COLORS.Red)
-
-    addTween(blue, 0.7, {
-        Position = origin + Vector3.new(-1.2, 0.5, 0),
-        Size = Vector3.new(2.4, 2.4, 2.4)
-    })
-
-    addTween(red, 0.7, {
-        Position = origin + Vector3.new(1.2, -0.5, 0),
-        Size = Vector3.new(2.4, 2.4, 2.4)
-    })
-
-    addTween(blueRing, 0.7, {
-        Position = origin + Vector3.new(-1.2, 0.5, 0),
-        Size = Vector3.new(0.12, 5, 5)
-    })
-
-    addTween(redRing, 0.7, {
-        Position = origin + Vector3.new(1.2, -0.5, 0),
-        Size = Vector3.new(0.12, 5, 5)
-    })
-
-    task.wait(0.75)
-
-    local center = origin
-
-    addTween(blue, 0.45, {
-        Position = center,
-        Color = COLORS.Purple,
-        Size = Vector3.new(2.8, 2.8, 2.8)
-    })
-
-    addTween(red, 0.45, {
-        Position = center,
-        Color = COLORS.PurpleLight,
-        Size = Vector3.new(2.8, 2.8, 2.8)
-    })
-
-    addTween(blueRing, 0.45, {
-        Position = center
-    })
-
-    addTween(redRing, 0.45, {
-        Position = center
-    })
-
-    task.wait(0.5)
-
-    for _, part in ipairs({blue, red, blueRing, redRing}) do
-        if part.Parent then
-            part:Destroy()
-        end
-    end
-
-    local core = createSphere("HollowPurpleCore", center, 1, COLORS.PurpleLight)
-    addLight(core, COLORS.Purple, 7, 32)
-
-    local rings = {}
-
-    for index = 1, 4 do
-        rings[index] = createRing(
-            "PurpleFusionRing",
-            center,
-            2 + index,
-            0.15,
-            index % 2 == 0 and COLORS.PurpleLight or COLORS.Purple,
-            0.1,
-            CFrame.Angles(
-                math.rad(index * 35),
-                math.rad(index * 45),
-                math.rad(index * 25)
-            )
-        )
-
-        addTween(rings[index], 0.5, {
-            Size = Vector3.new(0.15, 10 + index * 2, 10 + index * 2)
-        })
-    end
-
-    addTween(core, 0.5, {
-        Size = Vector3.new(5, 5, 5)
-    })
-
-    createFlash(center, COLORS.PurpleLight, 14)
-    createParticles(center, COLORS.Purple, 36, 15, 0.8)
-
-    task.wait(0.55)
-
-    local currentRoot = getRoot()
-    if not currentRoot then
-        return
-    end
-
-    local direction = currentRoot.CFrame.LookVector
-    local destination = center + direction * 60
-
-    local projectile = createSphere("HollowPurpleProjectile", center, 3.5, COLORS.Purple)
-    addLight(projectile, COLORS.PurpleLight, 8, 35)
-
-    local projectileRing = createRing("HollowPurpleProjectileRing", center, 4, 0.15, COLORS.PurpleLight)
-
-    addTween(projectile, 1.1, {
-        Position = destination,
-        Size = Vector3.new(8, 8, 8)
-    }, Enum.EasingStyle.Linear)
-
-    addTween(projectileRing, 1.1, {
-        Position = destination,
-        Size = Vector3.new(0.15, 15, 15)
-    }, Enum.EasingStyle.Linear)
-
-    createBeam(center, center + direction * 30, COLORS.Purple, 2, 0.35)
-
-    task.wait(1.1)
-
-    createFlash(destination, COLORS.PurpleLight, 22)
-    createParticles(destination, COLORS.Purple, 40, 24, 1)
-
-    for _, part in ipairs({core, projectile, projectileRing}) do
-        if part.Parent then
-            addTween(part, 0.35, {
-                Transparency = 1
-            })
-        end
-    end
-
-    for _, part in ipairs(rings) do
-        if part.Parent then
-            addTween(part, 0.35, {
-                Transparency = 1
-            })
-        end
-    end
-end
-
-local function domainSkill()
-    local rootPart = getRoot()
-    if not rootPart then
-        return
-    end
-
-    playPose("Domain", 7)
-
-    savedLighting = {
-        ClockTime = Lighting.ClockTime,
-        Brightness = Lighting.Brightness,
-        Ambient = Lighting.Ambient,
-        OutdoorAmbient = Lighting.OutdoorAmbient,
-        FogEnd = Lighting.FogEnd,
-        FogColor = Lighting.FogColor
-    }
-
-    domainEffect = Instance.new("ColorCorrectionEffect")
-    domainEffect.Name = "GojoDomainColor"
-    domainEffect.TintColor = COLORS.White
-    domainEffect.Contrast = 0
-    domainEffect.Saturation = 0
-    domainEffect.Brightness = 0
-    domainEffect.Parent = Lighting
-
-    addTween(domainEffect, 0.8, {
-        TintColor = Color3.fromRGB(155, 165, 255),
-        Contrast = 0.25,
-        Saturation = -0.3,
-        Brightness = -0.05
-    })
-
-    local center = rootPart.Position
-    local groundPosition = center - Vector3.new(0, 2.7, 0)
-
-    local ground = createPart(
-        "DomainGround",
-        Vector3.new(0.15, 2, 2),
-        CFrame.new(groundPosition) * CFrame.Angles(0, 0, math.rad(90)),
-        COLORS.Purple,
-        Enum.Material.Neon,
-        0.3,
-        Enum.PartType.Cylinder
-    )
-
-    addTween(ground, 1.2, {
-        Size = Vector3.new(0.15, 65, 65)
-    }, Enum.EasingStyle.Quint)
-
-    local domainRings = {}
-
-    for index = 1, 8 do
-        local radius = 7 + index * 3.5
-
-        local part = createRing(
-            "DomainSpaceRing",
-            center,
-            radius,
-            0.12,
-            index % 2 == 0 and COLORS.BlueLight or COLORS.Purple,
-            0.3,
-            CFrame.Angles(
-                math.rad(index * 18),
-                math.rad(index * 37),
-                math.rad(index * 22)
-            )
-        )
-
-        domainRings[#domainRings + 1] = part
-
-        addTween(part, 1.4, {
-            Size = Vector3.new(0.12, radius * 2.3, radius * 2.3),
-            Transparency = 0.12
-        }, Enum.EasingStyle.Quint)
-    end
-
-    local shell = createSphere("DomainShell", center, 4, COLORS.Purple, 0.92)
-    addTween(shell, 1.5, {
-        Size = Vector3.new(90, 90, 90),
-        Transparency = 0.94
-    }, Enum.EasingStyle.Quint)
-
-    createFlash(center, COLORS.BlueLight, 16)
-    createParticles(center, COLORS.PurpleLight, 40, 25, 0.7)
-
-    for index = 1, 28 do
-        local angle = index / 28 * math.pi * 2
-        local radius = math.random(10, 38)
-
-        local position = center + Vector3.new(
-            math.cos(angle) * radius,
-            math.random(-18, 18),
-            math.sin(angle) * radius
-        )
-
-        local star = createSphere(
-            "DomainStar",
-            position,
-            math.random(3, 7) / 10,
-            index % 2 == 0 and COLORS.BlueLight or COLORS.PurpleLight,
-            0.15
-        )
-
-        addTween(star, math.random(8, 18) / 10, {
-            Position = position + Vector3.new(0, math.random(5, 18), 0),
-            Transparency = 1
-        })
-    end
-
-    for index = 1, 16 do
-        local angle = index / 16 * math.pi * 2
-
-        local a = center + Vector3.new(
-            math.cos(angle) * 22,
-            math.random(-12, 12),
-            math.sin(angle) * 22
-        )
-
-        local b = center + Vector3.new(
-            math.cos(angle + 0.25) * 36,
-            math.random(-15, 15),
-            math.sin(angle + 0.25) * 36
-        )
-
-        createBeam(a, b, COLORS.PurpleLight, 0.12, 0.3)
-    end
-
-    local started = os.clock()
-    local duration = 6
-
-    local connection = RunService.Heartbeat:Connect(function()
-        if not effects.Parent then
-            return
-        end
-
-        local elapsed = os.clock() - started
-
-        if elapsed >= duration then
-            return
-        end
-
-        local currentRoot = getRoot()
-        if not currentRoot then
-            return
-        end
-
-        local position = currentRoot.Position
-
-        for index, part in ipairs(domainRings) do
-            if part.Parent then
-                local rotation = elapsed * (index % 2 == 0 and 0.45 or -0.35)
-
-                part.CFrame = CFrame.new(position) * CFrame.Angles(
-                    math.rad(index * 18) + rotation,
-                    math.rad(index * 37) + rotation,
-                    math.rad(index * 22)
-                )
-            end
-        end
-
-        if ground.Parent then
-            ground.CFrame = CFrame.new(
-                position - Vector3.new(0, 2.7, 0)
-            ) * CFrame.Angles(0, 0, math.rad(90))
-        end
-
-        if shell.Parent then
-            shell.Position = position
-        end
-    end)
-
-    addConnection(connection)
-
-    task.wait(duration)
-
-    for _, part in ipairs(domainRings) do
-        if part.Parent then
-            addTween(part, 0.8, {
-                Transparency = 1
-            })
-        end
-    end
-
-    for _, part in ipairs(effects:GetChildren()) do
-        if part.Name == "DomainShell" or part.Name == "DomainGround" then
-            addTween(part, 0.8, {
-                Transparency = 1
-            })
-        end
-    end
-
-    restoreLighting()
-end
-
-local function teleportVisual()
-    local rootPart = getRoot()
-    if not rootPart then
-        return
-    end
-
-    local position = rootPart.Position
-
-    createFlash(position, COLORS.BlueLight, 7)
-
-    for index = 1, 4 do
-        local afterimage = createSphere(
-            "TeleportAfterimage",
-            position + Vector3.new(0, index * 0.2, 0),
-            2 + index * 0.3,
-            index % 2 == 0 and COLORS.Blue or COLORS.Purple,
-            0.55
-        )
-
-        addTween(afterimage, 0.65, {
-            Transparency = 1,
-            Size = Vector3.new(4, 4, 4)
-        })
-    end
-
-    createParticles(position, COLORS.BlueLight, 18, 8, 0.5)
-end
-
-local function infinityShield()
-    local rootPart = getRoot()
-    if not rootPart then
-        return
-    end
-
-    local shield = createSphere(
-        "InfinityShield",
-        rootPart.Position,
-        7,
-        COLORS.Blue,
-        0.88
-    )
-
-    local rings = {}
-
-    for index = 1, 3 do
-        rings[index] = createRing(
-            "InfinityRing",
-            rootPart.Position,
-            3 + index * 1.2,
-            0.12,
-            index == 2 and COLORS.PurpleLight or COLORS.BlueLight,
-            0.2,
-            CFrame.Angles(
-                math.rad(index * 35),
-                math.rad(index * 50),
-                math.rad(index * 25)
-            )
-        )
-    end
-
-    local started = os.clock()
-
-    local connection = RunService.Heartbeat:Connect(function()
-        local currentRoot = getRoot()
-
-        if not currentRoot or not shield.Parent or os.clock() - started > 4.5 then
-            return
-        end
-
-        local position = currentRoot.Position
-        shield.Position = position
-
-        for index, part in ipairs(rings) do
-            if part.Parent then
-                part.CFrame = CFrame.new(position) * CFrame.Angles(
-                    math.rad(index * 35) + os.clock() * (index % 2 == 0 and 0.8 or -0.7),
-                    math.rad(index * 50),
-                    math.rad(index * 25)
-                )
-            end
-        end
-    end)
-
-    addConnection(connection)
-
-    task.delay(4.5, function()
-        if shield.Parent then
-            addTween(shield, 0.5, {
-                Transparency = 1
-            })
-        end
-
-        for _, part in ipairs(rings) do
-            if part.Parent then
-                addTween(part, 0.5, {
-                    Transparency = 1
-                })
-            end
-        end
-    end)
-end
-
-local gui = Instance.new("ScreenGui")
-gui.Name = GUI_NAME
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 100
-gui.Parent = playerGui
-
-local main = Instance.new("Frame")
-main.Name = "Main"
-main.Size = UDim2.fromOffset(230, 300)
-main.Position = UDim2.new(0, 16, 0.35, 0)
-main.BackgroundColor3 = COLORS.Dark
-main.BackgroundTransparency = 0.06
-main.BorderSizePixel = 0
-main.Parent = gui
-
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 12)
-mainCorner.Parent = main
-
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = COLORS.Purple
-mainStroke.Thickness = 1.3
-mainStroke.Transparency = 0.15
-mainStroke.Parent = main
-
-local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 40)
-header.BackgroundColor3 = Color3.fromRGB(23, 25, 48)
-header.BorderSizePixel = 0
-header.Parent = main
-
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 12)
-headerCorner.Parent = header
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -65, 1, 0)
-title.Position = UDim2.fromOffset(10, 0)
-title.BackgroundTransparency = 1
-title.Text = "GOJO  v" .. VERSION
-title.TextColor3 = COLORS.White
-title.TextSize = 13
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = header
-
-local minimize = Instance.new("TextButton")
-minimize.Size = UDim2.fromOffset(28, 26)
-minimize.Position = UDim2.new(1, -36, 0, 7)
-minimize.BackgroundColor3 = Color3.fromRGB(55, 45, 90)
-minimize.Text = "−"
-minimize.TextColor3 = COLORS.White
-minimize.TextSize = 20
-minimize.Font = Enum.Font.GothamBold
-minimize.Parent = header
-
-local minimizeCorner = Instance.new("UICorner")
-minimizeCorner.CornerRadius = UDim.new(0, 7)
-minimizeCorner.Parent = minimize
-
-local content = Instance.new("Frame")
-content.Name = "Content"
-content.Position = UDim2.fromOffset(8, 46)
-content.Size = UDim2.new(1, -16, 1, -52)
-content.BackgroundTransparency = 1
-content.Parent = main
-
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 5)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = content
-
-local status = Instance.new("TextLabel")
-status.Name = "Status"
-status.Size = UDim2.new(1, 0, 0, 20)
-status.BackgroundTransparency = 1
-status.Text = "R15  |  LOCAL DEMO"
-status.TextColor3 = COLORS.BlueLight
-status.TextSize = 10
-status.Font = Enum.Font.GothamMedium
-status.LayoutOrder = 0
-status.Parent = content
-
-local function createButton(text, color, order, callback)
-    local button = Instance.new("TextButton")
-    button.Name = "SkillButton" .. order
-    button.Size = UDim2.new(1, 0, 0, 30)
-    button.BackgroundColor3 = color
-    button.BackgroundTransparency = 0.1
-    button.BorderSizePixel = 0
-    button.Text = text
-    button.TextColor3 = COLORS.White
-    button.TextSize = 12
-    button.Font = Enum.Font.GothamBold
-    button.LayoutOrder = order
-    button.AutoButtonColor = true
-    button.Parent = content
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 7)
-    corner.Parent = button
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = color:Lerp(COLORS.White, 0.35)
-    stroke.Transparency = 0.6
-    stroke.Thickness = 1
-    stroke.Parent = button
-
-    button.Activated:Connect(function()
-        if busy or destroyed then
-            return
-        end
-
-        callback()
-    end)
-
-    return button
-end
-
-local function runSkill(name, callback)
-    if busy or destroyed then
-        return
-    end
-
-    busy = true
-    status.Text = name .. "  |  CASTING"
-    status.TextColor3 = COLORS.PurpleLight
-
-    task.spawn(function()
-        local success, err = pcall(callback)
-
-        if not success then
-            warn("Gojo Skills:", err)
-        end
-
-        if not destroyed and status.Parent then
-            busy = false
-            status.Text = "R15  |  LOCAL DEMO"
-            status.TextColor3 = COLORS.BlueLight
-        end
-    end)
-end
-
-createButton("BLUE  |  苍", COLORS.Blue, 1, function()
-    runSkill("BLUE", blueSkill)
+if a>=1 then c:Disconnect() end
 end)
-
-createButton("RED  |  赫", COLORS.Red, 2, function()
-    runSkill("RED", redSkill)
+addConn(c)
+end
+local function resetPose()
+for m,v in pairs(original) do if m.Parent then m.Transform=v end end
+end
+local function finish(t)
+if token~=t then return end
+busy=false
+resetPose()
+end
+local function begin()
+if busy or not alive() then return end
+busy=true
+token+=1
+return token
+end
+local function blue()
+local t=begin() if not t then return end
+pose(t,.4,{RightShoulder=CFrame.Angles(-1.7,0,.4),LeftShoulder=CFrame.Angles(-.7,0,-.3),Neck=CFrame.Angles(-.1,0,0)})
+local pos=root.Position+root.CFrame.LookVector*5+Vector3.new(0,2,0)
+local b=ball(pos,1.5,Color3.fromRGB(50,165,255),"LapseBlue")
+local core=ball(pos,.6,Color3.fromRGB(210,245,255),"BlueCore")
+for i=1,4 do ring(pos,1+i*.5,Color3.fromRGB(55,180,255),1.4) end
+for i=1,14 do
+if not valid(t) then break end
+local p=root.Position+root.CFrame.LookVector*(5+i*1.8)+Vector3.new(0,2,0)
+tw(b,.12,{Position=p})
+tw(core,.12,{Position=p})
+ring(p,1.5,Color3.fromRGB(65,180,255),.4)
+task.wait(.12)
+end
+if valid(t) then burst(b.Position,Color3.fromRGB(60,180,255),50) end
+b:Destroy() core:Destroy()
+finish(t)
+end
+local function red()
+local t=begin() if not t then return end
+pose(t,.4,{RightShoulder=CFrame.Angles(-1.5,0,.4),LeftShoulder=CFrame.Angles(-1.5,0,-.4),Neck=CFrame.Angles(-.1,0,0)})
+local pos=root.Position+root.CFrame.LookVector*4+Vector3.new(0,2,0)
+local b=ball(pos,1.4,Color3.fromRGB(255,45,65),"ReversalRed")
+for i=1,5 do ring(pos,1+i*.55,Color3.fromRGB(255,40,65),.7) task.wait(.12) end
+for i=1,3 do
+if not valid(t) then break end
+local target=root.Position+root.CFrame.LookVector*(12+i*10)+Vector3.new(0,2,0)
+beam(b.Position,target,Color3.fromRGB(255,45,65),1.5)
+burst(target,Color3.fromRGB(255,40,65),30)
+ring(target,2,Color3.fromRGB(255,40,65),.5)
+task.wait(.1)
+end
+b:Destroy()
+finish(t)
+end
+local function purple()
+local t=begin() if not t then return end
+pose(t,.5,{RightShoulder=CFrame.Angles(-1.6,0,.65),LeftShoulder=CFrame.Angles(-1.6,0,-.65),Neck=CFrame.Angles(-.15,0,0)})
+local base=root.Position+root.CFrame.LookVector*7+Vector3.new(0,3,0)
+local blueOrb=ball(base+Vector3.new(-2,0,0),1.5,Color3.fromRGB(40,150,255),"PurpleBlue")
+local redOrb=ball(base+Vector3.new(2,0,0),1.5,Color3.fromRGB(255,35,65),"PurpleRed")
+for i=1,12 do
+if not valid(t) then break end
+local a=i/12
+blueOrb.Position=base+Vector3.new(-2+2*a,math.sin(a*math.pi)*.6,0)
+redOrb.Position=base+Vector3.new(2-2*a,-math.sin(a*math.pi)*.6,0)
+ring(base,2+a,Color3.fromRGB(125,80,255),.3)
+task.wait(.09)
+end
+if valid(t) then
+local core=ball(base,2.3,Color3.fromRGB(160,65,255),"HollowPurple")
+local glow=ball(base,1.4,Color3.fromRGB(220,180,255),"PurpleCore")
+for i=1,6 do ring(base,2+i*.4,Color3.fromRGB(135,65,255),.5) end
+task.wait(.5)
+local dir=root.CFrame.LookVector
+local endPos=base+dir*85
+beam(base,endPos,Color3.fromRGB(145,55,255),7)
+beam(base,endPos,Color3.fromRGB(220,185,255),2)
+for i=1,7 do
+local p=base+dir*(i*11)
+burst(p,Color3.fromRGB(155,65,255),35)
+ring(p,3,Color3.fromRGB(130,65,255),.6)
+end
+task.wait(.6)
+core:Destroy()
+glow:Destroy()
+cameraPunch(12,.7)
+end
+blueOrb:Destroy()
+redOrb:Destroy()
+finish(t)
+end
+local function domain()
+local t=begin() if not t then return end
+pose(t,.7,{Root=CFrame.Angles(0,0,0),RightShoulder=CFrame.Angles(-2,0,.4),LeftShoulder=CFrame.Angles(-2,0,-.4),Neck=CFrame.Angles(-.15,0,0)})
+local center=root.Position
+local cc=Instance.new("ColorCorrectionEffect")
+cc.Name="GojoDomainColor"
+cc.TintColor=Color3.fromRGB(185,165,255)
+cc.Contrast=.3
+cc.Saturation=-.15
+cc.Brightness=-.05
+cc.Parent=L
+savedLight[cc]={}
+local dome=mk(fx,"DomainBarrier",Vector3.one, CFrame.new(center),Color3.fromRGB(85,65,190),Enum.Material.ForceField,.82,Enum.PartType.Ball)
+dome.Size=Vector3.new(2,2,2)
+tw(dome,1.2,{Size=Vector3.new(95,95,95),Transparency=.9})
+for i=1,8 do
+local r=mk(fx,"DomainRing",Vector3.new(.12,24+i*3,24+i*3),CFrame.new(center+Vector3.new(0,i*2-8,0))*CFrame.Angles(math.rad(i*20),0,math.rad(90)),Color3.fromRGB(150,125,255),Enum.Material.Neon,.25,Enum.PartType.Cylinder)
+tw(r,8,{CFrame=r.CFrame*CFrame.Angles(math.rad(360),math.rad(i*90),math.rad(360))})
+end
+for i=1,24 do
+local a=i/24*math.pi*2
+local p=center+Vector3.new(math.cos(a)*18,math.sin(a*3)*3,math.sin(a)*18)
+local star=ball(p,.25,Color3.fromRGB(200,190,255),"DomainStar")
+tw(star,3,{Position=p+Vector3.new(0,math.random(4,18),0),Transparency=1})
+task.delay(3,function() if star.Parent then star:Destroy() end end)
+end
+ring(center,15,Color3.fromRGB(150,115,255),1)
+cameraPunch(8,1)
+task.wait(7)
+if cc.Parent then cc:Destroy() end
+if dome.Parent then dome:Destroy() end
+finish(t)
+end
+local function teleport()
+local t=begin() if not t then return end
+local old=root.CFrame
+burst(root.Position,Color3.fromRGB(100,180,255),35)
+for i=1,4 do
+local ghost=mk(fx,"AfterImage",Vector3.new(2,4,1),old*CFrame.new(0,0,i*.15),Color3.fromRGB(80,170,255),Enum.Material.Neon,.6)
+task.delay(.4,function() if ghost.Parent then ghost:Destroy() end end)
+end
+root.CFrame=old+root.CFrame.LookVector*12
+burst(root.Position,Color3.fromRGB(100,180,255),35)
+ring(root.Position,3,Color3.fromRGB(80,170,255),.6)
+finish(t)
+end
+local function infinity()
+local t=begin() if not t then return end
+local start=os.clock()
+local conn
+conn=RS.Heartbeat:Connect(function()
+if not valid(t) or os.clock()-start>8 then conn:Disconnect() return end
+if math.random()<.18 then
+local p=root.Position+Vector3.new(math.random(-5,5),math.random(-2,4),math.random(-5,5))
+local r=ring(p,math.random(1,3),Color3.fromRGB(70,190,255),.4)
+end
 end)
-
-createButton("HOLLOW PURPLE  |  茈", COLORS.Purple, 3, function()
-    runSkill("HOLLOW PURPLE", purpleSkill)
+addConn(conn)
+local halo=ball(root.Position+Vector3.new(0,2,0),3,Color3.fromRGB(70,175,255),"InfinityShield")
+halo.Transparency=.8
+tw(halo,8,{Transparency=1})
+task.wait(8)
+if halo.Parent then halo:Destroy() end
+finish(t)
+end
+local panel=Instance.new("Frame")
+panel.Name="Main"
+panel.Size=UDim2.fromOffset(235,310)
+panel.Position=UDim2.new(0,18,.35,0)
+panel.BackgroundColor3=Color3.fromRGB(12,15,30)
+panel.BackgroundTransparency=.08
+panel.Parent=gui
+Instance.new("UICorner",panel).CornerRadius=UDim.new(0,12)
+local stroke=Instance.new("UIStroke",panel)
+stroke.Color=Color3.fromRGB(110,100,255)
+stroke.Thickness=1.5
+local title=Instance.new("TextButton")
+title.Size=UDim2.new(1,0,0,42)
+title.BackgroundColor3=Color3.fromRGB(30,35,70)
+title.Text="GOJO v1.4   —   SKILLS"
+title.TextColor3=Color3.new(1,1,1)
+title.TextSize=15
+title.Font=Enum.Font.GothamBold
+title.Parent=panel
+Instance.new("UICorner",title).CornerRadius=UDim.new(0,10)
+local list=Instance.new("Frame")
+list.Size=UDim2.new(1,-16,1,-54)
+list.Position=UDim2.fromOffset(8,49)
+list.BackgroundTransparency=1
+list.Parent=panel
+local layout=Instance.new("UIListLayout",list)
+layout.Padding=UDim.new(0,5)
+layout.SortOrder=Enum.SortOrder.LayoutOrder
+local function button(text,color,fn)
+local b=Instance.new("TextButton")
+b.Size=UDim2.new(1,0,0,34)
+b.BackgroundColor3=color
+b.Text=text
+b.TextColor3=Color3.new(1,1,1)
+b.TextSize=14
+b.Font=Enum.Font.GothamSemibold
+b.AutoButtonColor=true
+b.Parent=list
+Instance.new("UICorner",b).CornerRadius=UDim.new(0,7)
+b.Activated:Connect(function()
+if busy then return end
+task.spawn(fn)
 end)
-
-createButton("UNLIMITED VOID  |  领域", Color3.fromRGB(65, 55, 130), 4, function()
-    runSkill("UNLIMITED VOID", domainSkill)
+return b
+end
+button("苍  |  Blue",Color3.fromRGB(25,105,190),blue)
+button("赫  |  Red",Color3.fromRGB(175,35,55),red)
+button("茈  |  Hollow Purple",Color3.fromRGB(105,45,175),purple)
+button("无量空处  |  Domain",Color3.fromRGB(70,50,135),domain)
+button("瞬移  |  Teleport",Color3.fromRGB(35,90,130),teleport)
+button("无下限  |  Infinity",Color3.fromRGB(30,115,150),infinity)
+button("清除特效  |  Clear",Color3.fromRGB(65,65,80),function()
+token+=1
+busy=false
+for _,c in ipairs(cons) do pcall(function() c:Disconnect() end) end
+table.clear(cons)
+for _,v in ipairs(fx:GetChildren()) do v:Destroy() end
+for _,v in ipairs(tweens) do pcall(function() v:Cancel() end) end
+table.clear(tweens)
+for _,v in ipairs(L:GetChildren()) do if v.Name=="GojoDomainColor" then v:Destroy() end end
+resetPose()
 end)
-
-createButton("瞬移视觉", Color3.fromRGB(35, 95, 135), 5, teleportVisual)
-
-createButton("无限护盾", Color3.fromRGB(40, 65, 125), 6, infinityShield)
-
-createButton("清理特效", Color3.fromRGB(85, 45, 65), 7, function()
-    clearAll()
-    status.Text = "EFFECTS CLEARED"
-    status.TextColor3 = COLORS.White
+local minimized=false
+title.Activated:Connect(function()
+minimized=not minimized
+list.Visible=not minimized
+panel.Size=minimized and UDim2.fromOffset(235,42) or UDim2.fromOffset(235,310)
 end)
-
-local dragging = false
+local dragging=false
 local dragStart
-local startPosition
-local dragInput
-
-header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-        dragging = true
-        dragStart = input.Position
-        startPosition = main.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
+local startPos
+title.InputBegan:Connect(function(input)
+if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+dragging=true
+dragStart=input.Position
+startPos=panel.Position
+end
 end)
-
-header.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-        dragInput = input
-    end
+UIS.InputChanged:Connect(function(input)
+if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+local d=input.Position-dragStart
+panel.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
+end
 end)
-
-addConnection(UserInputService.InputChanged:Connect(function(input)
-    if dragging and dragStart and startPosition then
-        if input == dragInput
-            or input.UserInputType == Enum.UserInputType.MouseMovement then
-
-            local delta = input.Position - dragStart
-
-            main.Position = UDim2.new(
-                startPosition.X.Scale,
-                startPosition.X.Offset + delta.X,
-                startPosition.Y.Scale,
-                startPosition.Y.Offset + delta.Y
-            )
-        end
-    end
-end))
-
-minimize.Activated:Connect(function()
-    minimized = not minimized
-    content.Visible = not minimized
-
-    main.Size = minimized
-        and UDim2.fromOffset(230, 40)
-        or UDim2.fromOffset(230, 300)
-
-    minimize.Text = minimized and "+" or "−"
+UIS.InputEnded:Connect(function(input)
+if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=false end
 end)
-
 gui.Destroying:Connect(function()
-    destroyed = true
-    clearAll()
-end)
-
-player.CharacterAdded:Connect(function()
-    clearAll()
+token+=1
+for _,c in ipairs(cons) do pcall(function() c:Disconnect() end) end
+resetPose()
+for _,v in ipairs(L:GetChildren()) do if v.Name=="GojoDomainColor" then v:Destroy() end end
+if fx.Parent then fx:Destroy() end
 end)
