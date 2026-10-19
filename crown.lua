@@ -1,180 +1,178 @@
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local Debris = game:GetService("Debris")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local old = playerGui:FindFirstChild("GojoSkillUI")
+if old then old:Destroy() end
+
 local gui = Instance.new("ScreenGui")
-gui.Name = "GojoSkillDemo"
+gui.Name = "GojoSkillUI"
 gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.Parent = playerGui
 
 local panel = Instance.new("Frame")
-panel.Size = UDim2.fromOffset(190, 290)
-panel.Position = UDim2.new(0, 15, 0.35, 0)
-panel.BackgroundColor3 = Color3.fromRGB(20, 24, 40)
-panel.BackgroundTransparency = 0.12
+panel.Name = "Panel"
+panel.Size = UDim2.fromOffset(220, 310)
+panel.Position = UDim2.new(0, 20, 0.3, 0)
+panel.BackgroundColor3 = Color3.fromRGB(18, 22, 40)
+panel.BackgroundTransparency = 0.08
+panel.BorderSizePixel = 0
+panel.Active = true
 panel.Parent = gui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = panel
+local panelCorner = Instance.new("UICorner")
+panelCorner.CornerRadius = UDim.new(0, 14)
+panelCorner.Parent = panel
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 38)
-title.BackgroundTransparency = 1
-title.Text = "五条悟 · 技能演示"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.Parent = panel
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(75, 130, 255)
+stroke.Thickness = 1.5
+stroke.Transparency = 0.2
+stroke.Parent = panel
 
-local function getRoot()
-    local char = player.Character
-    return char and char:FindFirstChild("HumanoidRootPart")
-end
+local header = Instance.new("TextButton")
+header.Name = "DragHeader"
+header.Size = UDim2.new(1, -42, 0, 42)
+header.Position = UDim2.fromOffset(8, 0)
+header.BackgroundTransparency = 1
+header.Text = "五条悟  |  SKILLS"
+header.TextColor3 = Color3.fromRGB(220, 235, 255)
+header.Font = Enum.Font.GothamBold
+header.TextSize = 15
+header.TextXAlignment = Enum.TextXAlignment.Left
+header.Parent = panel
 
-local function makeOrb(color, size, distance)
-    local root = getRoot()
-    if not root then return end
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.fromOffset(34, 32)
+toggle.Position = UDim2.new(1, -38, 0, 5)
+toggle.BackgroundColor3 = Color3.fromRGB(45, 65, 115)
+toggle.Text = "−"
+toggle.TextColor3 = Color3.new(1, 1, 1)
+toggle.TextSize = 23
+toggle.Font = Enum.Font.GothamBold
+toggle.Parent = panel
 
-    local orb = Instance.new("Part")
-    orb.Shape = Enum.PartType.Ball
-    orb.Size = Vector3.new(size, size, size)
-    orb.Material = Enum.Material.Neon
-    orb.Color = color
-    orb.Anchored = true
-    orb.CanCollide = false
-    orb.CFrame = root.CFrame * CFrame.new(0, 1.5, -distance)
-    orb.Parent = workspace
+Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 8)
 
-    local light = Instance.new("PointLight")
-    light.Color = color
-    light.Brightness = 3
-    light.Range = 14
-    light.Parent = orb
+local content = Instance.new("Frame")
+content.Name = "SkillButtons"
+content.Position = UDim2.fromOffset(10, 48)
+content.Size = UDim2.new(1, -20, 1, -58)
+content.BackgroundTransparency = 1
+content.Parent = panel
 
-    TweenService:Create(
-        orb,
-        TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {
-            Size = Vector3.new(size * 2, size * 2, size * 2),
-            Transparency = 1,
-            CFrame = orb.CFrame * CFrame.new(0, 0, -12)
-        }
-    ):Play()
-
-    Debris:AddItem(orb, 1)
-end
-
-local function makeWave(color)
-    local root = getRoot()
-    if not root then return end
-
-    local wave = Instance.new("Part")
-    wave.Shape = Enum.PartType.Ball
-    wave.Size = Vector3.new(2, 2, 2)
-    wave.Material = Enum.Material.Neon
-    wave.Color = color
-    wave.Transparency = 0.25
-    wave.Anchored = true
-    wave.CanCollide = false
-    wave.CFrame = root.CFrame
-    wave.Parent = workspace
-
-    TweenService:Create(
-        wave,
-        TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {
-            Size = Vector3.new(24, 24, 24),
-            Transparency = 1
-        }
-    ):Play()
-
-    Debris:AddItem(wave, 0.8)
-end
-
-local function makeDomain()
-    local root = getRoot()
-    if not root then return end
-
-    local sphere = Instance.new("Part")
-    sphere.Shape = Enum.PartType.Ball
-    sphere.Size = Vector3.new(3, 3, 3)
-    sphere.Material = Enum.Material.ForceField
-    sphere.Color = Color3.fromRGB(100, 80, 255)
-    sphere.Transparency = 0.45
-    sphere.Anchored = true
-    sphere.CanCollide = false
-    sphere.CFrame = root.CFrame
-    sphere.Parent = workspace
-
-    TweenService:Create(
-        sphere,
-        TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {
-            Size = Vector3.new(45, 45, 45),
-            Transparency = 1
-        }
-    ):Play()
-
-    Debris:AddItem(sphere, 1.3)
-end
-
-local function teleportEffect()
-    local root = getRoot()
-    if not root then return end
-
-    local flash = Instance.new("Part")
-    flash.Shape = Enum.PartType.Ball
-    flash.Size = Vector3.new(5, 5, 5)
-    flash.Material = Enum.Material.Neon
-    flash.Color = Color3.fromRGB(100, 200, 255)
-    flash.Transparency = 0.25
-    flash.Anchored = true
-    flash.CanCollide = false
-    flash.CFrame = root.CFrame
-    flash.Parent = workspace
-
-    TweenService:Create(
-        flash,
-        TweenInfo.new(0.35),
-        {Size = Vector3.new(10, 10, 10), Transparency = 1}
-    ):Play()
-
-    Debris:AddItem(flash, 0.4)
-end
+local grid = Instance.new("UIGridLayout")
+grid.CellSize = UDim2.new(0.5, -5, 0, 56)
+grid.CellPadding = UDim2.fromOffset(8, 8)
+grid.SortOrder = Enum.SortOrder.LayoutOrder
+grid.Parent = content
 
 local skills = {
-    {name = "苍 · Blue", color = Color3.fromRGB(50, 150, 255), action = function()
-        makeOrb(Color3.fromRGB(50, 150, 255), 3, 5)
-    end},
-    {name = "赫 · Red", color = Color3.fromRGB(255, 60, 70), action = function()
-        makeWave(Color3.fromRGB(255, 60, 70))
-    end},
-    {name = "茈 · Purple", color = Color3.fromRGB(180, 70, 255), action = function()
-        makeOrb(Color3.fromRGB(180, 70, 255), 4, 6)
-    end},
-    {name = "领域展开", color = Color3.fromRGB(100, 80, 255), action = makeDomain},
-    {name = "瞬移特效", color = Color3.fromRGB(80, 220, 255), action = teleportEffect},
-    {name = "无下限护盾", color = Color3.fromRGB(80, 180, 255), action = function()
-        makeWave(Color3.fromRGB(80, 180, 255))
-    end},
+    {"🔵 苍", Color3.fromRGB(35, 115, 220)},
+    {"🔴 赫", Color3.fromRGB(190, 48, 65)},
+    {"🟣 茈", Color3.fromRGB(125, 65, 205)},
+    {"🌀 无量空处", Color3.fromRGB(70, 65, 155)},
+    {"⚡ 瞬移特效", Color3.fromRGB(30, 135, 155)},
+    {"🛡️ 无下限", Color3.fromRGB(45, 95, 165)},
 }
+
+local status = Instance.new("TextLabel")
+status.Name = "Status"
+status.Size = UDim2.new(1, -20, 0, 22)
+status.Position = UDim2.new(0, 10, 1, -28)
+status.BackgroundTransparency = 1
+status.Text = "READY  •  选择技能"
+status.TextColor3 = Color3.fromRGB(160, 200, 255)
+status.Font = Enum.Font.Gotham
+status.TextSize = 11
+status.Parent = panel
+
+content.Size = UDim2.new(1, -20, 1, -82)
 
 for i, skill in ipairs(skills) do
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -16, 0, 35)
-    button.Position = UDim2.new(0, 8, 0, 42 + (i - 1) * 40)
-    button.BackgroundColor3 = skill.color
+    button.Name = "Skill" .. i
+    button.LayoutOrder = i
+    button.BackgroundColor3 = skill[2]
+    button.BackgroundTransparency = 0.08
+    button.BorderSizePixel = 0
+    button.Text = skill[1]
     button.TextColor3 = Color3.new(1, 1, 1)
-    button.Text = skill.name
-    button.TextScaled = true
+    button.TextSize = 13
     button.Font = Enum.Font.GothamBold
-    button.Parent = panel
+    button.Parent = content
 
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 8)
-    buttonCorner.Parent = button
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 10)
 
-    button.Activated:Connect(skill.action)
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.fromRGB(180, 210, 255)
+    outline.Transparency = 0.7
+    outline.Parent = button
+
+    button.Activated:Connect(function()
+        status.Text = "已选择：" .. skill[1]
+    end)
 end
+
+-- 点击缩小 / 展开
+local minimized = false
+
+toggle.Activated:Connect(function()
+    minimized = not minimized
+    content.Visible = not minimized
+    status.Visible = not minimized
+
+    if minimized then
+        panel.Size = UDim2.fromOffset(220, 46)
+        toggle.Text = "+"
+    else
+        panel.Size = UDim2.fromOffset(220, 310)
+        toggle.Text = "−"
+    end
+end)
+
+-- 支持鼠标和手机触屏拖动
+local dragging = false
+local dragInput
+local dragStart
+local startPosition
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        dragging = true
+        dragStart = input.Position
+        startPosition = panel.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+header.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (
+        input == dragInput
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - dragStart
+        panel.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
