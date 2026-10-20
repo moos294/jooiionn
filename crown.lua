@@ -16,8 +16,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 220, 0, 120)
-main.Position = UDim2.new(0.5, -110, 0.3, 0)
+main.Size = UDim2.new(0, 240, 0, 170)
+main.Position = UDim2.new(0.5, -120, 0.3, 0)
 main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 main.BorderSizePixel = 0
 main.Active = true
@@ -55,8 +55,8 @@ body.BackgroundTransparency = 1
 body.Parent = main
 
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 190, 0, 40)
-toggleBtn.Position = UDim2.new(0.5, -95, 0, 20)
+toggleBtn.Size = UDim2.new(0, 210, 0, 38)
+toggleBtn.Position = UDim2.new(0.5, -105, 0, 12)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 170, 80)
 toggleBtn.Text = "自动打人换服：开"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -65,6 +65,19 @@ toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.BorderSizePixel = 0
 toggleBtn.Parent = body
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -20, 0, 70)
+status.Position = UDim2.new(0, 10, 0, 58)
+status.BackgroundTransparency = 1
+status.Text = "状态：初始化..."
+status.TextColor3 = Color3.fromRGB(255, 220, 100)
+status.TextSize = 12
+status.Font = Enum.Font.Gotham
+status.TextWrapped = true
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.TextYAlignment = Enum.TextYAlignment.Top
+status.Parent = body
 
 local dragging = false
 local dragStart, startPos
@@ -93,71 +106,123 @@ local minimized = false
 miniBtn.MouseButton1Click:Connect(function()
 	minimized = not minimized
 	body.Visible = not minimized
-	main.Size = minimized and UDim2.new(0, 220, 0, 30) or UDim2.new(0, 220, 0, 120)
+	main.Size = minimized and UDim2.new(0, 240, 0, 30) or UDim2.new(0, 240, 0, 170)
 	miniBtn.Text = minimized and "+" or "—"
 end)
+
+local function setStatus(t)
+	status.Text = "状态：" .. t
+	print("[SlapUI] " .. t)
+end
 
 local function getChar()
 	return player.Character or player.CharacterAdded:Wait()
 end
 
 local function equipDefault()
-	for _, v in ipairs(workspace:GetDescendants()) do
-		if v:IsA("ClickDetector") and v.Parent and v.Parent.Name == "Default" then
-			fireclickdetector(v)
-			print("[流程] 已装备 Default 手套")
-			return true
+	local ok, err = pcall(function()
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if v:IsA("ClickDetector") and v.Parent and v.Parent.Name:lower():find("default") then
+				fireclickdetector(v)
+				return
+			end
 		end
+	end)
+	if ok then
+		setStatus("手套装备完成")
+	else
+		setStatus("装备手套出错: " .. tostring(err))
 	end
-	return false
+	task.wait(0.5)
+	local char = getChar()
+	local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
+	if tool then
+		tool.Parent = char
+		return tool
+	end
+	setStatus("警告：手上没有工具")
+	return nil
 end
 
 local function enterArena()
 	local hrp = getChar():WaitForChild("HumanoidRootPart")
-	local portal = workspace:FindFirstChild("Teleport1", true) or workspace:FindFirstChild("NormalArenaPortal", true)
-	if portal and portal:IsA("BasePart") then
-		firetouchinterest(hrp, portal, 0)
-		task.wait(0.1)
-		firetouchinterest(hrp, portal, 1)
-		print("[流程] 已进入决斗场")
-		return true
+	local portal = nil
+	for _, v in ipairs(workspace:GetDescendants()) do
+		if v:IsA("BasePart") then
+			local n = v.Name:lower()
+			if n:find("teleport") or n:find("portal") then
+				portal = v
+				break
+			end
+		end
 	end
-	warn("[流程] 没找到传送门")
-	return false
+	if portal then
+		local ok, err = pcall(function()
+			firetouchinterest(hrp, portal, 0)
+			task.wait(0.1)
+			firetouchinterest(hrp, portal, 1)
+		end)
+		if ok then
+			setStatus("已触碰传送门: " .. portal.Name)
+		else
+			setStatus("触碰传送门失败: " .. tostring(err))
+		end
+	else
+		setStatus("没找到传送门，请手动进场")
+	end
 end
 
-local function slapTarget(remote, hrp, target)
-	local head = target.Character and target.Character:FindFirstChild("Head")
-	local tHrp = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-	local hum = target.Character and target.Character:FindFirstChildOfClass("Humanoid")
+local function slapTarget(remote, hrp, tool, target)
+	local tChar = target.Character
+	if not tChar then return end
+	local head = tChar:FindFirstChild("Head")
+	local tHrp = tChar:FindFirstChild("HumanoidRootPart")
+	local hum = tChar:FindFirstChildOfClass("Humanoid")
 	if not (head and tHrp and hum and hum.Health > 0) then return end
-	hrp.CFrame = tHrp.CFrame * CFrame.new(0, 0, 2.5) * CFrame.Angles(0, math.rad(180), 0)
 	for i = 1, 8 do
 		if not running then break end
 		if hum.Health <= 0 then break end
-		remote:FireServer(head)
+		hrp.CFrame = tHrp.CFrame * CFrame.new(0, 0, 2) * CFrame.Angles(0, math.rad(180), 0)
+		pcall(function()
+			remote:FireServer(head)
+		end)
+		if tool then
+			pcall(function()
+				tool:Activate()
+			end)
+			local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildWhichIsA("BasePart", true)
+			if handle then
+				pcall(function()
+					firetouchinterest(handle, tHrp, 0)
+					firetouchinterest(handle, tHrp, 1)
+				end)
+			end
+		end
 		task.wait(0.05)
-		hrp.CFrame = tHrp.CFrame * CFrame.new(0, 0, 2.5) * CFrame.Angles(0, math.rad(180), 0)
 	end
 end
 
-local function slapEveryone()
+local function slapEveryone(tool)
 	local char = getChar()
 	local hrp = char:WaitForChild("HumanoidRootPart")
-	local remote = game:GetService("ReplicatedStorage"):WaitForChild("b")
+	local remote = game:GetService("ReplicatedStorage"):FindFirstChild("b")
+	if not remote then
+		setStatus("错误：没找到攻击远程 b")
+		return 0
+	end
 	local count = 0
 	for _, target in ipairs(Players:GetPlayers()) do
 		if not running then break end
-		if target ~= player and target.Character then
-			slapTarget(remote, hrp, target)
+		if target ~= player then
+			slapTarget(remote, hrp, tool, target)
 			count = count + 1
 		end
 	end
-	print("[流程] 本轮打了 " .. count .. " 个人")
+	return count
 end
 
 local function hopServer()
-	print("[流程] 正在换服...")
+	setStatus("正在换服...")
 	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(placeId)
 	local ok, res = pcall(function()
 		return HttpService:JSONDecode(game:HttpGet(url))
@@ -170,19 +235,28 @@ local function hopServer()
 			end
 		end
 	end
-	TeleportService:Teleport(placeId, player)
+	local ok2, err2 = pcall(function()
+		TeleportService:Teleport(placeId, player)
+	end)
+	if not ok2 then
+		setStatus("换服失败: " .. tostring(err2))
+	end
 end
 
 local function mainLoop()
 	task.wait(3)
-	equipDefault()
+	setStatus("正在装备手套...")
+	local tool = equipDefault()
 	task.wait(1)
+	setStatus("正在进入决斗场...")
 	enterArena()
 	task.wait(4)
 	while running do
-		slapEveryone()
+		setStatus("正在打人...")
+		local n = slapEveryone(tool)
 		if not running then break end
-		task.wait(1)
+		setStatus("本轮打了 " .. n .. " 人，准备换服")
+		task.wait(1.5)
 		hopServer()
 		break
 	end
