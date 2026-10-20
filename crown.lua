@@ -10,6 +10,26 @@ local player = Players.LocalPlayer
 local placeId = game.PlaceId
 local running = true
 
+pcall(function()
+	local mt = getrawmetatable(game)
+	local oldNamecall = mt.__namecall
+	setreadonly(mt, false)
+	mt.__namecall = newcclosure(function(self, ...)
+		local method = getnamecallmethod()
+		if method == "Kick" then
+			return nil
+		end
+		return oldNamecall(self, ...)
+	end)
+	setreadonly(mt, true)
+end)
+
+pcall(function()
+	hookfunction(player.Kick, newcclosure(function(...)
+		return nil
+	end))
+end)
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "SlapUI"
 gui.ResetOnSpawn = false
@@ -170,7 +190,7 @@ local function slapTarget(remote, hrp, tool, target)
 	local tHrp = tChar:FindFirstChild("HumanoidRootPart")
 	local hum = tChar:FindFirstChildOfClass("Humanoid")
 	if not (head and tHrp and hum and hum.Health > 0) then return end
-	for i = 1, 8 do
+	for i = 1, 4 do
 		if not running then break end
 		if hum.Health <= 0 then break end
 		hrp.CFrame = tHrp.CFrame * CFrame.new(0, 0, 2) * CFrame.Angles(0, math.rad(180), 0)
@@ -189,7 +209,7 @@ local function slapTarget(remote, hrp, tool, target)
 				end)
 			end
 		end
-		task.wait(0.05)
+		task.wait(0.2)
 	end
 end
 
@@ -209,32 +229,73 @@ local function slapEveryone()
 	for _, target in ipairs(Players:GetPlayers()) do
 		if not running then break end
 		if target ~= player then
+			setStatus("正在打: " .. target.Name)
 			slapTarget(remote, hrp, tool, target)
 			count = count + 1
+			task.wait(1)
 		end
 	end
 	return count
 end
 
-local function hopServer()
-	setStatus("正在换服...")
+local hopFailed = false
+
+TeleportService.TeleportInitFailed:Connect(function(plr, result, msg)
+	if plr == player then
+		hopFailed = true
+		setStatus("传送被拒: " .. tostring(result) .. "，换下一个服")
+	end
+end)
+
+local function getServerList()
+	local candidates = {}
 	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(placeId)
 	local ok, res = pcall(function()
 		return HttpService:JSONDecode(game:HttpGet(url))
 	end)
 	if ok and res and res.data then
 		for _, s in ipairs(res.data) do
-			if s.id ~= game.JobId and s.playing > 1 and s.playing < s.maxPlayers then
-				TeleportService:TeleportToPlaceInstance(placeId, s.id, player)
-				return
+			if s.id ~= game.JobId and s.playing >= 2 and s.playing <= s.maxPlayers - 2 then
+				table.insert(candidates, s.id)
 			end
 		end
 	end
-	local ok2, err2 = pcall(function()
-		TeleportService:Teleport(placeId, player)
-	end)
-	if not ok2 then
-		setStatus("换服失败: " .. tostring(err2))
+	return candidates
+end
+
+local function hopServer()
+	setStatus("正在获取服务器列表...")
+	local candidates = getServerList()
+	if #candidates == 0 then
+		setStatus("没有可用服务器，10 秒后重试")
+		task.wait(10)
+		candidates = getServerList()
+		if #candidates == 0 then
+			setStatus("仍然没有可用服务器，本轮结束")
+			return
+		end
+	end
+	setStatus("找到 " .. #candidates .. " 个可用服务器")
+	for i = 1, math.min(10, #candidates) do
+		if not running then return end
+		hopFailed = false
+		setStatus("尝试传送 " .. i .. "/" .. math.min(10, #candidates) .. " (" .. string.sub(candidates[i], 1, 8) .. "...)")
+		pcall(function()
+			TeleportService:TeleportToPlaceInstance(placeId, candidates[i], player)
+		end)
+		task.wait(6)
+		if not hopFailed then
+			task.wait(6)
+			if not hopFailed then
+				setStatus("传送无响应，换下一个")
+				hopFailed = true
+			end
+		end
+	end
+	setStatus("全部传送失败，20 秒后重新获取列表")
+	task.wait(20)
+	if running then
+		hopServer()
 	end
 end
 
@@ -248,7 +309,7 @@ local function mainLoop()
 		local n = slapEveryone()
 		if not running then break end
 		setStatus("本轮打了 " .. n .. " 人，准备换服")
-		task.wait(1.5)
+		task.wait(2)
 		hopServer()
 		break
 	end
