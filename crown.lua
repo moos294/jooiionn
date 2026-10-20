@@ -119,56 +119,47 @@ local function getChar()
 	return player.Character or player.CharacterAdded:Wait()
 end
 
-local function equipDefault()
-	local ok, err = pcall(function()
-		for _, v in ipairs(workspace:GetDescendants()) do
-			if v:IsA("ClickDetector") and v.Parent and v.Parent.Name:lower():find("default") then
-				fireclickdetector(v)
-				return
+local function findPortal()
+	local exact = workspace:FindFirstChild("Teleport1", true)
+	if exact and exact:IsA("BasePart") then
+		return exact
+	end
+	for _, v in ipairs(workspace:GetDescendants()) do
+		if v:IsA("BasePart") then
+			local n = v.Name:lower()
+			if n:find("teleport") or n:find("portal") then
+				return v
 			end
 		end
-	end)
-	if ok then
-		setStatus("手套装备完成")
-	else
-		setStatus("装备手套出错: " .. tostring(err))
 	end
-	task.wait(0.5)
-	local char = getChar()
-	local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
-	if tool then
-		tool.Parent = char
-		return tool
-	end
-	setStatus("警告：手上没有工具")
 	return nil
 end
 
 local function enterArena()
 	local hrp = getChar():WaitForChild("HumanoidRootPart")
 	local portal = nil
-	for _, v in ipairs(workspace:GetDescendants()) do
-		if v:IsA("BasePart") then
-			local n = v.Name:lower()
-			if n:find("teleport") or n:find("portal") then
-				portal = v
-				break
-			end
-		end
+	for i = 1, 15 do
+		if not running then return false end
+		portal = findPortal()
+		if portal then break end
+		setStatus("搜索传送门中... 第 " .. i .. " 次")
+		task.wait(2)
 	end
-	if portal then
-		local ok, err = pcall(function()
-			firetouchinterest(hrp, portal, 0)
-			task.wait(0.1)
-			firetouchinterest(hrp, portal, 1)
-		end)
-		if ok then
-			setStatus("已触碰传送门: " .. portal.Name)
-		else
-			setStatus("触碰传送门失败: " .. tostring(err))
-		end
+	if not portal then
+		setStatus("30 秒未找到传送门，请手动进场")
+		return false
+	end
+	local ok, err = pcall(function()
+		firetouchinterest(hrp, portal, 0)
+		task.wait(0.1)
+		firetouchinterest(hrp, portal, 1)
+	end)
+	if ok then
+		setStatus("已触碰传送门: " .. portal:GetFullName())
+		return true
 	else
-		setStatus("没找到传送门，请手动进场")
+		setStatus("触碰传送门失败: " .. tostring(err))
+		return false
 	end
 end
 
@@ -202,9 +193,13 @@ local function slapTarget(remote, hrp, tool, target)
 	end
 end
 
-local function slapEveryone(tool)
+local function slapEveryone()
 	local char = getChar()
 	local hrp = char:WaitForChild("HumanoidRootPart")
+	local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
+	if tool and tool.Parent ~= char then
+		tool.Parent = char
+	end
 	local remote = game:GetService("ReplicatedStorage"):FindFirstChild("b")
 	if not remote then
 		setStatus("错误：没找到攻击远程 b")
@@ -245,15 +240,12 @@ end
 
 local function mainLoop()
 	task.wait(3)
-	setStatus("正在装备手套...")
-	local tool = equipDefault()
-	task.wait(1)
 	setStatus("正在进入决斗场...")
 	enterArena()
 	task.wait(4)
 	while running do
 		setStatus("正在打人...")
-		local n = slapEveryone(tool)
+		local n = slapEveryone()
 		if not running then break end
 		setStatus("本轮打了 " .. n .. " 人，准备换服")
 		task.wait(1.5)
