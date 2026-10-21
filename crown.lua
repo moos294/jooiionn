@@ -5,11 +5,15 @@ local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local player = Players.LocalPlayer
 local placeId = game.PlaceId
 local running = true
 local hopping = false
+local kickDetected = false
+
+getgenv().SlapForceHop = nil
 
 pcall(function()
 	local mt = getrawmetatable(game)
@@ -17,7 +21,14 @@ pcall(function()
 	setreadonly(mt, false)
 	mt.__namecall = newcclosure(function(self, ...)
 		local method = getnamecallmethod()
-		if method == "Kick" then
+		if method == "Kick" or method == "kick" then
+			kickDetected = true
+			task.spawn(function()
+				task.wait(0.5)
+				if getgenv().SlapForceHop then
+					getgenv().SlapForceHop()
+				end
+			end)
 			return nil
 		end
 		return oldNamecall(self, ...)
@@ -27,8 +38,22 @@ end)
 
 pcall(function()
 	hookfunction(player.Kick, newcclosure(function(...)
+		kickDetected = true
+		task.spawn(function()
+			task.wait(0.5)
+			if getgenv().SlapForceHop then
+				getgenv().SlapForceHop()
+			end
+		end)
 		return nil
 	end))
+end)
+
+player.Idled:Connect(function()
+	pcall(function()
+		VirtualUser:CaptureController()
+		VirtualUser:ClickButton2(Vector2.new())
+	end)
 end)
 
 local gui = Instance.new("ScreenGui")
@@ -48,7 +73,7 @@ Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -30, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-title.Text = "  自动打人换服 2.0"
+title.Text = "  自动打人换服 2.1"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextSize = 14
 title.Font = Enum.Font.GothamBold
@@ -136,6 +161,28 @@ local function setStatus(t)
 		status.Text = "状态：" .. t
 	end)
 	print("[SlapUI] " .. t)
+end
+
+local function waitForFullLoad()
+	setStatus("等待游戏加载...")
+	if not game:IsLoaded() then
+		game.Loaded:Wait()
+	end
+	local char = player.Character or player.CharacterAdded:Wait()
+	char:WaitForChild("HumanoidRootPart", 10)
+	char:WaitForChild("Humanoid", 10)
+	task.wait(2)
+	local t = 0
+	while t < 20 and running do
+		local ok, loaded = pcall(function()
+			return player.DataLoaded
+		end)
+		if ok and loaded then break end
+		task.wait(0.5)
+		t = t + 0.5
+	end
+	setStatus("加载完成，稳定中...")
+	task.wait(3)
 end
 
 local function getChar()
@@ -341,10 +388,19 @@ local function prepareTeleport()
 			end
 		end
 	end)
-	task.wait(0.5)
+	task.wait(1)
+end
+
+local function recoverFromFailedHop()
+	hopping = false
+	pcall(function()
+		gui.Enabled = true
+	end)
+	task.wait(1)
 end
 
 local function hopServer()
+	if hopping then return end
 	setStatus("正在获取服务器列表...")
 	local candidates = getServerList()
 	if #candidates == 0 then
@@ -374,11 +430,7 @@ local function hopServer()
 			end
 		end
 		if hopFailed then
-			hopping = false
-			pcall(function()
-				gui.Enabled = true
-			end)
-			task.wait(1)
+			recoverFromFailedHop()
 		end
 	end
 	setStatus("全部传送失败，20 秒后重新获取列表")
@@ -392,17 +444,24 @@ local function hopServer()
 	end
 end
 
+getgenv().SlapForceHop = function()
+	if hopping then return end
+	setStatus("检测到被踢，立即换服！")
+	task.wait(0.5)
+	hopServer()
+end
+
 local function mainLoop()
 	while running do
 		local ok, err = pcall(function()
-			task.wait(3)
+			waitForFullLoad()
 			setStatus("正在进入决斗场...")
 			enterArena()
 			task.wait(4)
 			setStatus("正在打人...")
 			local n = slapEveryone()
 			setStatus("本轮打了 " .. n .. " 人，准备换服")
-			task.wait(2)
+			task.wait(3)
 			hopServer()
 		end)
 		if not ok then
