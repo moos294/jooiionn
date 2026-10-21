@@ -1,5 +1,3 @@
-local qot = queue_on_teleport or queueonteleport or (syn and syn.queue_on_teleport)
-
 local src = [==[
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -171,18 +169,7 @@ local function waitForFullLoad()
 	local char = player.Character or player.CharacterAdded:Wait()
 	char:WaitForChild("HumanoidRootPart", 10)
 	char:WaitForChild("Humanoid", 10)
-	task.wait(2)
-	local t = 0
-	while t < 20 and running do
-		local ok, loaded = pcall(function()
-			return player.DataLoaded
-		end)
-		if ok and loaded then break end
-		task.wait(0.5)
-		t = t + 0.5
-	end
-	setStatus("加载完成，稳定中...")
-	task.wait(3)
+	task.wait(1)
 end
 
 local function getChar()
@@ -488,8 +475,15 @@ end)
 task.spawn(mainLoop)
 ]==]
 
+local FILE_NAME = "slap_auto.lua"
+
+pcall(function()
+	writefile(FILE_NAME, src)
+end)
+
+local qot = queue_on_teleport or queueonteleport
 if qot then
-	qot(src)
+	qot('loadstring(readfile("' .. FILE_NAME .. '"))()')
 end
 
 loadstring(src)()
