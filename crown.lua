@@ -1,128 +1,157 @@
-lua
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local response = game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua")
+local WindUI = loadstring(response)()
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DeepSeek_UI_Test"
-screenGui.ResetOnSpawn = false
-screenGui.IgnoreGuiInset = true
-screenGui.Parent = playerGui
+local Window = WindUI:CreateWindow({
+	Title = "专用",
+	Author = "专用",
+	Folder = "Dedicated",
+	HideSearchBar = true,
+	Icon = "zap",
+	OpenButton = {
+		Title = "专用",
+		Color = ColorSequence.new(Color3.fromHex("00FFA3")),
+		CornerRadius = UDim.new(0, 8),
+		Draggable = true,
+		Enabled = true,
+		Icon = "zap"
+	}
+})
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 400, 0, 300)
-mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.ClipsDescendants = true
-mainFrame.Parent = screenGui
+local Weight = 1
+local isTraining = false
+local isRebirthing = false
 
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 8)
-uiCorner.Parent = mainFrame
+local Tab1 = Window:Tab({ Title = "外服缝合", Icon = "link" })
 
-local topBar = Instance.new("Frame")
-topBar.Name = "TopBar"
-topBar.Size = UDim2.new(1, 0, 0, 40)
-topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-topBar.BorderSizePixel = 0
-topBar.Parent = mainFrame
+Tab1:Input({
+	Title = "自定义重量 (Weight)",
+	Placeholder = "输入重量数值",
+	Value = "1",
+	Callback = function(text)
+		if tonumber(text) then
+			Weight = tonumber(text)
+		end
+	end
+})
 
-local topCorner = Instance.new("UICorner")
-topCorner.CornerRadius = UDim.new(0, 8)
-topCorner.Parent = topBar
+Tab1:Button({
+	Title = "执行偷来的聊天代码",
+	Callback = function()
+		local remote = ReplicatedStorage:FindFirstChild("CustomChatRemote")
+		if remote then
+			remote:FireServer("Hello")
+			WindUI:Notify({ Title = "发送成功", Content = "已发送 Hello", Duration = 2 })
+		else
+			WindUI:Notify({ Title = "报错", Content = "找不到 CustomChatRemote", Duration = 2 })
+		end
+	end
+})
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -50, 1, 0)
-title.Position = UDim2.new(0, 15, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "DeepSeek 专属 UI 框架"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.Parent = topBar
+Tab1:Toggle({
+	Title = "偷来的带重量自动锻炼",
+	Value = false,
+	Callback = function(state)
+		isTraining = state
+		task.spawn(function()
+			while isTraining do
+				local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
+				if remote then
+					remote:FireServer("rep", Weight)
+				end
+				task.wait(0.1)
+			end
+		end)
+	end
+})
 
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 40, 1, 0)
-closeBtn.Position = UDim2.new(1, -40, 0, 0)
-closeBtn.BackgroundTransparency = 1
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 18
-closeBtn.Parent = topBar
+Tab1:Toggle({
+	Title = "偷来的带重量指定重生",
+	Value = false,
+	Callback = function(state)
+		isRebirthing = state
+		task.spawn(function()
+			while isRebirthing do
+				local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
+				if remote then
+					remote:FireServer("rep", Weight)
+				end
+				task.wait(0.1)
+			end
+		end)
+	end
+})
 
-closeBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-end)
+local Tab2 = Window:Tab({ Title = "原版器材", Icon = "dumbbell" })
 
-local resizeHandle = Instance.new("TextButton")
-resizeHandle.Name = "ResizeHandle"
-resizeHandle.Size = UDim2.new(0, 25, 0, 25)
-resizeHandle.Position = UDim2.new(1, -25, 1, -25)
-resizeHandle.BackgroundTransparency = 1
-resizeHandle.Text = "◢"
-resizeHandle.TextColor3 = Color3.fromRGB(150, 150, 150)
-resizeHandle.Font = Enum.Font.GothamBold
-resizeHandle.Parent = mainFrame
+Tab2:Toggle({
+	Title = "原版 自动锻炼",
+	Value = false,
+	Callback = function(state)
+		task.spawn(function()
+			while state do
+				local ev = Players.LocalPlayer:FindFirstChild("muscleEvent")
+				if ev then ev:FireServer("rep") end
+				task.wait(0.1)
+			end
+		end)
+	end
+})
 
-local dragging = false
-local dragInput, dragStart, startPos
+Tab2:Toggle({
+	Title = "原版 超载硬拉",
+	Value = false,
+	Callback = function(state)
+		if state then
+			task.spawn(function()
+				local ev = Players.LocalPlayer:FindFirstChild("muscleEvent")
+				while state do
+					if ev and workspace:FindFirstChild("machinesFolder") and workspace.machinesFolder:FindFirstChild("Overcharged Bar Lift") then
+						ev:FireServer("rep", workspace.machinesFolder["Overcharged Bar Lift"].interactSeat)
+					end
+					task.wait(0.1)
+				end
+			end)
+		end
+	end
+})
 
-topBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-topBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-local resizing = false
-local resizeStart, startSize
-
-resizeHandle.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        resizing = true
-        resizeStart = input.Position
-        startSize = mainFrame.Size
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                resizing = false
-            end
-        end)
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - resizeStart
-        local newWidth = math.max(200, startSize.X.Offset + delta.X)
-        local newHeight = math.max(150, startSize.Y.Offset + delta.Y)
-        mainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
-    end
-end)
+Tab2:Toggle({
+	Title = "原版 超载跑步机",
+	Value = false,
+	Callback = function(state)
+		if state then
+			task.spawn(function()
+				local Character = Players.LocalPlayer.Character
+				if Character then
+					local HRP = Character:FindFirstChild("HumanoidRootPart")
+					local Hum = Character:FindFirstChild("Humanoid")
+					if HRP and Hum then
+						HRP.CFrame = CFrame.new(-2548.9, 181.38, 5484.23)
+						task.wait(0.2)
+						VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+						task.wait(0.05)
+						VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+						task.wait(0.5)
+						Hum.WalkSpeed = 10
+						Hum.PlatformStand = true
+					end
+				end
+			end)
+		else
+			local Character = Players.LocalPlayer.Character
+			if Character then
+				local Hum = Character:FindFirstChildOfClass("Humanoid")
+				if Hum then
+					Hum.WalkSpeed = 16
+					Hum.PlatformStand = false
+				end
+			end
+		end
+	end
+})
