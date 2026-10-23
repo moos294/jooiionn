@@ -1,20 +1,18 @@
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local UserInputService = game:GetService("UserInputService")
 
 local response = game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua")
 local WindUI = loadstring(response)()
 
 local Window = WindUI:CreateWindow({
-	Title = "专用",
+	Title = "专用0.1",
 	Author = "专用",
 	Folder = "Dedicated",
 	HideSearchBar = true,
 	Icon = "zap",
 	OpenButton = {
-		Title = "专用",
+		Title = "专用0.1",
 		Color = ColorSequence.new(Color3.fromHex("00FFA3")),
 		CornerRadius = UDim.new(0, 8),
 		Draggable = true,
@@ -23,73 +21,74 @@ local Window = WindUI:CreateWindow({
 	}
 })
 
-local Weight = 1
+local Multiplier = 1
+local TargetCount = 0
 local isTraining = false
 local isRebirthing = false
+local trainConnection = nil
+local rebConnection = nil
 
-local Tab1 = Window:Tab({ Title = "缝合测试", Icon = "link" })
+local Tab = Window:Tab({ Title = "主要", Icon = "zap" })
 
-Tab1:Input({
-	Title = "自定义重量 (Weight)",
-	Placeholder = "输入重量数值",
-	Value = "1",
-	Callback = function(text)
-		if tonumber(text) then
-			Weight = tonumber(text)
+Tab:Input({
+	Title = "目标次数",
+	Placeholder = "自定义重生数量",
+	Value = "",
+	Callback = function(state)
+		if tonumber(state) then
+			TargetCount = tonumber(state)
 		end
 	end
 })
 
-Tab1:Toggle({
-	Title = "带重量自动锻炼",
+Tab:Input({
+	Title = "调倍率 (Weight)",
+	Placeholder = "自己调节",
+	Value = "1",
+	Callback = function(state)
+		if tonumber(state) then
+			Multiplier = tonumber(state)
+			WindUI:Notify({ Title = "倍率更新", Content = "当前倍率: " .. tostring(Multiplier), Duration = 2 })
+		end
+	end
+})
+
+Tab:Toggle({
+	Title = "快速锻炼",
 	Value = false,
 	Callback = function(state)
 		isTraining = state
-		task.spawn(function()
-			while isTraining do
-				local remote = Players.LocalPlayer:FindFirstChild("muscleEvent")
+		if trainConnection then trainConnection:Disconnect() end
+		
+		if state then
+			trainConnection = RunService.Heartbeat:Connect(function()
+				local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
 				if remote then
-					remote:FireServer("rep", Weight)
+					pcall(function()
+						remote:FireServer("rep", Multiplier)
+					end)
 				end
-				task.wait(0.1)
-			end
-		end)
+			end)
+		end
 	end
 })
 
-Tab1:Toggle({
-	Title = "带重量指定重生",
+Tab:Toggle({
+	Title = "重生",
 	Value = false,
 	Callback = function(state)
 		isRebirthing = state
-		task.spawn(function()
-			while isRebirthing do
-				local remote = Players.LocalPlayer:FindFirstChild("muscleEvent")
+		if rebConnection then rebConnection:Disconnect() end
+		
+		if state then
+			rebConnection = RunService.Heartbeat:Connect(function()
+				local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
 				if remote then
-					remote:FireServer("rep", Weight)
+					pcall(function()
+						remote:FireServer("rep", Multiplier)
+					end)
 				end
-				task.wait(0.1)
-			end
-		end)
-	end
-})
-
-Tab1:Toggle({
-	Title = "狂暴极速锻炼 (原版协议)",
-	Value = false,
-	Callback = function(state)
-		task.spawn(function()
-			while state do
-				local remote = Players.LocalPlayer:FindFirstChild("muscleEvent")
-				if remote then
-					remote:FireServer("rep")
-					remote:FireServer("rep")
-					remote:FireServer("rep")
-					remote:FireServer("rep")
-					remote:FireServer("rep")
-				end
-				task.wait(0.1)
-			end
-		end)
+			end)
+		end
 	end
 })
