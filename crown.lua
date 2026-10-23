@@ -1,4 +1,3 @@
-local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -22,33 +21,17 @@ local Window = WindUI:CreateWindow({
 })
 
 local Multiplier = 1
-local TargetCount = 0
-local isTraining = false
-local isRebirthing = false
-local trainConnection = nil
-local rebConnection = nil
-
 local Tab = Window:Tab({ Title = "主要", Icon = "zap" })
-
-Tab:Input({
-	Title = "目标次数",
-	Placeholder = "自定义重生数量",
-	Value = "",
-	Callback = function(state)
-		if tonumber(state) then
-			TargetCount = tonumber(state)
-		end
-	end
-})
 
 Tab:Input({
 	Title = "调倍率 (Weight)",
 	Placeholder = "自己调节",
 	Value = "1",
 	Callback = function(state)
-		if tonumber(state) then
-			Multiplier = tonumber(state)
-			WindUI:Notify({ Title = "倍率更新", Content = "当前倍率: " .. tostring(Multiplier), Duration = 2 })
+		local num = tonumber(state)
+		if num then
+			Multiplier = num
+			WindUI:Notify({ Title = "设置成功", Content = "当前倍率: " .. tostring(Multiplier), Duration = 2 })
 		end
 	end
 })
@@ -57,16 +40,16 @@ Tab:Toggle({
 	Title = "快速锻炼",
 	Value = false,
 	Callback = function(state)
-		isTraining = state
-		if trainConnection then trainConnection:Disconnect() end
-		
 		if state then
-			trainConnection = RunService.Heartbeat:Connect(function()
-				local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
-				if remote then
-					pcall(function()
-						remote:FireServer("rep", Multiplier)
-					end)
+			task.spawn(function()
+				while state do
+					local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
+					if remote then
+						pcall(function()
+							remote:FireServer("rep", Multiplier)
+						end)
+					end
+					task.wait(0.2)
 				end
 			end)
 		end
@@ -77,16 +60,16 @@ Tab:Toggle({
 	Title = "重生",
 	Value = false,
 	Callback = function(state)
-		isRebirthing = state
-		if rebConnection then rebConnection:Disconnect() end
-		
 		if state then
-			rebConnection = RunService.Heartbeat:Connect(function()
-				local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
-				if remote then
-					pcall(function()
-						remote:FireServer("rep", Multiplier)
-					end)
+			task.spawn(function()
+				while state do
+					local remote = ReplicatedStorage:FindFirstChild("muscleEvent")
+					if remote then
+						pcall(function()
+							remote:FireServer("rep", Multiplier)
+						end)
+					end
+					task.wait(0.2)
 				end
 			end)
 		end
