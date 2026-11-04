@@ -1,5 +1,5 @@
 local successLoad, WindUIorErr = pcall(function()
-    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/v1.6.66/main.lua"))()
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 end)
 
 local function showScreenMessage(text, isError)
@@ -28,17 +28,21 @@ local WindUI = WindUIorErr
 
 local successWin, errWin = pcall(function()
     local Window = WindUI:CreateWindow({
-        Title = "测试窗口",
-        Author = "测试",
+        Title = "白Hub-极简测试版",
+        Author = "网络测试",
         Folder = "BaiTest",
-        Size = UDim2.fromOffset(500, 400),
+        Size = UDim2.fromOffset(450, 300),
         Theme = "Dark",
     })
     
-    local Tab = Window:Tab({ Title = "测试", Icon = "home" })
-    Tab:Button({ Title = "点我测试", Callback = function() 
-        showScreenMessage("按钮点击成功！WindUI 完全可用！", false)
-    end })
+    local Tab = Window:Tab({ Title = "测试页面", Icon = "home" })
+    
+    Tab:Button({ 
+        Title = "点我测试", 
+        Callback = function() 
+            showScreenMessage("按钮点击成功！WindUI 已经完美复活！", false)
+        end 
+    })
 end)
 
 if not successWin then
