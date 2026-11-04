@@ -1,57 +1,30 @@
-local urls = {
-    "https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
-    "https://github.com/Footagesus/WindUI/releases/download/1.6.41/main.lua"
-}
-
-local WindUI = nil
-local lastErr = ""
-
-for _, url in ipairs(urls) do
-    local ok, res = pcall(function()
-        return loadstring(game:HttpGet(url))()
-    end)
-    if ok and res then
-        WindUI = res
-        break
-    else
-        lastErr = tostring(res)
-    end
-end
-
-local function showMsg(text, isError)
-    local sg = Instance.new("ScreenGui")
-    sg.Parent = game:GetService("CoreGui")
-    local t = Instance.new("TextLabel")
-    t.Parent = sg
-    t.Size = UDim2.new(0, 600, 0, 120)
-    t.Position = UDim2.new(0.5, -300, 0.5, -60)
-    t.BackgroundColor3 = isError and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(0, 200, 0)
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
-    t.Font = Enum.Font.GothamBold
-    t.TextSize = 18
-    t.TextWrapped = true
-    t.Text = text
-    task.wait(8)
-    sg:Destroy()
-end
-
-if not WindUI then
-    showMsg("所有链接均失败! 最后错误: " .. lastErr, true)
-    return
-end
-
-local ok, err = pcall(function()
-    local Window = WindUI:CreateWindow({
-        Title = "测试成功",
-        Author = "备用链接",
-        Folder = "BaiTest",
-        Size = UDim2.fromOffset(450, 300),
-        Theme = "Dark",
+local success, err = pcall(function()
+    local Window = Library:CreateWindow({
+        Title = "测试成功！",
+        Version = "v1.0",
+        Theme = "Pastel"
     })
-    local Tab = Window:Tab({ Title = "测试", Icon = "home" })
-    Tab:Button({ Title = "点我", Callback = function() showMsg("WindUI 完美运行!", false) end })
+
+    local Tab = Window:CreateTab("测试页面")
+    local Mod = Tab:CreateModule("基础测试", "测试按钮是否正常")
+
+    Mod:CreateButton("点击我测试", function()
+        print("牛逼！按钮点击成功了！")
+    end)
+
+    Mod:CreateToggle("测试开关", false, function(state)
+        print("开关状态改变了:", state)
+    end)
 end)
 
-if not ok then
-    showMsg("窗口创建失败: " .. tostring(err), true)
+if not success then
+    local sg = Instance.new("ScreenGui", game:GetService("CoreGui"))
+    local lbl = Instance.new("TextLabel", sg)
+    lbl.Size = UDim2.new(0, 800, 0, 200)
+    lbl.Position = UDim2.new(0.5, -400, 0.5, -100)
+    lbl.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.TextSize = 20
+    lbl.Font = Enum.Font.GothamBold
+    lbl.Text = "UI创建失败，报错信息:\n" .. tostring(err)
 end
