@@ -91,49 +91,58 @@ local function trueTeleport(obj)
         return 
     end
     
-    local targetPos = TP_Position + Vector3.new(0, 2, 0)
+    local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Tool") and obj:FindFirstChild("Handle")) or obj:FindFirstChildWhichIsA("BasePart")
+    if not targetPart then return end
     
     local success = pcall(function()
+        if obj:IsA("Tool") then
+            obj.Parent = player.Backpack
+            WindUI:Notify({ Title = "抓取成功", Content = "工具已收入背包", Duration = 2 })
+            return
+        end
+
+        -- 暴力解除锚定、移除所有物理限制（比如传送带上的焊接）
         if obj:IsA("Model") then
             for _, p in pairs(obj:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
                     p.CanCollide = true
-                    p.AssemblyLinearVelocity = Vector3.new(0,0,0)
-                    p.AssemblyAngularVelocity = Vector3.new(0,0,0)
-                    p:SetNetworkOwner(player)
+                elseif p:IsA("Weld") or p:IsA("WeldConstraint") or p:IsA("JointInstance") then
+                    p:Destroy()
                 end
             end
-            obj:PivotTo(CFrame.new(targetPos))
-            
-            task.wait(0.1)
-            obj:PivotTo(CFrame.new(targetPos))
-            
         elseif obj:IsA("BasePart") then
             obj.Anchored = false
             obj.CanCollide = true
-            obj.AssemblyLinearVelocity = Vector3.new(0,0,0)
-            obj.AssemblyAngularVelocity = Vector3.new(0,0,0)
-            obj:SetNetworkOwner(player)
-            
-            obj.CFrame = CFrame.new(targetPos)
-            
-            task.wait(0.1)
-            obj.CFrame = CFrame.new(targetPos)
-        elseif obj:IsA("Tool") then
-            local handle = obj:FindFirstChild("Handle")
-            if handle then
-                handle.Anchored = false
-                handle:SetNetworkOwner(player)
-                handle.CFrame = CFrame.new(targetPos)
+            for _, child in pairs(obj:GetChildren()) do
+                if child:IsA("Weld") or child:IsA("WeldConstraint") or child:IsA("JointInstance") then
+                    child:Destroy()
+                end
             end
         end
+        
+        -- 尝试获取所有权（如果失败就跳过，不中断代码）
+        pcall(function() targetPart:SetNetworkOwner(player) end)
+        
+        -- 计算到绿球的物理弹射方向
+        local direction = (TP_Position + Vector3.new(0, 3, 0) - targetPart.Position).Unit
+        
+        -- 给它一个巨大的抛射初速度
+        targetPart.AssemblyLinearVelocity = direction * 1000
+        
+        -- 瞬间改写一次 CFrame（争取让服务器在延迟内接收新坐标）
+        local offset = Vector3.new(math.random(-1, 1), 2, math.random(-1, 1))
+        if obj:IsA("Model") then
+            obj:PivotTo(CFrame.new(TP_Position + offset))
+        else
+            targetPart.CFrame = CFrame.new(TP_Position + offset)
+        end
+        
+        WindUI:Notify({ Title = "物理弹射", Content = "物品正在飞向绿球...", Duration = 2 })
     end)
     
-    if success then
-        WindUI:Notify({ Title = "传送成功", Content = "物品已真实抵达！", Duration = 2 })
-    else
-        WindUI:Notify({ Title = "失败", Content = "物体被服务器死死锁住", Duration = 3 })
+    if not success then
+        WindUI:Notify({ Title = "失败", Content = "物理引擎拒绝解绑该物体", Duration = 3 })
     end
 end
 
