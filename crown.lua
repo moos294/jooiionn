@@ -10,8 +10,8 @@ local Window = WindUI:CreateWindow({
 })
 
 local Tab = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10734898355" })
-
 local player = game.Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
 
 local TP_Position = nil
 local TP_Ball = nil
@@ -52,8 +52,8 @@ Tab:Button({
 })
 
 Tab:Button({
-    Title = "2. 获得传送魔杖",
-    Desc = "放入背包，拿在手里点击物体即可传送",
+    Title = "2. 获得隐身传送魔杖",
+    Desc = "放入背包，拿在手里点击屏幕即可传送",
     Callback = function()
         if player.Backpack:FindFirstChild("传送魔杖") or (player.Character and player.Character:FindFirstChild("传送魔杖")) then
             WindUI:Notify({ Title = "提示", Content = "你已经有魔杖了！", Duration = 3 })
@@ -67,13 +67,13 @@ Tab:Button({
 
         local handle = Instance.new("Part")
         handle.Name = "Handle"
-        handle.Size = Vector3.new(0.5, 0.5, 3)
-        handle.Color = Color3.fromRGB(0, 255, 0)
-        handle.Material = Enum.Material.Neon
+        handle.Size = Vector3.new(0.1, 0.1, 0.1)
+        handle.Transparency = 1
+        handle.CanCollide = false
         handle.Parent = tool
 
         tool.Parent = player.Backpack
-        WindUI:Notify({ Title = "成功", Content = "魔杖已放入背包，请装备！", Duration = 3 })
+        WindUI:Notify({ Title = "成功", Content = "魔杖已放入背包（完全透明）", Duration = 3 })
     end
 })
 
@@ -100,7 +100,7 @@ local function teleportObject(obj)
         return 
     end
     
-    local targetPos = TP_Position + Vector3.new(math.random(-2, 2), 2, math.random(-2, 2))
+    local targetPos = TP_Position + Vector3.new(math.random(-1, 1), 1.5, math.random(-1, 1))
     
     local targetModel = obj:FindFirstAncestorOfClass("Model")
     if targetModel and isMovableItem(targetModel) and targetModel.Parent ~= workspace then
@@ -128,56 +128,37 @@ local function teleportObject(obj)
     end)
     
     if success then
-        WindUI:Notify({ Title = "传送成功", Content = "已将 " .. obj.Name .. " 传送", Duration = 2 })
+        WindUI:Notify({ Title = "传送成功", Content = "已将物品传送", Duration = 2 })
     else
         WindUI:Notify({ Title = "失败", Content = "错误: " .. tostring(err), Duration = 3 })
     end
 end
 
-local function bindTool(t)
-    if t.Name == "传送魔杖" and t:IsA("Tool") and not t:GetAttribute("Bound") then
-        t:SetAttribute("Bound", true)
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local char = player.Character
+        local tool = char and char:FindFirstChildOfClass("Tool")
         
-        t.Activated:Connect(function()
-            local mouse = player:GetMouse()
-            local target = mouse.Target
+        if tool and tool.Name == "传送魔杖" then
+            local camera = workspace.CurrentCamera
+            local screenPos = input.Position
+            local unitRay = camera:ViewportPointToRay(screenPos.X, screenPos.Y)
+            local rayParams = RaycastParams.new()
+            rayParams.FilterDescendantsInstances = {player.Character, TP_Ball}
             
-            if not target then
-                local camera = workspace.CurrentCamera
-                local screenPos = Vector2.new(mouse.X, mouse.Y)
-                local unitRay = camera:ViewportPointToRay(screenPos.X, screenPos.Y)
-                local rayParams = RaycastParams.new()
-                rayParams.FilterDescendantsInstances = {player.Character, TP_Ball}
-                local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 100, rayParams)
-                if result then
-                    target = result.Instance
-                end
-            end
+            local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 200, rayParams)
+            local target = result and result.Instance
             
             if target then
                 if isMovableItem(target) then
                     teleportObject(target)
                 else
-                    WindUI:Notify({ Title = "拒绝传送", Content = "该物体无法传送", Duration = 2 })
+                    WindUI:Notify({ Title = "拒绝", Content = "该物体无法传送", Duration = 2 })
                 end
             else
-                WindUI:Notify({ Title = "传送失败", Content = "未识别到物体", Duration = 2 })
+                WindUI:Notify({ Title = "未命中", Content = "请对准物品再点击", Duration = 2 })
             end
-        end)
+        end
     end
-end
-
-if player:FindFirstChild("Backpack") then
-    player.Backpack.ChildAdded:Connect(bindTool)
-    for _, child in pairs(player.Backpack:GetChildren()) do bindTool(child) end
-end
-
-player.CharacterAdded:Connect(function(char)
-    char.ChildAdded:Connect(bindTool)
-    for _, child in pairs(char:GetChildren()) do bindTool(child) end
 end)
-
-if player.Character then
-    player.Character.ChildAdded:Connect(bindTool)
-    for _, child in pairs(player.Character:GetChildren()) do bindTool(child) end
-end
