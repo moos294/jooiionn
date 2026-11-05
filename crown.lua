@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "真实物理传送系统",
+    Title = "传送系统",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
