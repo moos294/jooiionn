@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存NB - 整合版",
+    Title = "封存NB - 手机专属吸附",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Folder = "BaiScript",
@@ -11,124 +11,120 @@ local Window = WindUI:CreateWindow({
 })
 
 local Tab = Window:Tab({ Title = "主要功能", Icon = "mouse-pointer" })
-local Section = Tab:Section({ Title = "功能菜单" })
+local Section = Tab:Section({ Title = "触屏功能" })
 
-local dragActive = false
-local _G_HardDraggerConnection = nil
-local _G_OrigDrag = nil
+local RS = game:GetService("ReplicatedStorage")
+local LP = game.Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 
-local function ToggleDragger(state)
-    if state then
-        pcall(function()
-            _G_HardDraggerConnection = game.Workspace.ChildAdded:connect(
-                function(a)
-                    if a.Name == "Dragger" then
-                        local b = a:WaitForChild("BodyGyro")
-                        local c = a:WaitForChild("BodyPosition")
-                        local d = {
-                            bp_p = c.P,
-                            bp_d = c.D,
-                            bp_maxforce = c.maxForce,
-                            bg_p = b.P,
-                            bg_d = b.D,
-                            bg_maxtorque = b.maxTorque,
-                            color_backup = a.BrickColor
-                        }
-                        local e = BrickColor.new("Bright blue")
-                        a.BrickColor = e
-                        repeat
-                            task.wait()
-                            c.P = 120000
-                            c.D = 1000
-                            c.maxForce = Vector3.new(1, 1, 1) * 1000000
-                            b.maxTorque = Vector3.new(1, 1, 1) * 200
-                            b.P = 1200
-                            b.D = 140
-                        until a.Parent ~= game.Workspace
-                        c.maxForce = d["bp_maxforce"]
-                        c.D = d["bp_d"]
-                        c.P = d["bp_p"]
-                        b.maxTorque = d["bg_maxtorque"]
-                        b.P = d["bg_p"]
-                        b.D = d["bg_d"]
-                        a.BrickColor = d["color_backup"]
-                    end
-                end
-            )
-            
-            if not _G_OrigDrag then
-                _G_OrigDrag = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.ItemDraggingGUI.Dragger).canDrag
-                getsenv(game:GetService("Players").LocalPlayer.PlayerGui.ItemDraggingGUI.Dragger).canDrag = function(f)
-                    if _G_OrigDrag(f) == true then
-                        return true
-                    end
-                    local g = game.Players.LocalPlayer.Character
-                    if not g then
-                        return
-                    end
-                    if g:FindFirstChildOfClass("Tool") then
-                        return
-                    end
-                    if f then
-                        if f.Parent then
-                            if 0 <= g.Humanoid.Health and f.Name == "LeafPart" then
-                                return false
-                            else
-                                local h = f
-                                repeat
-                                    h = h.Parent
-                                until h.Parent.Name == "PlayerModels" or h.Parent == game.Workspace or h.Parent == game or h.Parent.Name == "LogModels"
-                                if h.Parent.Name == "PlayerModels" or h.Parent.Name == "LogModels" then
-                                end
-                            end
-                        end
-                    end
-                    return false
-                end
+local isAttaching = false
+local attachConnection = nil
+local currentTarget = nil
+
+local function GetTouchedModel()
+    local mouseLocation = UIS:GetMouseLocation()
+    local ray = Camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y, 0)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {LP.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+    if result and result.Instance then
+        local model = result.Instance:FindFirstAncestorOfClass("Model")
+        if model and model:FindFirstChild("Owner") then
+            if model.Owner.Value == LP or model.Owner.Value == nil then
+                return model
             end
-        end)
-    else
-        pcall(function()
-            if _G_HardDraggerConnection then
-                _G_HardDraggerConnection:Disconnect()
-                _G_HardDraggerConnection = nil
-            end
-            if _G_OrigDrag then
-                getsenv(game:GetService("Players").LocalPlayer.PlayerGui.ItemDraggingGUI.Dragger).canDrag = _G_OrigDrag
-                _G_OrigDrag = nil
-            end
-        end)
+        end
     end
+    return nil
 end
 
+local function StartForceAttach()
+    attachConnection = RunService.RenderStepped:Connect(function()
+        if not isAttaching or not currentTarget or not currentTarget.Parent then return end
+        
+        local char = LP.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        
+        local targetPos = char.HumanoidRootPart.CFrame * CFrame.new(0, 0, -6)
+        
+        if currentTarget.PrimaryPart then
+            currentTarget:PivotTo(targetPos)
+        elseif currentTarget:FindFirstChild("Main") then
+            currentTarget.Main.CFrame = targetPos
+        elseif currentTarget:FindFirstChild("WoodSection") then
+            currentTarget.WoodSection.CFrame = targetPos
+        end
+        
+        pcall(function()
+            local args = {
+                "Refresh",
+                currentTarget,
+                1
+            }
+            RS:WaitForChild("Interaction"):WaitForChild("ClientIsDragging"):FireServer(unpack(args))
+        end)
+    end)
+end
+
+UIS.TouchTap:Connect(function(touchPositions, gameProcessed)
+    if gameProcessed or not isAttaching then return end
+    
+    if currentTarget then
+        currentTarget = nil
+    else
+        local model = GetTouchedModel()
+        if model then
+            currentTarget = model
+        end
+    end
+end)
+
 Section:Toggle({
-    Title = "开启/关闭拖拽器",
-    Desc = "开启后拖拽物体会有加速效果 (变成蓝色)",
+    Title = "开启手机点击吸附",
+    Desc = "开启后，点一下物品它就死贴在你面前，再点一下放下",
     Default = false
 }, function(state)
-    dragActive = state
-    ToggleDragger(state)
+    isAttaching = state
+    if state then
+        currentTarget = nil
+        if not attachConnection then
+            StartForceAttach()
+        end
+    else
+        currentTarget = nil
+        if attachConnection then
+            attachConnection:Disconnect()
+            attachConnection = nil
+        end
+    end
+end)
+
+Section:Button({
+    Title = "强制刷新反斗城末日斧",
+    Desc = "发送你抓到的 Refresh 请求"
+}, function()
+    local success, err = pcall(function()
+        local args = {
+            "Refresh",
+            workspace:WaitForChild("Stores"):WaitForChild("WoodRUs"):WaitForChild("ShopItems"):WaitForChild("EndTimesAxe"),
+            1
+        }
+        RS:WaitForChild("Interaction"):WaitForChild("ClientIsDragging"):FireServer(unpack(args))
+    end)
+    if success then
+        WindUI:Notify({Title = "成功", Content = "已发送末日斧刷新指令", Duration = 3})
+    else
+        WindUI:Notify({Title = "失败", Content = "刷新失败，可能不在对应服务器", Duration = 3})
+    end
 end)
 
 Section:Button({
     Title = "执行飞行脚本",
-    Desc = "点击远程加载并运行 Pastebin 上的飞行脚本"
+    Desc = "加载 Pastebin 飞行"
 }, function()
-    WindUI:Notify({
-        Title = "封存NB",
-        Content = "正在加载飞行脚本，请稍后...",
-        Duration = 3
-    })
-    
-    local success, err = pcall(function()
-        loadstring(game:HttpGet("https://pastebin.com/raw/ZBzcTm1f"))()
-    end)
-    
-    if not success then
-        WindUI:Notify({
-            Title = "错误",
-            Content = "加载失败，可能链接已失效或被执行器拦截。",
-            Duration = 5
-        })
-    end
+    pcall(function() loadstring(game:HttpGet("https://pastebin.com/raw/ZBzcTm1f"))() end)
 end)
