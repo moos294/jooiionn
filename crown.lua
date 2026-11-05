@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "传送魔杖",
+    Title = "独立传送系统",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -9,7 +9,7 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
-local Tab = Window:Tab({ Title = "传送功能", Icon = "rbxassetid://10734898355" })
+local Tab = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10734898355" })
 
 local player = game.Players.LocalPlayer
 
@@ -29,7 +29,7 @@ Tab:Button({
             TP_Ball = Instance.new("Part")
             TP_Ball.Name = "LocalTPMarker"
             TP_Ball.Shape = Enum.PartType.Ball
-            TP_Ball.Size = Vector3.new(6, 6, 6)
+            TP_Ball.Size = Vector3.new(2, 2, 2)
             TP_Ball.Position = TP_Position
             TP_Ball.Material = Enum.Material.Neon
             TP_Ball.Color = Color3.fromRGB(0, 255, 0)
@@ -37,13 +37,13 @@ Tab:Button({
             TP_Ball.CanCollide = false
             TP_Ball.CanQuery = false
             TP_Ball.CastShadow = false
-            TP_Ball.Transparency = 0.2
+            TP_Ball.Transparency = 0.1
             TP_Ball.Parent = workspace
             
             local light = Instance.new("PointLight")
             light.Color = Color3.fromRGB(0, 255, 0)
-            light.Range = 15
-            light.Brightness = 3
+            light.Range = 10
+            light.Brightness = 2
             light.Parent = TP_Ball
             
             WindUI:Notify({ Title = "成功", Content = "目标点已设置！", Duration = 3 })
@@ -100,27 +100,29 @@ local function teleportObject(obj)
         return 
     end
     
-    local targetPos = TP_Position + Vector3.new(math.random(-2, 2), 0, math.random(-2, 2))
+    local targetPos = TP_Position + Vector3.new(math.random(-2, 2), 2, math.random(-2, 2))
     
     local targetModel = obj:FindFirstAncestorOfClass("Model")
     if targetModel and isMovableItem(targetModel) and targetModel.Parent ~= workspace then
         obj = targetModel
     end
     
-    local success = pcall(function()
+    local success, err = pcall(function()
         if obj:IsA("Model") then
             for _, p in pairs(obj:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
                     p.CanCollide = false
-                    p:SetNetworkOwner(player)
+                    p.AssemblyLinearVelocity = Vector3.new(0,0,0)
+                    p.AssemblyAngularVelocity = Vector3.new(0,0,0)
                 end
             end
             obj:PivotTo(CFrame.new(targetPos))
         elseif obj:IsA("BasePart") then
             obj.Anchored = false
             obj.CanCollide = false
-            obj:SetNetworkOwner(player)
+            obj.AssemblyLinearVelocity = Vector3.new(0,0,0)
+            obj.AssemblyAngularVelocity = Vector3.new(0,0,0)
             obj.CFrame = CFrame.new(targetPos)
         end
     end)
@@ -128,7 +130,7 @@ local function teleportObject(obj)
     if success then
         WindUI:Notify({ Title = "传送成功", Content = "已将 " .. obj.Name .. " 传送", Duration = 2 })
     else
-        WindUI:Notify({ Title = "失败", Content = "传送失败，可能被服务器拦截", Duration = 3 })
+        WindUI:Notify({ Title = "失败", Content = "错误: " .. tostring(err), Duration = 3 })
     end
 end
 
