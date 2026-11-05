@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "绝对实体传送系统",
+    Title = "实体传送",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -9,7 +9,7 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
-local Tab = Window:Tab({ Title = "真实物品传送", Icon = "rbxassetid://10734898355" })
+local Tab = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10734898355" })
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 
@@ -84,69 +84,56 @@ local function isStrictlyMovableItem(obj)
     return true 
 end
 
-local function forceTeleport(obj)
+local function grabAndLeave(obj)
     if not TP_Position then 
         WindUI:Notify({ Title = "警告", Content = "请先设置绿球坐标！", Duration = 3 })
         return 
     end
     
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
     local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Tool") and obj:FindFirstChild("Handle")) or obj:FindFirstChildWhichIsA("BasePart")
     if not targetPart then return end
 
-    local success = pcall(function()
-        if obj:IsA("Tool") then
-            local targetPos = TP_Position + Vector3.new(0, 1, 0)
-            targetPart.Anchored = false
-            targetPart.CFrame = CFrame.new(targetPos)
-            targetPart.AssemblyLinearVelocity = Vector3.new(0, -50, 0)
-            WindUI:Notify({ Title = "传送成功", Content = "工具已砸落", Duration = 2 })
-            return
-        end
+    if obj:IsA("Tool") then
+        obj.Parent = player.Backpack
+        return
+    end
 
+    pcall(function()
+        local itemCFrame = targetPart.CFrame
+        
+        hrp.CFrame = itemCFrame + Vector3.new(0, 3, 0)
+        task.wait(0.15) 
+        
+        pcall(function()
+            targetPart:SetNetworkOwner(player)
+        end)
+        
         if obj:IsA("Model") then
             for _, p in pairs(obj:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
-                    p.CanCollide = true
-                elseif p:IsA("Weld") or p:IsA("WeldConstraint") or p:IsA("JointInstance") then
+                    p.CanCollide = false
+                    p.AssemblyLinearVelocity = Vector3.new(0,0,0)
+                    p.AssemblyAngularVelocity = Vector3.new(0,0,0)
+                elseif p:IsA("Weld") or p:IsA("WeldConstraint") then
                     p:Destroy()
                 end
             end
+            obj:PivotTo(CFrame.new(TP_Position + Vector3.new(0, 3, 0)))
         else
             targetPart.Anchored = false
-            targetPart.CanCollide = true
-            for _, child in pairs(targetPart:GetChildren()) do
-                if child:IsA("Weld") or child:IsA("WeldConstraint") or child:IsA("JointInstance") then
-                    child:Destroy()
-                end
-            end
+            targetPart.CanCollide = false
+            targetPart.AssemblyLinearVelocity = Vector3.new(0,0,0)
+            targetPart.AssemblyAngularVelocity = Vector3.new(0,0,0)
+            targetPart.CFrame = CFrame.new(TP_Position + Vector3.new(0, 3, 0))
         end
         
-        -- 1. 瞬间拉到绿球上方
-        local targetPos = TP_Position + Vector3.new(0, 5, 0)
-        if obj:IsA("Model") then
-            obj:PivotTo(CFrame.new(targetPos))
-        else
-            targetPart.CFrame = CFrame.new(targetPos)
-        end
-        
-        -- 2. 给它一个向下的巨大重力，强制砸在地上
-        targetPart.AssemblyLinearVelocity = Vector3.new(0, -100, 0)
-        targetPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        
-        -- 3. 强行触发物理触碰（欺骗服务器）
-        pcall(function()
-            firetouchinterest(targetPart, TP_Ball, 0)
-            task.wait(0.05)
-            firetouchinterest(targetPart, TP_Ball, 1)
-        end)
-        
-        WindUI:Notify({ Title = "实体传送", Content = "物品已成功砸落！", Duration = 2 })
+        WindUI:Notify({ Title = "成功", Content = "物品已实体化传送，你留在了原地！", Duration = 3 })
     end)
-    
-    if not success then
-        WindUI:Notify({ Title = "失败", Content = "该物品被服务器深度锁死", Duration = 3 })
-    end
 end
 
 UIS.InputBegan:Connect(function(input, gameProcessed)
@@ -165,7 +152,7 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             local target = result and result.Instance
             
             if target and isStrictlyMovableItem(target) then
-                forceTeleport(target)
+                grabAndLeave(target)
             end
         end
     end
