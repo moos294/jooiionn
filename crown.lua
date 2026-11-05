@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "真·传送器",
+    Title = "真·服务器承认的传送",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -31,7 +31,7 @@ Tab:Button({
             TP_Ball.Shape = Enum.PartType.Ball
             TP_Ball.Size = Vector3.new(1, 1, 1)
             TP_Ball.Position = TP_Position
-            TP_Ball.Material = Enum.Material.SmoothPlastic
+            TP_Ball.Material = Enum.Material.Neon
             TP_Ball.Color = Color3.fromRGB(0, 255, 0)
             TP_Ball.Anchored = true
             TP_Ball.CanCollide = false
@@ -72,62 +72,71 @@ local function realTeleport(obj)
         targetModel = targetModel.Parent
     end
 
-    local char = player.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-
     local primaryPart = targetModel:IsA("BasePart") and targetModel or (targetModel.PrimaryPart or targetModel:FindFirstChildWhichIsA("BasePart"))
     if not primaryPart then return end
     targetModel.PrimaryPart = primaryPart
 
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
     local oldCFrame = hrp.CFrame
     
     local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-    if not dragEvent then
-        WindUI:Notify({ Title = "错误", Content = "找不到交互接口", Duration = 3 })
-        return
-    end
 
     local success = pcall(function()
         char:MoveTo(primaryPart.CFrame.p)
-        task.wait(0.15) 
+        task.wait(0.2)
 
-        if targetModel:IsA("Model") then
+        if targetModel:IsA("Model") or targetModel:IsA("Tool") then
             for _, p in pairs(targetModel:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
+                    p.CanCollide = false
+                    p.Massless = true
                 elseif p:IsA("Weld") or p:IsA("WeldConstraint") or p:IsA("JointInstance") then
                     p:Destroy()
                 end
             end
         else
             targetModel.Anchored = false
+            targetModel.CanCollide = false
         end
+
+        if dragEvent then
+            pcall(function() dragEvent:FireServer(targetModel) end)
+        end
+
+        local targetVector = TP_Position + Vector3.new(0, 5, 0)
+        local direction = (targetVector - primaryPart.Position).Unit
         
-        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 3, 0))
-        
-        for i = 1, 60 do
-            pcall(function()
-                dragEvent:FireServer(targetModel)
-            end)
+        primaryPart.AssemblyLinearVelocity = direction * 500 
+        primaryPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+        local startTime = tick()
+        while tick() - startTime < 1.5 do
+            if not primaryPart or not primaryPart.Parent then break end
             
-            if primaryPart then
-                primaryPart.Velocity = Vector3.new(0, 0, 0)
-            end
-            
-            if targetModel:IsA("Model") then
-                targetModel:SetPrimaryPartCFrame(finalCFrame)
+            local dist = (primaryPart.Position - targetVector).Magnitude
+            if dist < 10 then
+                primaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             else
-                targetModel.CFrame = finalCFrame
+                local newDir = (targetVector - primaryPart.Position).Unit
+                primaryPart.AssemblyLinearVelocity = newDir * 500
             end
-            
+
+            if dragEvent then
+                pcall(function() dragEvent:FireServer(targetModel) end)
+            end
+
             hrp.CFrame = oldCFrame
-            task.wait(0.01)
+            task.wait(0.02)
         end
+        
+        primaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     end)
     
     if success then
-        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化传送！", Duration = 2 })
+        WindUI:Notify({ Title = "传送成功", Content = "物品已飞到目标点，请尝试拾取！", Duration = 3 })
     end
 end
 
@@ -147,19 +156,29 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             local target = result and result.Instance
             
             if target then
-                local isTree, isPlayer = false, false
-                local cur = target
-                for i=1, 5 do
-                    if cur == workspace or cur == nil then break end
-                    if cur:FindFirstChild("CutEvent") then isTree = true end
-                    if cur:FindFirstChildOfClass("Humanoid") then isPlayer = true end
-                    cur = cur.Parent
-                end
+                local current = target
+                local isTree, isPlayer, isTooBig = false, false, false
+                local maxSize = 0
                 
+                for i = 1, 6 do
+                    if current == workspace or current == nil then break end
+                    if current:FindFirstChild("CutEvent") then isTree = true end
+                    if current:FindFirstChildOfClass("Humanoid") then isPlayer = true end
+                    if current:IsA("BasePart") then
+                        local size = math.max(current.Size.X, current.Size.Y, current.Size.Z)
+                        if size > maxSize then maxSize = size end
+                    end
+                    current = current.Parent
+                end
+
+                if maxSize > 20 then isTooBig = true end
+
                 if isTree then
                     WindUI:Notify({ Title = "拒绝", Content = "不能传活树！", Duration = 2 })
                 elseif isPlayer then
                     WindUI:Notify({ Title = "拒绝", Content = "不能传人！", Duration = 2 })
+                elseif isTooBig then
+                    WindUI:Notify({ Title = "拒绝", Content = "不能传商店或巨大物体！", Duration = 2 })
                 elseif target:IsA("Terrain") then
                     WindUI:Notify({ Title = "拒绝", Content = "不能传地形！", Duration = 2 })
                 else
