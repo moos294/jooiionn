@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "独立传送系统",
+    Title = "传送0.1",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -18,7 +18,7 @@ local TP_Ball = nil
 
 Tab:Button({
     Title = "1. 设置当前身体位置为目标点",
-    Desc = "在躯干位置生成一个发光绿球",
+    Desc = "在躯干位置生成一个小绿点",
     Callback = function()
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = player.Character.HumanoidRootPart
@@ -29,22 +29,16 @@ Tab:Button({
             TP_Ball = Instance.new("Part")
             TP_Ball.Name = "LocalTPMarker"
             TP_Ball.Shape = Enum.PartType.Ball
-            TP_Ball.Size = Vector3.new(2, 2, 2)
+            TP_Ball.Size = Vector3.new(1, 1, 1)
             TP_Ball.Position = TP_Position
-            TP_Ball.Material = Enum.Material.Neon
+            TP_Ball.Material = Enum.Material.SmoothPlastic
             TP_Ball.Color = Color3.fromRGB(0, 255, 0)
             TP_Ball.Anchored = true
             TP_Ball.CanCollide = false
             TP_Ball.CanQuery = false
             TP_Ball.CastShadow = false
-            TP_Ball.Transparency = 0.1
+            TP_Ball.Transparency = 0.3
             TP_Ball.Parent = workspace
-            
-            local light = Instance.new("PointLight")
-            light.Color = Color3.fromRGB(0, 255, 0)
-            light.Range = 10
-            light.Brightness = 2
-            light.Parent = TP_Ball
             
             WindUI:Notify({ Title = "成功", Content = "目标点已设置！", Duration = 3 })
         end
@@ -73,25 +67,49 @@ Tab:Button({
         handle.Parent = tool
 
         tool.Parent = player.Backpack
-        WindUI:Notify({ Title = "成功", Content = "魔杖已放入背包（完全透明）", Duration = 3 })
+        WindUI:Notify({ Title = "成功", Content = "魔杖已放入背包", Duration = 3 })
     end
 })
 
-local function isMovableItem(obj)
+local function isStrictlyMovableItem(obj)
     if obj:IsA("Terrain") then return false end
     if obj.Name == "LocalTPMarker" then return false end
     if obj:IsDescendantOf(player.Character) then return false end
+    if obj.Parent == workspace then return false end
     
     local current = obj
-    for i = 1, 4 do
+    for i = 1, 5 do
         if current == workspace or current == nil then break end
-        if current:FindFirstChildOfClass("Humanoid") then return false end
+        if current.Name == "LogModels" then return false end
         if current:FindFirstChild("CutEvent") then return false end
+        if current:FindFirstChildOfClass("Humanoid") then return false end
         if current.Name == "WOODDROPOFF" or current.Name == "WoodRUs" then return false end
         current = current.Parent
     end
     
-    return true 
+    local nameLower = string.lower(obj.Name)
+    local isWoodName = string.find(nameLower, "log") or string.find(nameLower, "wood") or string.find(nameLower, "plank") or string.find(nameLower, "crate") or string.find(nameLower, "box")
+    
+    if obj:IsA("BasePart") then
+        if obj.Anchored and not isWoodName then return false end
+        if obj.Size.X > 15 or obj.Size.Y > 15 or obj.Size.Z > 15 then return false end
+        return true
+    elseif obj:IsA("Model") then
+        local hasPart = false
+        for _, p in pairs(obj:GetDescendants()) do
+            if p:IsA("BasePart") then
+                hasPart = true
+                if p.Size.X > 15 or p.Size.Y > 15 or p.Size.Z > 15 then return false end
+            end
+        end
+        if not hasPart then return false end
+        if obj:FindFirstChildWhichIsA("BasePart") and obj:FindFirstChildWhichIsA("BasePart").Anchored and not isWoodName then 
+            return false 
+        end
+        return true
+    end
+    
+    return false
 end
 
 local function teleportObject(obj)
@@ -102,12 +120,7 @@ local function teleportObject(obj)
     
     local targetPos = TP_Position + Vector3.new(math.random(-1, 1), 1.5, math.random(-1, 1))
     
-    local targetModel = obj:FindFirstAncestorOfClass("Model")
-    if targetModel and isMovableItem(targetModel) and targetModel.Parent ~= workspace then
-        obj = targetModel
-    end
-    
-    local success, err = pcall(function()
+    local success = pcall(function()
         if obj:IsA("Model") then
             for _, p in pairs(obj:GetDescendants()) do
                 if p:IsA("BasePart") then
@@ -129,8 +142,6 @@ local function teleportObject(obj)
     
     if success then
         WindUI:Notify({ Title = "传送成功", Content = "已将物品传送", Duration = 2 })
-    else
-        WindUI:Notify({ Title = "失败", Content = "错误: " .. tostring(err), Duration = 3 })
     end
 end
 
@@ -151,13 +162,11 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             local target = result and result.Instance
             
             if target then
-                if isMovableItem(target) then
+                if isStrictlyMovableItem(target) then
                     teleportObject(target)
                 else
-                    WindUI:Notify({ Title = "拒绝", Content = "该物体无法传送", Duration = 2 })
+                    WindUI:Notify({ Title = "拒绝", Content = "只能传送可移动的散落物品！", Duration = 2 })
                 end
-            else
-                WindUI:Notify({ Title = "未命中", Content = "请对准物品再点击", Duration = 2 })
             end
         end
     end
