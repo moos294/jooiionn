@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材大亨 - 全量树木版",
+    Title = "木材大亨 - 精准瞬移版",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(450, 400),
@@ -25,29 +25,15 @@ local StatusLabel = Tab:Paragraph({
     Desc = "等待开启..."
 })
 
--- 这里是你发给我的所有木材/树木名字
 local treeOptions = {
-    "Loose_Koa", 
-    "DogWood", 
-    "TreeModel", 
-    "GlobeWood", 
-    "TreeRegion", 
-    "Tree", 
-    "Region_SideTrees", 
-    "PumpkinWood", 
-    "AppleTree", 
-    "oak", 
-    "Wood", 
-    "InnerWood", 
-    "WoodBox", 
-    "WoodPieces", 
-    "Wood Crate", 
-    "Plank"
+    "Loose_Koa", "DogWood", "TreeModel", "GlobeWood", 
+    "TreeRegion", "Tree", "Region_SideTrees", "PumpkinWood", 
+    "AppleTree", "oak", "Wood", "InnerWood", "WoodBox", "Plank"
 }
 
 Tab:Dropdown({
-    Title = "选择树木 (已写入全部名单)",
-    Desc = "选择你要砍的树，找不到会自动传送加载",
+    Title = "选择树木",
+    Desc = "已写入全部名单",
     Values = treeOptions,
     Default = treeOptions[1],
     Callback = function(option)
@@ -74,10 +60,9 @@ Tab:Button({
 })
 local function MainLoop()
     currentChopCount = 0
-    local radarOffset = 0
     
     while isRunning do
-        task.wait(0.4)
+        task.wait(0.3)
         
         local char = player.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
@@ -87,36 +72,40 @@ local function MainLoop()
         local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
         
         if not proxy or not tool then 
-            StatusLabel:SetTitle("错误: 手里没斧头或找不到接口")
+            StatusLabel:SetTitle("错误: 请确保斧头在手")
             continue 
         end
 
         local targetTree = nil
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj.Name == targetTreeName and obj:FindFirstChild("CutEvent") then
-                targetTree = obj
-                break
+        local logModels = workspace:FindFirstChild("LogModels")
+        
+        -- 精准在 LogModels 里找树（减少遍历，防卡顿）
+        if logModels then
+            for _, obj in pairs(logModels:GetChildren()) do
+                if obj.Name == targetTreeName and obj:FindFirstChild("CutEvent") then
+                    targetTree = obj
+                    break
+                end
             end
         end
         
         if not targetTree then
-            -- 如果当前区域没加载出来，雷达跳跃寻找
-            StatusLabel:SetTitle("🔍 正在传送加载: " .. targetTreeName)
-            radarOffset = radarOffset + 200
-            hrp.CFrame = CFrame.new(radarOffset, 150, radarOffset) 
-            task.wait(0.5)
+            -- 内存里没有就不动，绝对不乱跳
+            StatusLabel:SetTitle("⚠️ 内存中没找到 " .. targetTreeName)
+            StatusLabel:SetDesc("请往前走几步，等树加载出来")
+            task.wait(1)
             continue
         end
 
-        radarOffset = 0
-        StatusLabel:SetTitle("正在瞬移砍树: " .. currentChopCount .. "/" .. maxChopCount)
+        StatusLabel:SetTitle("⚡ 已锁定，正在瞬移...")
         StatusLabel:SetDesc("目标: " .. targetTreeName)
 
         local treePos = targetTree:IsA("Model") and targetTree:GetPivot().Position or targetTree.Position
         local cutEvent = targetTree:FindFirstChild("CutEvent")
 
+        -- 直接瞬移到树根部
         hrp.CFrame = CFrame.new(treePos + Vector3.new(0, 3, 0))
-        task.wait(0.2)
+        task.wait(0.15)
 
         local args = {
             cutEvent,
@@ -131,13 +120,11 @@ local function MainLoop()
             }
         }
         
-        pcall(function()
-            proxy:FireServer(unpack(args))
-        end)
+        pcall(function() proxy:FireServer(unpack(args)) end)
 
-        task.wait(0.5)
+        task.wait(0.3)
         
-        -- 吸木头
+        -- 木头直接传送到脚下
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("Model") or obj:IsA("Part") then
                 local objName = string.lower(obj.Name)
@@ -151,11 +138,13 @@ local function MainLoop()
         end
 
         currentChopCount = currentChopCount + 1
+        StatusLabel:SetTitle("✅ 砍伐进度: " .. currentChopCount .. "/" .. maxChopCount)
         
+        -- 砍够了回城
         if currentChopCount >= maxChopCount then
             isRunning = false
             if basePosition then hrp.CFrame = basePosition end
-            StatusLabel:SetTitle("状态: 砍伐完成，已回城")
+            StatusLabel:SetTitle("状态: 已回城")
             WindUI:Notify({ Title = "完成", Content = "任务结束", Duration = 5 })
             
             local toggleObj = Window:GetToggle("开启自动收割")
@@ -178,8 +167,7 @@ Tab:Toggle({
             coroutine.wrap(function()
                 local success, err = pcall(MainLoop)
                 if not success then
-                    WindUI:Notify({ Title = "致命错误", Content = tostring(err), Duration = 10 })
-                    StatusLabel:SetTitle("崩溃: " .. tostring(err))
+                    WindUI:Notify({ Title = "错误", Content = tostring(err), Duration = 10 })
                 end
             end)()
         end
