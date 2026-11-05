@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "最终强改传送",
+    Title = "超级物理拖拽器",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -9,169 +9,94 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
-local Tab = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10734898355" })
+local Tab = Window:Tab({ Title = "拖拽控制", Icon = "rbxassetid://10734898355" })
 local player = game.Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
-local RS = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
-local TP_Position = nil
-local TP_Ball = nil
+local dragConnection = nil
+local isHooked = false
 
-Tab:Button({
-    Title = "1. 设置当前身体位置为目标点",
-    Callback = function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = player.Character.HumanoidRootPart
-            TP_Position = hrp.Position
-            
-            if TP_Ball then TP_Ball:Destroy() end
-            
-            TP_Ball = Instance.new("Part")
-            TP_Ball.Name = "LocalTPMarker"
-            TP_Ball.Shape = Enum.PartType.Ball
-            TP_Ball.Size = Vector3.new(1, 1, 1)
-            TP_Ball.Position = TP_Position
-            TP_Ball.Material = Enum.Material.Neon
-            TP_Ball.Color = Color3.fromRGB(0, 255, 0)
-            TP_Ball.Anchored = true
-            TP_Ball.CanCollide = false
-            TP_Ball.CanQuery = false
-            TP_Ball.CastShadow = false
-            TP_Ball.Transparency = 0.3
-            TP_Ball.Parent = workspace
-            
-            WindUI:Notify({ Title = "成功", Content = "坐标已设置！", Duration = 3 })
-        end
-    end
-})
-
-Tab:Button({
-    Title = "2. 获得隐身传送魔杖",
-    Callback = function()
-        if player.Backpack:FindFirstChild("传送魔杖") or (player.Character and player.Character:FindFirstChild("传送魔杖")) then return end
-        local tool = Instance.new("Tool")
-        tool.Name = "传送魔杖"
-        tool.RequiresHandle = true
-        tool.CanBeDropped = false
-        local handle = Instance.new("Part")
-        handle.Name = "Handle"
-        handle.Size = Vector3.new(0.1, 0.1, 0.1)
-        handle.Transparency = 1
-        handle.CanCollide = false
-        handle.Parent = tool
-        tool.Parent = player.Backpack
-    end
-})
-
-local function realTeleport(obj)
-    if not TP_Position then return end
-    
-    local targetModel = obj
-    while targetModel.Parent and targetModel.Parent ~= workspace and not targetModel:IsA("Tool") do
-        if targetModel:IsA("Model") then break end
-        targetModel = targetModel.Parent
-    end
-
-    local primaryPart = targetModel:IsA("BasePart") and targetModel or (targetModel.PrimaryPart or targetModel:FindFirstChildWhichIsA("BasePart"))
-    if not primaryPart then return end
-    targetModel.PrimaryPart = primaryPart
-
-    local char = player.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    
-    local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-
-    local success = pcall(function()
-        -- 第一步：飞过去摸它
-        char:MoveTo(primaryPart.CFrame.p)
-        task.wait(0.1)
-
-        -- 解除锁定
-        if targetModel:IsA("Model") or targetModel:IsA("Tool") then
-            for _, p in pairs(targetModel:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    p.Anchored = false
-                    p.CanCollide = false
-                elseif p:IsA("Weld") or p:IsA("WeldConstraint") or p:IsA("JointInstance") then
-                    p:Destroy()
+local function enableSuperDrag()
+    pcall(function()
+        local DraggerGUI = player.PlayerGui:WaitForChild("ItemDraggingGUI", 3)
+        if DraggerGUI and DraggerGUI:FindFirstChild("Dragger") then
+            local env = getsenv(DraggerGUI.Dragger)
+            if env then
+                if not _G.OrigCanDrag then
+                    _G.OrigCanDrag = env.canDrag
+                end
+                env.canDrag = function(part)
+                    if _G.OrigCanDrag(part) then return true end
+                    local char = player.Character
+                    if not char then return false end
+                    if char:FindFirstChildOfClass("Tool") then return false end
+                    if part and part.Parent then
+                        if part.Name == "LeafPart" then return false end
+                        local h = part
+                        repeat
+                            h = h.Parent
+                        until h.Parent == Workspace or h.Parent.Name == "PlayerModels" or h.Parent.Name == "LogModels"
+                        if h.Parent == Workspace or h.Parent.Name == "PlayerModels" or h.Parent.Name == "LogModels" then
+                            return true
+                        end
+                    end
+                    return false
                 end
             end
-        else
-            targetModel.Anchored = false
-            targetModel.CanCollide = false
         end
+    end)
 
-        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 3, 0))
-        
-        -- 第二步：极速 80 次循环强改坐标 + 狂发包
-        for i = 1, 80 do
-            if dragEvent then
-                pcall(function() dragEvent:FireServer(targetModel) end)
-            end
-            
-            if targetModel:IsA("Model") then
-                targetModel:PivotTo(finalCFrame)
-            else
-                targetModel.CFrame = finalCFrame
-            end
-
-            -- 在最后 20 次循环，玩家也直接飞到目标点，准备“接住”它
-            if i > 60 then
-                hrp.CFrame = finalCFrame
-            else
-                -- 前面 60 次留在原地假装拖拽
-                char:MoveTo(primaryPart.CFrame.p)
-            end
-            
-            task.wait(0.01)
+    if dragConnection then dragConnection:Disconnect() end
+    dragConnection = Workspace.ChildAdded:Connect(function(obj)
+        if obj.Name == "Dragger" then
+            task.spawn(function()
+                local b = obj:WaitForChild("BodyGyro", 2)
+                local c = obj:WaitForChild("BodyPosition", 2)
+                if not b or not c then return end
+                
+                obj.BrickColor = BrickColor.new("Bright blue")
+                
+                while obj.Parent == Workspace do
+                    task.wait()
+                    c.P = 120000
+                    c.D = 1000
+                    c.maxForce = Vector3.new(1, 1, 1) * 1000000
+                    b.maxTorque = Vector3.new(1, 1, 1) * 200
+                    b.P = 1200
+                    b.D = 140
+                end
+            end)
         end
     end)
     
-    if success then
-        WindUI:Notify({ Title = "传送成功", Content = "物品已硬拔过来！", Duration = 3 })
-    end
+    WindUI:Notify({ Title = "开启成功", Content = "直接用手拖动物品，随便飞绝对不掉！", Duration = 5 })
 end
 
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local char = player.Character
-        local tool = char and char:FindFirstChildOfClass("Tool")
-        
-        if tool and tool.Name == "传送魔杖" then
-            local camera = workspace.CurrentCamera
-            local unitRay = camera:ViewportPointToRay(input.Position.X, input.Position.Y)
-            local rayParams = RaycastParams.new()
-            rayParams.FilterDescendantsInstances = {player.Character, TP_Ball}
-            
-            local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 200, rayParams)
-            local target = result and result.Instance
-            
-            if target then
-                local current = target
-                local isTree, isPlayer, isTooBig = false, false, false
-                local maxSize = 0
-                
-                for i = 1, 6 do
-                    if current == workspace or current == nil then break end
-                    if current:FindFirstChild("CutEvent") then isTree = true end
-                    if current:FindFirstChildOfClass("Humanoid") then isPlayer = true end
-                    if current:IsA("BasePart") then
-                        local size = math.max(current.Size.X, current.Size.Y, current.Size.Z)
-                        if size > maxSize then maxSize = size end
-                    end
-                    current = current.Parent
-                end
+local function disableSuperDrag()
+    if dragConnection then
+        dragConnection:Disconnect()
+        dragConnection = nil
+    end
+    pcall(function()
+        local DraggerGUI = player.PlayerGui:FindFirstChild("ItemDraggingGUI")
+        if DraggerGUI and DraggerGUI:FindFirstChild("Dragger") and _G.OrigCanDrag then
+            getsenv(DraggerGUI.Dragger).canDrag = _G.OrigCanDrag
+            _G.OrigCanDrag = nil
+        end
+    end)
+    WindUI:Notify({ Title = "已关闭", Content = "已恢复游戏原版物理拉力", Duration = 3 })
+end
 
-                if maxSize > 20 then isTooBig = true end
-
-                if isTree or isPlayer or isTooBig or target:IsA("Terrain") then
-                    WindUI:Notify({ Title = "拒绝", Content = "不可传送此物体！", Duration = 2 })
-                else
-                    realTeleport(target)
-                end
-            end
+Tab:Toggle({
+    Title = "开启全图无限制拖拽",
+    Desc = "用手按住物品，不管飞多快都不会掉",
+    Default = false,
+    Callback = function(state)
+        isHooked = state
+        if isHooked then
+            enableSuperDrag()
+        else
+            disableSuperDrag()
         end
     end
-end)
+})
