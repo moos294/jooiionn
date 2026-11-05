@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材大亨 - 最终修复版",
+    Title = "木材大亨 - 全量树木版",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(450, 400),
@@ -16,41 +16,45 @@ local rs = game:GetService("ReplicatedStorage")
 
 local isRunning = false
 local basePosition = nil
-local targetTreeName = ""
+local targetTreeName = "Loose_Koa"
 local maxChopCount = 1
 local currentChopCount = 0
 
 local StatusLabel = Tab:Paragraph({
     Title = "实时状态",
-    Desc = "等待开启...",
-    Color = "Red"
+    Desc = "等待开启..."
 })
 
-local treeOptions = {}
-local displayToRealName = {}
-
-for _, obj in pairs(workspace:GetDescendants()) do
-    if (obj:IsA("Model") or obj:IsA("Part")) and obj:FindFirstChild("CutEvent") then
-        local name = obj.Name
-        if not displayToRealName[name] then
-            table.insert(treeOptions, name)
-            displayToRealName[name] = name
-        end
-    end
-end
-
-if #treeOptions == 0 then table.insert(treeOptions, "未找到树木") end
+-- 这里是你发给我的所有木材/树木名字
+local treeOptions = {
+    "Loose_Koa", 
+    "DogWood", 
+    "TreeModel", 
+    "GlobeWood", 
+    "TreeRegion", 
+    "Tree", 
+    "Region_SideTrees", 
+    "PumpkinWood", 
+    "AppleTree", 
+    "oak", 
+    "Wood", 
+    "InnerWood", 
+    "WoodBox", 
+    "WoodPieces", 
+    "Wood Crate", 
+    "Plank"
+}
 
 Tab:Dropdown({
-    Title = "选择树木",
-    Desc = "共扫描到 " .. #treeOptions .. " 种可砍树木",
+    Title = "选择树木 (已写入全部名单)",
+    Desc = "选择你要砍的树，找不到会自动传送加载",
     Values = treeOptions,
     Default = treeOptions[1],
     Callback = function(option)
-        targetTreeName = displayToRealName[option] or option
+        targetTreeName = option
     end
 })
-targetTreeName = displayToRealName[treeOptions[1]] or treeOptions[1]
+targetTreeName = treeOptions[1]
 
 Tab:Slider({
     Title = "砍伐数量",
@@ -64,43 +68,26 @@ Tab:Button({
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             basePosition = player.Character.HumanoidRootPart.CFrame
             StatusLabel:SetTitle("状态: 基地已记录")
-            StatusLabel:SetColor("Green")
             WindUI:Notify({ Title = "成功", Content = "坐标记录成功", Duration = 3 })
         end
     end
 })
-
 local function MainLoop()
     currentChopCount = 0
+    local radarOffset = 0
     
     while isRunning do
-        task.wait(0.5)
+        task.wait(0.4)
         
         local char = player.Character
-        if not char then 
-            StatusLabel:SetTitle("错误: 找不到角色")
-            StatusLabel:SetColor("Red")
-            continue 
-        end
-        
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then 
-            StatusLabel:SetTitle("错误: 找不到HRP")
-            continue 
-        end
+        if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
+        local hrp = char.HumanoidRootPart
 
-        local interaction = rs:FindFirstChild("Interaction")
-        local proxy = interaction and interaction:FindFirstChild("RemoteProxy")
-        if not proxy then 
-            StatusLabel:SetTitle("错误: 找不到 RemoteProxy 接口")
-            StatusLabel:SetColor("Red")
-            continue 
-        end
-
+        local proxy = rs:FindFirstChild("Interaction") and rs.Interaction:FindFirstChild("RemoteProxy")
         local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
-        if not tool then 
-            StatusLabel:SetTitle("错误: 请把斧头拿在手里")
-            StatusLabel:SetColor("Red")
+        
+        if not proxy or not tool then 
+            StatusLabel:SetTitle("错误: 手里没斧头或找不到接口")
             continue 
         end
 
@@ -113,13 +100,17 @@ local function MainLoop()
         end
         
         if not targetTree then
-            StatusLabel:SetTitle("错误: 地图上没找到 " .. targetTreeName)
-            StatusLabel:SetColor("Red")
+            -- 如果当前区域没加载出来，雷达跳跃寻找
+            StatusLabel:SetTitle("🔍 正在传送加载: " .. targetTreeName)
+            radarOffset = radarOffset + 200
+            hrp.CFrame = CFrame.new(radarOffset, 150, radarOffset) 
+            task.wait(0.5)
             continue
         end
 
+        radarOffset = 0
         StatusLabel:SetTitle("正在瞬移砍树: " .. currentChopCount .. "/" .. maxChopCount)
-        StatusLabel:SetColor("Green")
+        StatusLabel:SetDesc("目标: " .. targetTreeName)
 
         local treePos = targetTree:IsA("Model") and targetTree:GetPivot().Position or targetTree.Position
         local cutEvent = targetTree:FindFirstChild("CutEvent")
@@ -146,6 +137,7 @@ local function MainLoop()
 
         task.wait(0.5)
         
+        -- 吸木头
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("Model") or obj:IsA("Part") then
                 local objName = string.lower(obj.Name)
@@ -162,11 +154,8 @@ local function MainLoop()
         
         if currentChopCount >= maxChopCount then
             isRunning = false
-            if basePosition then
-                hrp.CFrame = basePosition
-            end
+            if basePosition then hrp.CFrame = basePosition end
             StatusLabel:SetTitle("状态: 砍伐完成，已回城")
-            StatusLabel:SetColor("Green")
             WindUI:Notify({ Title = "完成", Content = "任务结束", Duration = 5 })
             
             local toggleObj = Window:GetToggle("开启自动收割")
@@ -191,7 +180,6 @@ Tab:Toggle({
                 if not success then
                     WindUI:Notify({ Title = "致命错误", Content = tostring(err), Duration = 10 })
                     StatusLabel:SetTitle("崩溃: " .. tostring(err))
-                    StatusLabel:SetColor("Red")
                 end
             end)()
         end
