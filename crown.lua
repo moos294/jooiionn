@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "真·服务器承认的传送",
+    Title = "最终强改传送",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -79,20 +79,20 @@ local function realTeleport(obj)
     local char = player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
-    local oldCFrame = hrp.CFrame
     
     local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
 
     local success = pcall(function()
+        -- 第一步：飞过去摸它
         char:MoveTo(primaryPart.CFrame.p)
-        task.wait(0.2)
+        task.wait(0.1)
 
+        -- 解除锁定
         if targetModel:IsA("Model") or targetModel:IsA("Tool") then
             for _, p in pairs(targetModel:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
                     p.CanCollide = false
-                    p.Massless = true
                 elseif p:IsA("Weld") or p:IsA("WeldConstraint") or p:IsA("JointInstance") then
                     p:Destroy()
                 end
@@ -102,41 +102,34 @@ local function realTeleport(obj)
             targetModel.CanCollide = false
         end
 
-        if dragEvent then
-            pcall(function() dragEvent:FireServer(targetModel) end)
-        end
-
-        local targetVector = TP_Position + Vector3.new(0, 5, 0)
-        local direction = (targetVector - primaryPart.Position).Unit
+        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 3, 0))
         
-        primaryPart.AssemblyLinearVelocity = direction * 500 
-        primaryPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-
-        local startTime = tick()
-        while tick() - startTime < 1.5 do
-            if not primaryPart or not primaryPart.Parent then break end
-            
-            local dist = (primaryPart.Position - targetVector).Magnitude
-            if dist < 10 then
-                primaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            else
-                local newDir = (targetVector - primaryPart.Position).Unit
-                primaryPart.AssemblyLinearVelocity = newDir * 500
-            end
-
+        -- 第二步：极速 80 次循环强改坐标 + 狂发包
+        for i = 1, 80 do
             if dragEvent then
                 pcall(function() dragEvent:FireServer(targetModel) end)
             end
+            
+            if targetModel:IsA("Model") then
+                targetModel:PivotTo(finalCFrame)
+            else
+                targetModel.CFrame = finalCFrame
+            end
 
-            hrp.CFrame = oldCFrame
-            task.wait(0.02)
+            -- 在最后 20 次循环，玩家也直接飞到目标点，准备“接住”它
+            if i > 60 then
+                hrp.CFrame = finalCFrame
+            else
+                -- 前面 60 次留在原地假装拖拽
+                char:MoveTo(primaryPart.CFrame.p)
+            end
+            
+            task.wait(0.01)
         end
-        
-        primaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     end)
     
     if success then
-        WindUI:Notify({ Title = "传送成功", Content = "物品已飞到目标点，请尝试拾取！", Duration = 3 })
+        WindUI:Notify({ Title = "传送成功", Content = "物品已硬拔过来！", Duration = 3 })
     end
 end
 
@@ -173,14 +166,8 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
 
                 if maxSize > 20 then isTooBig = true end
 
-                if isTree then
-                    WindUI:Notify({ Title = "拒绝", Content = "不能传活树！", Duration = 2 })
-                elseif isPlayer then
-                    WindUI:Notify({ Title = "拒绝", Content = "不能传人！", Duration = 2 })
-                elseif isTooBig then
-                    WindUI:Notify({ Title = "拒绝", Content = "不能传商店或巨大物体！", Duration = 2 })
-                elseif target:IsA("Terrain") then
-                    WindUI:Notify({ Title = "拒绝", Content = "不能传地形！", Duration = 2 })
+                if isTree or isPlayer or isTooBig or target:IsA("Terrain") then
+                    WindUI:Notify({ Title = "拒绝", Content = "不可传送此物体！", Duration = 2 })
                 else
                     realTeleport(target)
                 end
