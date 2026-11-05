@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "真·传送系统",
+    Title = "真·逻辑传送",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -91,27 +91,31 @@ local function realTeleport(obj)
         return 
     end
     
-    -- 如果点的是工具，直接塞背包（因为工具不用在地上的实体）
     if obj:IsA("Tool") then
         obj.Parent = player.Backpack
         WindUI:Notify({ Title = "成功", Content = "工具已入包", Duration = 2 })
         return
     end
 
-    -- 提取目标模型（如果是零件，就向上找模型；如果是模型，就用它）
+    -- 锁定模型
     local targetModel = obj:IsA("Model") and obj or obj:FindFirstChildOfClass("Model")
-    if not targetModel then targetModel = obj end -- 兜底
+    if not targetModel then targetModel = obj end 
     
-    -- 尝试找它的主零件
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    local oldCFrame = hrp.CFrame
+
     local primaryPart = targetModel:IsA("BasePart") and targetModel or targetModel.PrimaryPart or targetModel:FindFirstChildWhichIsA("BasePart")
-    
-    if not primaryPart then
-        WindUI:Notify({ Title = "警告", Content = "无法获取物体的物理核心！", Duration = 3 })
-        return
-    end
+    if not primaryPart then return end
+    targetModel.PrimaryPart = primaryPart
 
     local success = pcall(function()
-        -- 1. 解除焊接和锚定（如果被死死焊在地上）
+        -- 1. 原版最核心逻辑：强行移动到物品中心点抢夺控制权！
+        char:MoveTo(primaryPart.CFrame.p)
+        task.wait(0.2) -- 给服务器一点反应时间
+
+        -- 2. 解除所有物理锁定
         if targetModel:IsA("Model") then
             for _, p in pairs(targetModel:GetDescendants()) do
                 if p:IsA("BasePart") then
@@ -122,40 +126,36 @@ local function realTeleport(obj)
             end
         else
             targetModel.Anchored = false
-            for _, child in pairs(targetModel:GetChildren()) do
-                if child:IsA("Weld") or child:IsA("WeldConstraint") then
-                    child:Destroy()
-                end
-            end
         end
         
-        -- 2. 核心机密：连续 60 次高频抢夺服务器物理所有权！
-        local targetCFrame = CFrame.new(TP_Position + Vector3.new(math.random(-1, 1), 1.5, math.random(-1, 1)))
+        -- 3. 目标坐标（稍微偏移，防止直接卡进绿球）
+        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 2, 0))
         
+        -- 4. 原版高频抢占循环
         for i = 1, 60 do
             pcall(function()
-                -- 呼叫服务器：我在拖拽！
                 RS.Interaction.ClientIsDragging:FireServer(targetModel)
             end)
             
-            -- 强制归零物理速度，防止它自己乱滚
             if primaryPart then
                 primaryPart.Velocity = Vector3.new(0, 0, 0)
             end
             
-            -- 强行瞬移到目标点
             if targetModel:IsA("Model") then
-                targetModel:PivotTo(targetCFrame)
+                targetModel:SetPrimaryPartCFrame(finalCFrame)
             else
-                targetModel.CFrame = targetCFrame
+                targetModel.CFrame = finalCFrame
             end
             
-            task.wait(0.01)
+            -- 每次循环把本体拉回原位，假装什么都没发生
+            hrp.CFrame = oldCFrame
+            
+            task.wait(0.02)
         end
     end)
     
     if success then
-        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化！", Duration = 2 })
+        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化传送！", Duration = 2 })
     else
         WindUI:Notify({ Title = "失败", Content = "被服务器拒绝", Duration = 3 })
     end
