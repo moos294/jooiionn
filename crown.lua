@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "传送0.1",
+    Title = "物理抓取传送系统",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -47,10 +47,8 @@ Tab:Button({
 
 Tab:Button({
     Title = "2. 获得隐身传送魔杖",
-    Desc = "放入背包，拿在手里点击屏幕即可传送",
     Callback = function()
         if player.Backpack:FindFirstChild("传送魔杖") or (player.Character and player.Character:FindFirstChild("传送魔杖")) then
-            WindUI:Notify({ Title = "提示", Content = "你已经有魔杖了！", Duration = 3 })
             return
         end
 
@@ -67,7 +65,6 @@ Tab:Button({
         handle.Parent = tool
 
         tool.Parent = player.Backpack
-        WindUI:Notify({ Title = "成功", Content = "魔杖已放入背包", Duration = 3 })
     end
 })
 
@@ -80,68 +77,68 @@ local function isStrictlyMovableItem(obj)
     local current = obj
     for i = 1, 5 do
         if current == workspace or current == nil then break end
-        if current.Name == "LogModels" then return false end
         if current:FindFirstChild("CutEvent") then return false end
         if current:FindFirstChildOfClass("Humanoid") then return false end
-        if current.Name == "WOODDROPOFF" or current.Name == "WoodRUs" then return false end
         current = current.Parent
     end
     
-    local nameLower = string.lower(obj.Name)
-    local isWoodName = string.find(nameLower, "log") or string.find(nameLower, "wood") or string.find(nameLower, "plank") or string.find(nameLower, "crate") or string.find(nameLower, "box")
-    
-    if obj:IsA("BasePart") then
-        if obj.Anchored and not isWoodName then return false end
-        if obj.Size.X > 15 or obj.Size.Y > 15 or obj.Size.Z > 15 then return false end
-        return true
-    elseif obj:IsA("Model") then
-        local hasPart = false
-        for _, p in pairs(obj:GetDescendants()) do
-            if p:IsA("BasePart") then
-                hasPart = true
-                if p.Size.X > 15 or p.Size.Y > 15 or p.Size.Z > 15 then return false end
-            end
-        end
-        if not hasPart then return false end
-        if obj:FindFirstChildWhichIsA("BasePart") and obj:FindFirstChildWhichIsA("BasePart").Anchored and not isWoodName then 
-            return false 
-        end
-        return true
+    local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Tool") and obj:FindFirstChild("Handle")) or obj:FindFirstChildWhichIsA("BasePart")
+    if targetPart and (targetPart.Size.X > 15 or targetPart.Size.Y > 15 or targetPart.Size.Z > 15) then
+        return false
     end
     
-    return false
+    return true 
 end
 
-local function teleportObject(obj)
+local function soulTeleport(obj)
     if not TP_Position then 
         WindUI:Notify({ Title = "警告", Content = "请先设置目标点！", Duration = 3 })
         return 
     end
     
-    local targetPos = TP_Position + Vector3.new(math.random(-1, 1), 1.5, math.random(-1, 1))
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
+    local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Tool") and obj:FindFirstChild("Handle")) or obj:FindFirstChildWhichIsA("BasePart")
+    if not targetPart then return end
+    
+    local originalCFrame = hrp.CFrame
     
     local success = pcall(function()
-        if obj:IsA("Model") then
-            for _, p in pairs(obj:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    p.Anchored = false
-                    p.CanCollide = false
-                    p.AssemblyLinearVelocity = Vector3.new(0,0,0)
-                    p.AssemblyAngularVelocity = Vector3.new(0,0,0)
-                end
-            end
-            obj:PivotTo(CFrame.new(targetPos))
-        elseif obj:IsA("BasePart") then
-            obj.Anchored = false
-            obj.CanCollide = false
-            obj.AssemblyLinearVelocity = Vector3.new(0,0,0)
-            obj.AssemblyAngularVelocity = Vector3.new(0,0,0)
-            obj.CFrame = CFrame.new(targetPos)
-        end
+        hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
+        task.wait(0.05)
+        
+        targetPart.Anchored = false
+        targetPart.CanCollide = false
+        
+        local att0 = Instance.new("Attachment")
+        att0.Parent = targetPart
+        
+        local att1 = Instance.new("Attachment")
+        att1.Parent = TP_Ball
+        
+        local align = Instance.new("AlignPosition")
+        align.Attachment0 = att0
+        align.Attachment1 = att1
+        align.MaxForce = 100000000
+        align.Responsiveness = 30
+        align.Position = Vector3.new(0, 2, 0)
+        align.Parent = targetPart
+        
+        hrp.CFrame = originalCFrame
+        WindUI:Notify({ Title = "抓取成功", Content = "物理引擎正在拉取物品...", Duration = 2 })
+        
+        task.delay(1.5, function()
+            if align then align:Destroy() end
+            if att0 then att0:Destroy() end
+            if att1 then att1:Destroy() end
+            targetPart.CanCollide = true
+        end)
     end)
     
-    if success then
-        WindUI:Notify({ Title = "传送成功", Content = "已将物品传送", Duration = 2 })
+    if not success then
+        hrp.CFrame = originalCFrame
     end
 end
 
@@ -153,8 +150,7 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         
         if tool and tool.Name == "传送魔杖" then
             local camera = workspace.CurrentCamera
-            local screenPos = input.Position
-            local unitRay = camera:ViewportPointToRay(screenPos.X, screenPos.Y)
+            local unitRay = camera:ViewportPointToRay(input.Position.X, input.Position.Y)
             local rayParams = RaycastParams.new()
             rayParams.FilterDescendantsInstances = {player.Character, TP_Ball}
             
@@ -163,9 +159,9 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             
             if target then
                 if isStrictlyMovableItem(target) then
-                    teleportObject(target)
+                    soulTeleport(target)
                 else
-                    WindUI:Notify({ Title = "拒绝", Content = "只能传送可移动的散落物品！", Duration = 2 })
+                    WindUI:Notify({ Title = "拒绝", Content = "该物体不可移动！", Duration = 2 })
                 end
             end
         end
