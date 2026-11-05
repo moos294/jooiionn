@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "真·安全的实体传送",
+    Title = "真·传送器",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -63,61 +63,36 @@ Tab:Button({
     end
 })
 
-local function checkCanTeleport(target)
-    if target:IsA("Terrain") then return false, "这是地形！" end
-    if target.Name == "LocalTPMarker" then return false, "不能传标记点！" end
-    if target:IsDescendantOf(player.Character) then return false, "不能传自己！" end
-
-    local current = target
-    local maxSize = 0
-    local isTree = false
-    local isPlayer = false
-
-    for i = 1, 5 do
-        if current == workspace or current == nil then break end
-        if current:FindFirstChild("CutEvent") then isTree = true end
-        if current:FindFirstChildOfClass("Humanoid") then isPlayer = true end
-
-        if current:IsA("BasePart") then
-            local size = math.max(current.Size.X, current.Size.Y, current.Size.Z)
-            if size > maxSize then maxSize = size end
-        end
-
-        current = current.Parent
-    end
-
-    if isTree then return false, "这是没砍的活树！" end
-    if isPlayer then return false, "这是活人！" end
-    if maxSize > 80 then return false, "这是超大型建筑或地板！" end
-
-    return true, ""
-end
-
 local function realTeleport(obj)
-    if not TP_Position then 
-        WindUI:Notify({ Title = "警告", Content = "请先设置目标点！", Duration = 3 })
-        return 
-    end
+    if not TP_Position then return end
     
     local targetModel = obj
     while targetModel.Parent and targetModel.Parent ~= workspace and not targetModel:IsA("Tool") do
-        if targetModel:IsA("Model") or targetModel:IsA("Tool") then break end
+        if targetModel:IsA("Model") then break end
         targetModel = targetModel.Parent
     end
 
     local char = player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
-    local oldCFrame = hrp.CFrame
 
     local primaryPart = targetModel:IsA("BasePart") and targetModel or (targetModel.PrimaryPart or targetModel:FindFirstChildWhichIsA("BasePart"))
     if not primaryPart then return end
+    targetModel.PrimaryPart = primaryPart
+
+    local oldCFrame = hrp.CFrame
     
+    local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
+    if not dragEvent then
+        WindUI:Notify({ Title = "错误", Content = "找不到交互接口", Duration = 3 })
+        return
+    end
+
     local success = pcall(function()
         char:MoveTo(primaryPart.CFrame.p)
-        task.wait(0.1)
+        task.wait(0.15) 
 
-        if targetModel:IsA("Model") or targetModel:IsA("Tool") then
+        if targetModel:IsA("Model") then
             for _, p in pairs(targetModel:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
@@ -129,11 +104,11 @@ local function realTeleport(obj)
             targetModel.Anchored = false
         end
         
-        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 5, 0))
+        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 3, 0))
         
-        for i = 1, 40 do
+        for i = 1, 60 do
             pcall(function()
-                RS.Interaction.ClientIsDragging:FireServer(targetModel)
+                dragEvent:FireServer(targetModel)
             end)
             
             if primaryPart then
@@ -141,24 +116,18 @@ local function realTeleport(obj)
             end
             
             if targetModel:IsA("Model") then
-                if targetModel.PrimaryPart then
-                    targetModel:SetPrimaryPartCFrame(finalCFrame)
-                else
-                    targetModel:PivotTo(finalCFrame)
-                end
+                targetModel:SetPrimaryPartCFrame(finalCFrame)
             else
                 targetModel.CFrame = finalCFrame
             end
             
             hrp.CFrame = oldCFrame
-            task.wait(0.05)
+            task.wait(0.01)
         end
     end)
     
     if success then
-        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化！", Duration = 2 })
-    else
-        WindUI:Notify({ Title = "提示", Content = "物体被游戏固定死，无法移动", Duration = 3 })
+        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化传送！", Duration = 2 })
     end
 end
 
@@ -178,14 +147,24 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             local target = result and result.Instance
             
             if target then
-                local canTP, reason = checkCanTeleport(target)
-                if canTP then
-                    realTeleport(target)
-                else
-                    WindUI:Notify({ Title = "拒绝传送", Content = reason, Duration = 2 })
+                local isTree, isPlayer = false, false
+                local cur = target
+                for i=1, 5 do
+                    if cur == workspace or cur == nil then break end
+                    if cur:FindFirstChild("CutEvent") then isTree = true end
+                    if cur:FindFirstChildOfClass("Humanoid") then isPlayer = true end
+                    cur = cur.Parent
                 end
-            else
-                WindUI:Notify({ Title = "未命中", Content = "请对准物品点击", Duration = 2 })
+                
+                if isTree then
+                    WindUI:Notify({ Title = "拒绝", Content = "不能传活树！", Duration = 2 })
+                elseif isPlayer then
+                    WindUI:Notify({ Title = "拒绝", Content = "不能传人！", Duration = 2 })
+                elseif target:IsA("Terrain") then
+                    WindUI:Notify({ Title = "拒绝", Content = "不能传地形！", Duration = 2 })
+                else
+                    realTeleport(target)
+                end
             end
         end
     end
