@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "实体传送",
+    Title = "真·传送系统",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -12,12 +12,13 @@ local Window = WindUI:CreateWindow({
 local Tab = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10734898355" })
 local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
+local RS = game:GetService("ReplicatedStorage")
 
 local TP_Position = nil
 local TP_Ball = nil
 
 Tab:Button({
-    Title = "1. 设置绿球坐标",
+    Title = "1. 设置当前身体位置为目标点",
     Callback = function()
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = player.Character.HumanoidRootPart
@@ -45,7 +46,7 @@ Tab:Button({
 })
 
 Tab:Button({
-    Title = "2. 获得隐身魔杖",
+    Title = "2. 获得隐身传送魔杖",
     Callback = function()
         if player.Backpack:FindFirstChild("传送魔杖") or (player.Character and player.Character:FindFirstChild("传送魔杖")) then return end
         local tool = Instance.new("Tool")
@@ -84,56 +85,80 @@ local function isStrictlyMovableItem(obj)
     return true 
 end
 
-local function grabAndLeave(obj)
+local function realTeleport(obj)
     if not TP_Position then 
-        WindUI:Notify({ Title = "警告", Content = "请先设置绿球坐标！", Duration = 3 })
+        WindUI:Notify({ Title = "警告", Content = "请先设置目标点！", Duration = 3 })
         return 
     end
     
-    local char = player.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    
-    local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Tool") and obj:FindFirstChild("Handle")) or obj:FindFirstChildWhichIsA("BasePart")
-    if not targetPart then return end
-
+    -- 如果点的是工具，直接塞背包（因为工具不用在地上的实体）
     if obj:IsA("Tool") then
         obj.Parent = player.Backpack
+        WindUI:Notify({ Title = "成功", Content = "工具已入包", Duration = 2 })
         return
     end
 
-    pcall(function()
-        local itemCFrame = targetPart.CFrame
-        
-        hrp.CFrame = itemCFrame + Vector3.new(0, 3, 0)
-        task.wait(0.15) 
-        
-        pcall(function()
-            targetPart:SetNetworkOwner(player)
-        end)
-        
-        if obj:IsA("Model") then
-            for _, p in pairs(obj:GetDescendants()) do
+    -- 提取目标模型（如果是零件，就向上找模型；如果是模型，就用它）
+    local targetModel = obj:IsA("Model") and obj or obj:FindFirstChildOfClass("Model")
+    if not targetModel then targetModel = obj end -- 兜底
+    
+    -- 尝试找它的主零件
+    local primaryPart = targetModel:IsA("BasePart") and targetModel or targetModel.PrimaryPart or targetModel:FindFirstChildWhichIsA("BasePart")
+    
+    if not primaryPart then
+        WindUI:Notify({ Title = "警告", Content = "无法获取物体的物理核心！", Duration = 3 })
+        return
+    end
+
+    local success = pcall(function()
+        -- 1. 解除焊接和锚定（如果被死死焊在地上）
+        if targetModel:IsA("Model") then
+            for _, p in pairs(targetModel:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
-                    p.CanCollide = false
-                    p.AssemblyLinearVelocity = Vector3.new(0,0,0)
-                    p.AssemblyAngularVelocity = Vector3.new(0,0,0)
-                elseif p:IsA("Weld") or p:IsA("WeldConstraint") then
+                elseif p:IsA("Weld") or p:IsA("WeldConstraint") or p:IsA("JointInstance") then
                     p:Destroy()
                 end
             end
-            obj:PivotTo(CFrame.new(TP_Position + Vector3.new(0, 3, 0)))
         else
-            targetPart.Anchored = false
-            targetPart.CanCollide = false
-            targetPart.AssemblyLinearVelocity = Vector3.new(0,0,0)
-            targetPart.AssemblyAngularVelocity = Vector3.new(0,0,0)
-            targetPart.CFrame = CFrame.new(TP_Position + Vector3.new(0, 3, 0))
+            targetModel.Anchored = false
+            for _, child in pairs(targetModel:GetChildren()) do
+                if child:IsA("Weld") or child:IsA("WeldConstraint") then
+                    child:Destroy()
+                end
+            end
         end
         
-        WindUI:Notify({ Title = "成功", Content = "物品已实体化传送，你留在了原地！", Duration = 3 })
+        -- 2. 核心机密：连续 60 次高频抢夺服务器物理所有权！
+        local targetCFrame = CFrame.new(TP_Position + Vector3.new(math.random(-1, 1), 1.5, math.random(-1, 1)))
+        
+        for i = 1, 60 do
+            pcall(function()
+                -- 呼叫服务器：我在拖拽！
+                RS.Interaction.ClientIsDragging:FireServer(targetModel)
+            end)
+            
+            -- 强制归零物理速度，防止它自己乱滚
+            if primaryPart then
+                primaryPart.Velocity = Vector3.new(0, 0, 0)
+            end
+            
+            -- 强行瞬移到目标点
+            if targetModel:IsA("Model") then
+                targetModel:PivotTo(targetCFrame)
+            else
+                targetModel.CFrame = targetCFrame
+            end
+            
+            task.wait(0.01)
+        end
     end)
+    
+    if success then
+        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化！", Duration = 2 })
+    else
+        WindUI:Notify({ Title = "失败", Content = "被服务器拒绝", Duration = 3 })
+    end
 end
 
 UIS.InputBegan:Connect(function(input, gameProcessed)
@@ -151,8 +176,12 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 200, rayParams)
             local target = result and result.Instance
             
-            if target and isStrictlyMovableItem(target) then
-                grabAndLeave(target)
+            if target then
+                if isStrictlyMovableItem(target) then
+                    realTeleport(target)
+                else
+                    WindUI:Notify({ Title = "拒绝", Content = "该物体不可移动！", Duration = 2 })
+                end
             end
         end
     end
