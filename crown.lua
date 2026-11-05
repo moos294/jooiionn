@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "真·逻辑传送",
+    Title = "真·安全的实体传送",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -63,26 +63,34 @@ Tab:Button({
     end
 })
 
-local function isStrictlyMovableItem(obj)
-    if obj:IsA("Terrain") then return false end
-    if obj.Name == "LocalTPMarker" then return false end
-    if obj:IsDescendantOf(player.Character) then return false end
-    if obj.Parent == workspace then return false end
-    
-    local current = obj
+local function checkCanTeleport(target)
+    if target:IsA("Terrain") then return false, "这是地形！" end
+    if target.Name == "LocalTPMarker" then return false, "不能传标记点！" end
+    if target:IsDescendantOf(player.Character) then return false, "不能传自己！" end
+
+    local current = target
+    local maxSize = 0
+    local isTree = false
+    local isPlayer = false
+
     for i = 1, 5 do
         if current == workspace or current == nil then break end
-        if current:FindFirstChild("CutEvent") then return false end
-        if current:FindFirstChildOfClass("Humanoid") then return false end
+        if current:FindFirstChild("CutEvent") then isTree = true end
+        if current:FindFirstChildOfClass("Humanoid") then isPlayer = true end
+
+        if current:IsA("BasePart") then
+            local size = math.max(current.Size.X, current.Size.Y, current.Size.Z)
+            if size > maxSize then maxSize = size end
+        end
+
         current = current.Parent
     end
-    
-    local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Tool") and obj:FindFirstChild("Handle")) or obj:FindFirstChildWhichIsA("BasePart")
-    if targetPart and (targetPart.Size.X > 15 or targetPart.Size.Y > 15 or targetPart.Size.Z > 15) then
-        return false
-    end
-    
-    return true 
+
+    if isTree then return false, "这是没砍的活树！" end
+    if isPlayer then return false, "这是活人！" end
+    if maxSize > 80 then return false, "这是超大型建筑或地板！" end
+
+    return true, ""
 end
 
 local function realTeleport(obj)
@@ -91,32 +99,25 @@ local function realTeleport(obj)
         return 
     end
     
-    if obj:IsA("Tool") then
-        obj.Parent = player.Backpack
-        WindUI:Notify({ Title = "成功", Content = "工具已入包", Duration = 2 })
-        return
+    local targetModel = obj
+    while targetModel.Parent and targetModel.Parent ~= workspace and not targetModel:IsA("Tool") do
+        if targetModel:IsA("Model") or targetModel:IsA("Tool") then break end
+        targetModel = targetModel.Parent
     end
 
-    -- 锁定模型
-    local targetModel = obj:IsA("Model") and obj or obj:FindFirstChildOfClass("Model")
-    if not targetModel then targetModel = obj end 
-    
     local char = player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
     local oldCFrame = hrp.CFrame
 
-    local primaryPart = targetModel:IsA("BasePart") and targetModel or targetModel.PrimaryPart or targetModel:FindFirstChildWhichIsA("BasePart")
+    local primaryPart = targetModel:IsA("BasePart") and targetModel or (targetModel.PrimaryPart or targetModel:FindFirstChildWhichIsA("BasePart"))
     if not primaryPart then return end
-    targetModel.PrimaryPart = primaryPart
-
+    
     local success = pcall(function()
-        -- 1. 原版最核心逻辑：强行移动到物品中心点抢夺控制权！
         char:MoveTo(primaryPart.CFrame.p)
-        task.wait(0.2) -- 给服务器一点反应时间
+        task.wait(0.1)
 
-        -- 2. 解除所有物理锁定
-        if targetModel:IsA("Model") then
+        if targetModel:IsA("Model") or targetModel:IsA("Tool") then
             for _, p in pairs(targetModel:GetDescendants()) do
                 if p:IsA("BasePart") then
                     p.Anchored = false
@@ -128,11 +129,9 @@ local function realTeleport(obj)
             targetModel.Anchored = false
         end
         
-        -- 3. 目标坐标（稍微偏移，防止直接卡进绿球）
-        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 2, 0))
+        local finalCFrame = CFrame.new(TP_Position + Vector3.new(0, 5, 0))
         
-        -- 4. 原版高频抢占循环
-        for i = 1, 60 do
+        for i = 1, 40 do
             pcall(function()
                 RS.Interaction.ClientIsDragging:FireServer(targetModel)
             end)
@@ -142,22 +141,24 @@ local function realTeleport(obj)
             end
             
             if targetModel:IsA("Model") then
-                targetModel:SetPrimaryPartCFrame(finalCFrame)
+                if targetModel.PrimaryPart then
+                    targetModel:SetPrimaryPartCFrame(finalCFrame)
+                else
+                    targetModel:PivotTo(finalCFrame)
+                end
             else
                 targetModel.CFrame = finalCFrame
             end
             
-            -- 每次循环把本体拉回原位，假装什么都没发生
             hrp.CFrame = oldCFrame
-            
-            task.wait(0.02)
+            task.wait(0.05)
         end
     end)
     
     if success then
-        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化传送！", Duration = 2 })
+        WindUI:Notify({ Title = "传送成功", Content = "物品已实体化！", Duration = 2 })
     else
-        WindUI:Notify({ Title = "失败", Content = "被服务器拒绝", Duration = 3 })
+        WindUI:Notify({ Title = "提示", Content = "物体被游戏固定死，无法移动", Duration = 3 })
     end
 end
 
@@ -177,11 +178,14 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             local target = result and result.Instance
             
             if target then
-                if isStrictlyMovableItem(target) then
+                local canTP, reason = checkCanTeleport(target)
+                if canTP then
                     realTeleport(target)
                 else
-                    WindUI:Notify({ Title = "拒绝", Content = "该物体不可移动！", Duration = 2 })
+                    WindUI:Notify({ Title = "拒绝传送", Content = reason, Duration = 2 })
                 end
+            else
+                WindUI:Notify({ Title = "未命中", Content = "请对准物品点击", Duration = 2 })
             end
         end
     end
