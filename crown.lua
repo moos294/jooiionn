@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存拖拽1.1",
+    Title = "强化拖拽1.2",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -15,9 +15,17 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local RS = game:GetService("ReplicatedStorage")
 
-local dragConnection = nil
 local isHooked = false
-local currentDragTarget = nil
+local dragConnection = nil
+local currentAttach = nil
+local currentAlignPos = nil
+local currentTarget = nil
+
+local function breakAttach()
+    if currentAlignPos then currentAlignPos:Destroy() currentAlignPos = nil end
+    if currentAttach then currentAttach:Destroy() currentAttach = nil end
+    currentTarget = nil
+end
 
 local function enableSuperDrag()
     pcall(function()
@@ -29,21 +37,14 @@ local function enableSuperDrag()
                     _G.OrigCanDrag = env.canDrag
                 end
                 env.canDrag = function(part)
-                    if _G.OrigCanDrag(part) then 
-                        currentDragTarget = part
-                        return true 
-                    end
+                    if _G.OrigCanDrag(part) then return true end
                     local char = player.Character
-                    if not char then return false end
-                    if char:FindFirstChildOfClass("Tool") then return false end
+                    if not char or char:FindFirstChildOfClass("Tool") then return false end
                     if part and part.Parent then
                         if part.Name == "LeafPart" then return false end
                         local h = part
                         repeat h = h.Parent until h.Parent == Workspace or h.Parent.Name == "PlayerModels" or h.Parent.Name == "LogModels"
-                        if h.Parent == Workspace or h.Parent.Name == "PlayerModels" or h.Parent.Name == "LogModels" then
-                            currentDragTarget = part
-                            return true
-                        end
+                        if h.Parent == Workspace or h.Parent.Name == "PlayerModels" or h.Parent.Name == "LogModels" then return true end
                     end
                     return false
                 end
@@ -56,80 +57,105 @@ local function enableSuperDrag()
         if obj.Name == "Dragger" and isHooked then
             obj.BrickColor = BrickColor.new("Bright green")
             
-            task.spawn(function()
-                local b = obj:WaitForChild("BodyGyro", 1)
-                local c = obj:WaitForChild("BodyPosition", 1)
-                if not b or not c then return end
-                
-                local char = player.Character
-                
-                while obj.Parent == Workspace and isHooked do
-                    RunService.Heartbeat:Wait()
-                    
-                    c.P = math.huge
-                    c.D = 10000
-                    c.maxForce = Vector3.new(math.huge, math.huge, math.huge)
-                    b.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                    b.P = math.huge
-                    b.D = 10000
-                    
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        c.Position = hrp.Position + (hrp.CFrame.LookVector * 3) + Vector3.new(0, 2, 0)
-                        
-                        pcall(function()
-                            if currentDragTarget then
-                                if currentDragTarget:IsA("BasePart") then
-                                    currentDragTarget.CanCollide = false
-                                    currentDragTarget.CanTouch = false
-                                elseif currentDragTarget:IsA("Model") then
-                                    for _, v in pairs(currentDragTarget:GetDescendants()) do
-                                        if v:IsA("BasePart") then
-                                            v.CanCollide = false
-                                            v.CanTouch = false
-                                        end
-                                    end
-                                end
-                            end
-                        end)
-
-                        local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-                        if dragEvent and currentDragTarget then
-                            for i = 1, 3 do
-                                pcall(function() dragEvent:FireServer(currentDragTarget) end)
-                            end
+            local nearestDist = 999
+            local nearestPart = nil
+            for _, v in pairs(Workspace:GetChildren()) do
+                if v:IsA("Model") or v:IsA("BasePart") or v:IsA("Tool") then
+                    local p = v:IsA("Model") and v.PrimaryPart or v:IsA("BasePart") and v or v:FindFirstChildWhichIsA("BasePart")
+                    if p then
+                        local d = (p.Position - obj.Position).Magnitude
+                        if d < nearestDist and d < 15 then
+                            nearestDist = d
+                            nearestPart = v
                         end
                     end
                 end
-            end)
-        end
-    end)
-    
-    WindUI:Notify({ Title = "开启成功", Content = "物品已锁在胸前，关闭触碰！", Duration = 5 })
-end
+            end
 
-local function disableSuperDrag()
-    isHooked = false
-    if dragConnection then
-        dragConnection:Disconnect()
-        dragConnection = nil
-    end
-    pcall(function()
-        if currentDragTarget then
-            if currentDragTarget:IsA("BasePart") then
-                currentDragTarget.CanCollide = true
-                currentDragTarget.CanTouch = true
-            elseif currentDragTarget:IsA("Model") then
-                for _, v in pairs(currentDragTarget:GetDescendants()) do
-                    if v:IsA("BasePart") then
-                        v.CanCollide = true
-                        v.CanTouch = true
+            if nearestPart then
+                local primaryPart = nearestPart:IsA("BasePart") and nearestPart or nearestPart.PrimaryPart or nearestPart:FindFirstChildWhichIsA("BasePart")
+                if primaryPart then
+                    breakAttach()
+                    currentTarget = nearestPart
+                    
+                    primaryPart.CanCollide = false
+                    primaryPart.CanTouch = false
+                    for _, p in pairs(nearestPart:GetDescendants()) do
+                        if p:IsA("BasePart") then 
+                            p.CanCollide = false 
+                            p.CanTouch = false
+                        end
+                        if p:IsA("Weld") or p:IsA("WeldConstraint") or p:IsA("JointInstance") then p:Destroy() end
+                    end
+
+                    local char = player.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        currentAttach = Instance.new("Attachment", primaryPart)
+                        currentAlignPos = Instance.new("AlignPosition", primaryPart)
+                        currentAlignPos.Attachment0 = currentAttach
+                        currentAlignPos.MaxForce = math.huge
+                        currentAlignPos.Responsiveness = 200
+                        currentAlignPos.Mode = Enum.PositionAlignmentMode.OneAttachment
+                        
+                        local followConn
+                        followConn = RunService.Heartbeat:Connect(function()
+                            if not isHooked or not obj or obj.Parent ~= Workspace or not primaryPart or not primaryPart.Parent then
+                                if followConn then followConn:Disconnect() end
+                                breakAttach()
+                                return
+                            end
+                            
+                            if hrp then
+                                local targetPos = hrp.Position + Vector3.new(0, 6, 0)
+                                currentAlignPos.Position = targetPos
+                                
+                                local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
+                                if dragEvent then
+                                    for i = 1, 3 do
+                                        pcall(function() dragEvent:FireServer(nearestPart) end)
+                                    end
+                                end
+                                
+                                if (primaryPart.Position - targetPos).Magnitude > 15 then
+                                    primaryPart.CFrame = CFrame.new(targetPos)
+                                end
+                            end
+                        end)
+                        
+                        obj.AncestryChanged:Connect(function()
+                            if not obj:IsDescendantOf(Workspace) then
+                                if followConn then followConn:Disconnect() end
+                                breakAttach()
+                                if primaryPart then
+                                    primaryPart.CanCollide = true
+                                    primaryPart.CanTouch = true
+                                end
+                            end
+                        end)
                     end
                 end
             end
         end
     end)
-    currentDragTarget = nil
+    
+    WindUI:Notify({ Title = "开启成功", Content = "第一版强化，随便飞绝对不掉！", Duration = 5 })
+end
+
+local function disableSuperDrag()
+    isHooked = false
+    if dragConnection then dragConnection:Disconnect() dragConnection = nil end
+    pcall(function()
+        if currentTarget then
+            for _, v in pairs(currentTarget:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.CanCollide = true
+                    v.CanTouch = true
+                end
+            end
+        end
+    end)
+    breakAttach()
     pcall(function()
         local DraggerGUI = player.PlayerGui:FindFirstChild("ItemDraggingGUI")
         if DraggerGUI and DraggerGUI:FindFirstChild("Dragger") and _G.OrigCanDrag then
@@ -137,26 +163,20 @@ local function disableSuperDrag()
             _G.OrigCanDrag = nil
         end
     end)
-    WindUI:Notify({ Title = "已关闭", Content = "拖拽已恢复原版", Duration = 3 })
+    WindUI:Notify({ Title = "已关闭", Content = "吸附已断开", Duration = 3 })
 end
 
 Tab:Toggle({
-    Title = "开启胸前无敌拖拽",
-    Desc = "锁定胸前 3 格，随便飞绝不掉",
+    Title = "开启无敌拖拽",
+    Desc = "强制锁死头顶，绕过服务器拉回",
     Default = false,
     Callback = function(state)
         isHooked = state
-        if isHooked then
-            enableSuperDrag()
-        else
-            disableSuperDrag()
-        end
+        if isHooked then enableSuperDrag() else disableSuperDrag() end
     end
 })
 
 Tab:Button({
-    Title = "强制关闭并释放物品",
-    Callback = function()
-        disableSuperDrag()
-    end
+    Title = "强制关闭并释放",
+    Callback = function() disableSuperDrag() end
 })
