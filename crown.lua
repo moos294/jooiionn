@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材辅助终端1.3",
+    Title = "木材辅助终端1.4",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
@@ -180,6 +180,10 @@ TabWood:Slider({
 local function resetCuttingState()
     isCutting = false
     toggleInvis(0)
+    if player.Character then
+        local ff = player.Character:FindFirstChild("CuttingForceField")
+        if ff then ff:Destroy() end
+    end
 end
 
 player.CharacterAdded:Connect(function(char)
@@ -220,6 +224,11 @@ TabWood:Button({
         local oldpos = player.Character.HumanoidRootPart.CFrame
         local count = 0
         
+        local ff = Instance.new("ForceField")
+        ff.Name = "CuttingForceField"
+        ff.Visible = false
+        ff.Parent = player.Character
+        
         task.spawn(function()
             while isCutting and count < woodQty do
                 if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
@@ -245,9 +254,6 @@ TabWood:Button({
                     toggleInvis(1)
                     local woodPart = targetWood:FindFirstChild("WoodSection")
                     
-                    local initPos = woodPart.Position
-                    local fixedCFrame = CFrame.new(initPos.X + 3.5, initPos.Y + 2.5, initPos.Z + 3.5)
-                    
                     local timeout = 0
                     while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 150 do
                         if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
@@ -255,9 +261,10 @@ TabWood:Button({
                             break
                         end
                         
-                        Teleport(fixedCFrame)
+                        local safePos = woodPart.CFrame * CFrame.new(0, 3, 10)
+                        Teleport(safePos)
                         
-                        task.wait(0.05)
+                        task.wait(0.15)
                         cutTree(targetWood, axe)
                         timeout = timeout + 1
                     end
