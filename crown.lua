@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材辅助终端1.7",
+    Title = "木材辅助终端1.8",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
@@ -16,7 +16,10 @@ local RS = game:GetService("ReplicatedStorage")
 local function DragModel(m, cf)
 	pcall(function() RS.Interaction.ClientIsDragging:FireServer(m) end)
 	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
-	if m.PrimaryPart then m:SetPrimaryPartCFrame(cf) end
+	if m.PrimaryPart then 
+        m.PrimaryPart.Velocity = Vector3.zero
+        m:SetPrimaryPartCFrame(cf) 
+    end
 end
 
 local function Teleport(cf)
@@ -144,10 +147,19 @@ local function getAxe()
 	return nil
 end
 
--- 这是一个占位函数，等你拿到正确的砍树代码，直接替换这里的内部逻辑
 local function cutTree(wood, axe)
-    -- 为了防止你没有正确的代码报错，这里现在只是空跑
-    -- 等你发代码来，我把这里改了
+	local damage = 0
+	if axe.ToolName.Value == "EndTimesAxe" and wood.TreeClass.Value == "LoneCave" then
+		damage = 10000000
+	else
+		local success, mod = pcall(function() return require(RS.AxeClasses[("AxeClass_%s"):format(axe.ToolName.Value)]) end)
+		if success then damage = mod.new().Damage else damage = 10 end
+	end
+	
+	RS.Interaction.RemoteProxy:FireServer(wood.CutEvent, {
+		["tool"] = axe; ["faceVector"] = Vector3.new(1,0,0); ["height"] = 0.3;
+		["sectionId"] = 1; ["hitPoints"] = tonumber(damage); ["cooldown"] = 0.01; ["cuttingClass"] = "Axe";
+	})
 end
 
 TabWood:Dropdown({
@@ -178,7 +190,7 @@ player.CharacterAdded:Connect(function(char)
     hum.Died:Connect(function()
         if isCutting then
             resetCuttingState()
-            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，伐木已自动中断！", Duration = 4 })
+            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，已自动中断！", Duration = 4 })
         end
     end)
 end)
@@ -187,25 +199,32 @@ if player.Character then
     player.Character:WaitForChild("Humanoid").Died:Connect(function()
         if isCutting then
             resetCuttingState()
-            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，伐木已自动中断！", Duration = 4 })
+            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，已自动中断！", Duration = 4 })
         end
     end)
 end
 
 TabWood:Button({
-    Title = "测试传送 (防摔死)",
-    Desc = "传送过去只隐身，不砍树，测试物理状态",
+    Title = "开始自动伐木",
+    Desc = "动态计算安全位置，可循环砍多棵",
     Callback = function()
         if isCutting then 
             WindUI:Notify({ Title = "提示", Content = "正在运行中！", Duration = 2 })
             return 
         end
         
+        local axe = getAxe()
+        if not axe then
+            WindUI:Notify({ Title = "错误", Content = "背包里没有斧头！", Duration = 3 })
+            return
+        end
+        
         isCutting = true
         local oldpos = player.Character.HumanoidRootPart.CFrame
+        local count = 0
         
         task.spawn(function()
-            while isCutting do
+            while isCutting and count < woodQty do
                 if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
                     isCutting = false
                     break
@@ -229,31 +248,43 @@ TabWood:Button({
                     toggleInvis(1)
                     local woodPart = targetWood:FindFirstChild("WoodSection")
                     
-                    -- 核心修改：固定当前 Y 轴高度，只取树的 X 和 Z
-                    local playerY = player.Character.HumanoidRootPart.Position.Y
-                    local safeCFrame = CFrame.new(woodPart.Position.X + 3.5, playerY, woodPart.Position.Z + 3.5)
+                    local treeRadius = math.max(woodPart.Size.X, woodPart.Size.Z) / 2
+                    local safeDistance = treeRadius + 4
                     
-                    local hum = player.Character.Humanoid
-                    local hrp = player.Character.HumanoidRootPart
-                    
-                    for i = 1, 50 do
-                        if not isCutting then break end
-                        
-                        -- 强制运行状态，免疫摔落
-                        hum:ChangeState(Enum.HumanoidStateType.Running)
-                        
-                        -- 传送
-                        Teleport(safeCFrame)
-                        
-                        -- 清空速度
-                        if hrp then
-                            hrp.AssemblyLinearVelocity = Vector3.zero
-                            hrp.AssemblyAngularVelocity = Vector3.zero
+                    local timeout = 0
+                    while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 150 do
+                        if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+                            isCutting = false
+                            break
                         end
                         
-                        task.wait(0.1)
+                        local safePos = woodPart.CFrame * CFrame.new(0, 2.5, safeDistance)
+                        
+                        Teleport(safePos)
+                        
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+                            player.Character.HumanoidRootPart.AssemblyAngularVelocity = Vector3.zero
+                        end
+                        
+                        task.wait(0.05)
+                        cutTree(targetWood, axe)
+                        timeout = timeout + 1
                     end
                     
+                    if isCutting and targetWood:FindFirstChild("RootCut") then
+                        local Log
+                        for _, b in next, Workspace.LogModels:GetDescendants() do
+                            if b:FindFirstChild("Owner") and b.Owner.Value == player then Log = b end
+                        end
+                        if Log then
+                            for i = 1, 20 do
+                                DragModel(Log, oldpos)
+                                task.wait(0.1)
+                            end
+                        end
+                        count = count + 1
+                    end
                 else
                     WindUI:Notify({ Title = "提示", Content = "未发现目标树木", Duration = 3 })
                     break
@@ -265,16 +296,16 @@ TabWood:Button({
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
                 Teleport(oldpos)
             end
-            WindUI:Notify({ Title = "完成", Content = "测试结束", Duration = 3 })
+            WindUI:Notify({ Title = "完成", Content = "本次伐木结束", Duration = 3 })
         end)
     end
 })
 
 TabWood:Button({
-    Title = "停止测试",
-    Desc = "强行中断并恢复正常状态",
+    Title = "停止伐木",
+    Desc = "强行中断",
     Callback = function()
         resetCuttingState()
-        WindUI:Notify({ Title = "已停止", Content = "已中断测试", Duration = 3 })
+        WindUI:Notify({ Title = "已停止", Content = "已中断自动伐木", Duration = 3 })
     end
 })
