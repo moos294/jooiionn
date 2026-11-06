@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材辅助终端1.5",
+    Title = "木材辅助终端1.6",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
@@ -16,7 +16,10 @@ local RS = game:GetService("ReplicatedStorage")
 local function DragModel(m, cf)
 	pcall(function() RS.Interaction.ClientIsDragging:FireServer(m) end)
 	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
-	if m.PrimaryPart then m:SetPrimaryPartCFrame(cf) end
+	if m.PrimaryPart then 
+        m.PrimaryPart.Velocity = Vector3.zero
+        m:SetPrimaryPartCFrame(cf) 
+    end
 end
 
 local function Teleport(cf)
@@ -245,13 +248,35 @@ TabWood:Button({
                     toggleInvis(1)
                     local woodPart = targetWood:FindFirstChild("WoodSection")
                     
-                    repeat
-                        if not isCutting then break end
-                        Workspace.CurrentCamera.CameraSubject = woodPart
-                        Teleport(woodPart.CFrame + Vector3.new(0, 2.5, 3.5))
-                        task.wait()
+                    -- 核心修复1：获取找到树那一瞬间的固定坐标，不再跟随树抖动
+                    local safeCFrame = woodPart.CFrame + Vector3.new(0, 2.5, 3.5)
+                    
+                    local timeout = 0
+                    while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 150 do
+                        if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+                            isCutting = false
+                            break
+                        end
+                        
+                        local hum = player.Character.Humanoid
+                        local hrp = player.Character.HumanoidRootPart
+                        
+                        -- 强制认为自己是站立状态，免疫摔伤
+                        hum:ChangeState(Enum.HumanoidStateType.Running)
+                        
+                        -- 传送到固定的安全坐标
+                        Teleport(safeCFrame)
+                        
+                        -- 核心修复2：强行清零下落速度
+                        if hrp then
+                            hrp.AssemblyLinearVelocity = Vector3.zero
+                            hrp.AssemblyAngularVelocity = Vector3.zero
+                        end
+                        
+                        task.wait(0.05)
                         cutTree(targetWood, axe)
-                    until targetWood:FindFirstChild("RootCut")
+                        timeout = timeout + 1
+                    end
                     
                     if isCutting and targetWood:FindFirstChild("RootCut") then
                         local Log
