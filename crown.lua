@@ -5,88 +5,22 @@
 
 	local _CONFIGS = {
 	   ["UI_NAME"] = define,
-	   ["总开关"] = nil,
-	   ["防误触开关"] = true,
-	   ["无限跳"] = false,
-	   ["穿墙开关"] = false,
-	   ["飞行开关"] = false,
-	   ["isBuying"] = false,
-	   ["取消购买"] = false,
-	   ["处理木头"] = false,
-	   ["处理木头并加工"] = false,
-	   ["点击砍树"] = false,
-	   ["填充工具"] = false,
-	   ["刷粉车"] = false,
-	   ["粉车器"] = nil,
-	   ["自动砍树"] = nil,
-	   ["UI长"] = 250,
-	   ["UI宽"] = 300,
 	   ["传送模式"] = 2,
-	   ["飞行速度"] = 4,
-	   ["步行速度"] = 16,
-	   ["跳跃力"] = 50,
-	   ["悬浮高度"] = 2,
-	   ["重力"] = 198,
-	   ["相机焦距"] = 100,
-	   ["广角"] = 70,
 	};
-	
-	local function ClearConfig()
-		if _CONFIGS["总开关"] ~= nil then
-			_CONFIGS["总开关"]:Disconnect()
-			_CONFIGS["总开关"] = nil;
-			_CONFIGS["防误触开关"] = nil;
-			_CONFIGS["无限跳"] = false;
-			_CONFIGS["穿墙开关"] = false;
-			_CONFIGS["UI长"] = 250;
-			_CONFIGS["UI宽"] = 300;
-			_CONFIGS["飞行速度"] = 4
-			_CONFIGS["飞行开关"] = false
-			_CONFIGS["isBuying"] = false;
-			getgenv()["点击出售木头"] = false;
-			_CONFIGS["取消购买"] = false;
-			_CONFIGS["传送模式"] = 2;
-			_CONFIGS["处理木头"] = false;
-			_CONFIGS["处理木头并加工"] = false
-			_CONFIGS["点击砍树"] = false;
-			_CONFIGS["填充工具"] = false
-			_CONFIGS["刷粉车"] = false
-			if getgenv().Test then getgenv().Test:Disconnect(); getgenv().Test = nil; end
-			if getgenv().CutWoodToSawmill then getgenv().CutWoodToSawmill:Disconnect(); getgenv().CutWoodToSawmill = nil end
-			if _G.HardDraggerConnection then _G.HardDraggerConnection:Disconnect(); _G.HardDraggerConnection = nil end
-			if _CONFIGS["cutPlankByHONG"] then _CONFIGS["cutPlankByHONG"]:Disconnect(); _CONFIGS["cutPlankByHONG"] = nil; end
-			if _G.OrigDrag then _G.OrigDrag = nil end
-			if clickSellLog then clickSellLog:Disconnect(); clickSellLog = nil; end
-			if mod then mod:Disconnect(); mod = nil; end
-			if _CONFIGS["自动砍树"] then _CONFIGS["自动砍树"]:Disconnect(); _CONFIGS["自动砍树"] = nil; end
-			if DayOfNight then DayOfNight:Disconnect(); DayOfNight = nil end
-			if getgenv().PlankToBp then getgenv().PlankToBp:Disconnect(); getgenv().PlankToBp = nil end
-			if _CONFIGS["粉车器"] then _CONFIGS["粉车器"]:Disconnect(); _CONFIGS["粉车器"] = nil; end
-		end
-	end
-	ClearConfig()
 	
 	local HONG = { GS = function(...) return game.GetService(game, ...); end; }
 	HONG.RS = HONG.GS"RunService"
 	HONG.RES = HONG.GS"ReplicatedStorage"
-	HONG.LIGHT = HONG.GS"Lighting"
-	HONG.TPS = HONG.GS"TeleportService"
 	HONG.LP = HONG.GS"Players".LocalPlayer
 	HONG.WKSPC = HONG.GS"Workspace"
 	HONG.COREGUI = HONG.GS "CoreGui";
-	local Mouse = HONG.LP:GetMouse()
 	
 	function HONG:DragModel(...)
 		local Args = { ... };
 		assert(Args[1]:IsA("Model") == true, "参数1必须是模型!");
-		if _CONFIGS["传送模式"] == 1 then
-			pcall(function() self.RES.Interaction.ClientIsDragging:FireServer(Args[1]) end);
-			Args[1]:PivotTo(Args[2]);
-		elseif _CONFIGS["传送模式"] == 2 then
-			pcall(function() self.RES.Interaction.ClientIsDragging:FireServer(Args[1]) end);
-			if not Args[1].PrimaryPart then Args[1].PrimaryPart = Args[1]:FindFirstChildOfClass("Part") end
-			Args[1]:SetPrimaryPartCFrame(Args[2])
-		end
+		pcall(function() self.RES.Interaction.ClientIsDragging:FireServer(Args[1]) end);
+		if not Args[1].PrimaryPart then Args[1].PrimaryPart = Args[1]:FindFirstChildOfClass("Part") end
+		Args[1]:SetPrimaryPartCFrame(Args[2])
 	end
 	
 	function HONG:Teleport(...)
@@ -98,35 +32,17 @@
 		for i = 1, 3 do self:DragModel(self.LP.Character, Args[1]); task.wait(); end
 	end
     
-	local a = { Plrs = "Players", LP = "LocalPlayer", RS = "ReplicatedStorage" }
 	local b = setmetatable({}, {
 		__index = function(self, c) return game.GetService(game, c) end,
 		__call = function(self, c) return game:GetService(c) end
 	})
 	if b.CoreGui:FindFirstChild(_CONFIGS.UI_NAME) then b.CoreGui[_CONFIGS.UI_NAME]:Destroy() end
-	local dm = UDim.new
-	local dn = UDim2.new
-	local dp = Color3.fromRGB
-	local dq = Instance.new
-	local dr = function() end
+	local dm, dn, dp, dq, dr = UDim.new, UDim2.new, Color3.fromRGB, Instance.new, function() end
 	local ds = b.Players.LocalPlayer:GetMouse()
-	
-	getgenv().library = {
-		flags = { GetState = function(dt, du) return library.flags[du].State end },
-		modules = {},
-		currentTab = nil
-	}
-	
-	function library:UpdateToggle(du, be)
-		local be = be or library.flags:GetState(du)
-		if be == library.flags:GetState(du) then return end
-		library.flags[du]:SetState(be)
-	end
+	getgenv().library = { flags = { GetState = function(dt, du) return library.flags[du].State end }, modules = {}, currentTab = nil }
 	
 	local dv = {}
-	function dv:Tween(dw, dx, dy, dz, dA)
-		return b.TweenService:Create(dx, TweenInfo.new(dy or 0.25, Enum.EasingStyle[dz or "Linear"], Enum.EasingDirection[dA or "InOut"]), dw)
-	end
+	function dv:Tween(dw, dx, dy, dz, dA) return b.TweenService:Create(dx, TweenInfo.new(dy or 0.25, Enum.EasingStyle[dz or "Linear"], Enum.EasingDirection[dA or "InOut"]), dw) end
 	function dv:SwitchTab(dB)
 		local dC = library.currentTab
 		if dC == dB then return end
@@ -137,19 +53,8 @@
 		dB[1].Visible = true
 	end
 	
-	local dD = dq("ScreenGui")
-	local Open = dq("TextButton")
-	local dE = dq("Frame")
-	local dF = dq("UICorner")
-	local dG = dq("TextLabel")
-	local dH = dq("UICorner")
-	local dI = dq("Frame")
-	local dJ = dq("UICorner")
-	local dK = dq("ScrollingFrame")
-	local dL = dq("UIListLayout")
-	local dM = dq("UIPadding")
-	local dN = dq("Frame")
-	local dO = dq("UICorner")
+	local dD, Open, dE, dF, dG, dH = dq("ScreenGui"), dq("TextButton"), dq("Frame"), dq("UICorner"), dq("TextLabel"), dq("UICorner")
+	local dI, dJ, dK, dL, dM, dN, dO = dq("Frame"), dq("UICorner"), dq("ScrollingFrame"), dq("UIListLayout"), dq("UIPadding"), dq("Frame"), dq("UICorner")
 	
 	dD.Name = _CONFIGS.UI_NAME
 	dD.Parent = b.CoreGui
@@ -243,7 +148,6 @@
 		local e5 = dq("UIPadding")
 		local e6 = dq("UIListLayout")
 		
-		d_.Name = "TabButton"
 		d_.Parent = dK
 		d_.BackgroundColor3 = dp(52, 62, 72)
 		d_.BorderSizePixel = 0
@@ -295,10 +199,8 @@
 		
 		local e7 = {}
 		function e7:NewButton(e9, ea)
-			local ea = ea or dr
 			local eb = dq("TextButton")
 			local ec = dq("UICorner")
-			eb.Name = "BtnModule"
 			eb.Parent = e4
 			eb.BackgroundColor3 = dp(52, 62, 72)
 			eb.BorderSizePixel = 0
@@ -311,78 +213,10 @@
 			eb.TextXAlignment = Enum.TextXAlignment.Left
 			ec.CornerRadius = dm(0, 6)
 			ec.Parent = eb
-			eb.MouseButton1Click:Connect(ea)
-		end
-		
-		function e7:NewToggle(e9, du, ed, ea)
-			local ea = ea or dr
-			local ed = ed or false
-			local ee = dq("TextButton")
-			local ef = dq("UICorner")
-			local eg = dq("Frame")
-			local eh = dq("UIGradient")
-			local ei = dq("UICorner")
-			local ej = dq("Frame")
-			local ek = dq("UICorner")
-			local el = dq("UIGradient")
-			
-			library.flags[du or e9] = {
-				State = false,
-				Callback = ea,
-				SetState = function(self, be)
-					local be = be ~= nil and be or not library.flags:GetState(du)
-					library.flags[du].State = be
-					task.spawn(function() library.flags[du].Callback(be) end)
-					dv:Tween({ Transparency = be and 1 or 0 }, eg):Play()
-					dv:Tween({ Transparency = be and 0 or 1 }, ej):Play()
-				end
-			}
-			
-			ee.Name = "ToggleModule"
-			ee.Parent = e4
-			ee.BackgroundColor3 = dp(52, 62, 72)
-			ee.BorderSizePixel = 0
-			ee.Size = dn(0, 312, 0, 28)
-			ee.AutoButtonColor = false
-			ee.Font = Enum.Font.GothamSemibold
-			ee.Text = "  " .. e9
-			ee.TextColor3 = dp(255, 255, 255)
-			ee.TextSize = 14.000
-			ee.TextXAlignment = Enum.TextXAlignment.Left
-			ef.CornerRadius = dm(0, 6)
-			ef.Parent = ee
-			eg.Name = "OffStatus"
-			eg.Parent = ee
-			eg.BackgroundColor3 = dp(255, 255, 255)
-			eg.BorderSizePixel = 0
-			eg.Position = dn(0.878205061, 0, 0.178571433, 0)
-			eg.Size = dn(0, 34, 0, 18)
-			eh.Color = ColorSequence.new{ ColorSequenceKeypoint.new(0.00, dp(255, 83, 83)), ColorSequenceKeypoint.new(0.15, dp(255, 83, 83)), ColorSequenceKeypoint.new(0.62, dp(52, 62, 72)), ColorSequenceKeypoint.new(1.00, dp(52, 62, 72)) }
-			eh.Rotation = 300
-			eh.Parent = eg
-			ei.CornerRadius = dm(0, 4)
-			ei.Parent = eg
-			ej.Name = "OnStatus"
-			ej.Parent = ee
-			ej.BackgroundColor3 = dp(255, 255, 255)
-			ej.BackgroundTransparency = 1.000
-			ej.BorderSizePixel = 0
-			ej.Position = dn(0.878205121, 0, 0.178571433, 0)
-			ej.Size = dn(0, 34, 0, 18)
-			ej.Transparency = 1
-			ek.CornerRadius = dm(0, 4)
-			ek.Parent = ej
-			el.Color = ColorSequence.new{ ColorSequenceKeypoint.new(0.00, dp(52, 62, 72)), ColorSequenceKeypoint.new(0.38, dp(48, 57, 67)), ColorSequenceKeypoint.new(1.00, dp(53, 255, 134)) }
-			el.Rotation = 300
-			el.Parent = ej
-			
-			ee.MouseButton1Click:Connect(function() library.flags[du or e9]:SetState() end)
-			if ed then library.flags[du or e9]:SetState(ed) end
+			eb.MouseButton1Click:Connect(ea or dr)
 		end
 		
 		function e7:NewSlider(e9, du, em, ey, ez, eA, ea)
-			local em = em or ey
-			local ea = ea or dr
 			local eB = dq("TextButton")
 			local eC = dq("UICorner")
 			local eD = dq("Frame")
@@ -391,8 +225,6 @@
 			local eG = dq("UICorner")
 			local eH = dq("TextBox")
 			local eI = dq("UICorner")
-			local eJ = dq("TextButton")
-			local eK = dq("TextButton")
 			
 			library.flags[du] = {
 				State = em,
@@ -405,15 +237,13 @@
 					library.flags[du].State = tonumber(be)
 					eH.Text = tostring(be)
 					eF.Size = dn(eL, 0, 1, 0)
-					ea(tonumber(be))
+					(ea or dr)(tonumber(be))
 				end
 			}
 			
-			eB.Name = "SliderModule"
 			eB.Parent = e4
 			eB.BackgroundColor3 = dp(52, 62, 72)
 			eB.BorderSizePixel = 0
-			eB.Position = dn(0, 0, - 0.140425533, 0)
 			eB.Size = dn(0, 312, 0, 28)
 			eB.AutoButtonColor = false
 			eB.Font = Enum.Font.GothamSemibold
@@ -450,37 +280,12 @@
 			eH.TextSize = 12.000
 			eI.CornerRadius = dm(0, 4)
 			eI.Parent = eH
-			eJ.Name = "AddSlider"
-			eJ.Parent = eB
-			eJ.BackgroundColor3 = dp(255, 255, 255)
-			eJ.BackgroundTransparency = 1.000
-			eJ.BorderSizePixel = 0
-			eJ.Position = dn(0.807692289, 0, 0.178571433, 0)
-			eJ.Size = dn(0, 18, 0, 18)
-			eJ.Font = Enum.Font.Gotham
-			eJ.Text = "+"
-			eJ.TextColor3 = dp(255, 255, 255)
-			eJ.TextSize = 18.000
-			eK.Name = "MinusSlider"
-			eK.Parent = eB
-			eK.BackgroundColor3 = dp(255, 255, 255)
-			eK.BackgroundTransparency = 1.000
-			eK.BorderSizePixel = 0
-			eK.Position = dn(0.365384609, 0, 0.178571433, 0)
-			eK.Size = dn(0, 18, 0, 18)
-			eK.Font = Enum.Font.Gotham
-			eK.Text = "-"
-			eK.TextColor3 = dp(255, 255, 255)
-			eK.TextSize = 18.000
-			
-			eK.MouseButton1Click:Connect(function() local eM = library.flags:GetState(du); eM = math.clamp(eM - 1, ey, ez); library.flags[du]:SetValue(eM) end)
-			eJ.MouseButton1Click:Connect(function() local eM = library.flags:GetState(du); eM = math.clamp(eM + 1, ey, ez); library.flags[du]:SetValue(eM) end)
-			library.flags[du]:SetValue(em)
 			
 			local dS = false
 			eD.InputBegan:Connect(function(dX) if dX.UserInputType == Enum.UserInputType.MouseButton1 or dX.UserInputType == Enum.UserInputType.Touch then library.flags[du]:SetValue(); dS = true end end)
 			b.UserInputService.InputEnded:Connect(function(dX) if dS and dX.UserInputType == Enum.UserInputType.MouseButton1 or dX.UserInputType == Enum.UserInputType.Touch then dS = false end end)
 			b.UserInputService.InputChanged:Connect(function(dX) if dS == true then library.flags[du]:SetValue() end end)
+			library.flags[du]:SetValue(em)
 		end
 		
 		function e7:NewDropdown(e9, du, eP, ea)
@@ -495,7 +300,6 @@
 			local eW = dq("UIListLayout")
 			local eX = dq("UIPadding")
 			
-			eQ.Name = "DropdownModule"
 			eQ.Parent = e4
 			eQ.BackgroundColor3 = dp(52, 62, 72)
 			eQ.BorderSizePixel = 0
@@ -550,20 +354,15 @@
 				dv:Tween({ Size = dn(0, 312, 0, eW.AbsoluteContentSize.Y + 12) }, eU, 0.1):Play()
 			end)
 			
-			local eZ = function()
-				local NewValue = eS.Text			
-				for _, Element in next, eU:GetChildren() do
-					if Element:IsA("TextButton") then
-						if string.find(Element.Name:lower(), NewValue:lower()) then Element.Visible = true else Element.Visible = false end
-					end
-				end
-			end
-			
 			local f0 = function()
 				eY = not eY
 				if eY then
 					eU.Visible = true
-					eZ()
+					for _, Element in next, eU:GetChildren() do
+						if Element:IsA("TextButton") then
+							if string.find(Element.Name:lower(), eS.Text:lower()) then Element.Visible = true else Element.Visible = false end
+						end
+					end
 				else
 					task.spawn(function() task.wait(0.35); eU.Visible = false end)
 				end
@@ -571,8 +370,6 @@
 				dv:Tween({ Size = dn(0, 312, 0, eY and eW.AbsoluteContentSize.Y + 12 or 0) }, eU, 0.35):Play()
 			end
 			eT.MouseButton1Click:Connect(f0)
-			eS.Focused:Connect(function() if eY then return end; f0() end)
-			eS:GetPropertyChangedSignal("Text"):Connect(eZ)
 			
 			library.flags[du].SetOptions = function(self, eP)
 				library.flags[du]:ClearOptions()
@@ -616,29 +413,7 @@
 		end
 	})
 	
-	_CONFIGS["总开关"] = HONG.RS.RenderStepped:Connect(function()
-		pcall(function()
-			if HONG.LP.Character and HONG.LP.Character:FindFirstChild("Humanoid") then
-				HONG.LP.Character.Humanoid.WalkSpeed = _CONFIGS["步行速度"]
-				HONG.LP.Character.Humanoid.JumpPower = _CONFIGS["跳跃力"]
-				HONG.LP.Character.Humanoid.HipHeight = _CONFIGS["悬浮高度"]
-				HONG.WKSPC.Gravity = _CONFIGS["重力"]
-				HONG.LP.CameraMaxZoomDistance = _CONFIGS["相机焦距"]
-				HONG.WKSPC.Camera.FieldOfView = _CONFIGS["广角"]
-			end
-		end)
-	end)
-	
-	local Page1 = library:CreateTab("设置");
 	local Page4 = library:CreateTab("木材菜单");
-	
-	Page1:NewButton("关闭脚本", function()
-		for i, v in next, HONG.COREGUI:GetDescendants() do
-			if v.Name == _CONFIGS.UI_NAME then v:Destroy(); ClearConfig() end
-		end
-	end)
-
-	getgenv()["不想砍树"] = false;
 	
 	local function getDamage(tool)
 		local modTool = require(game:GetService("ReplicatedStorage").AxeClasses[("AxeClass_%s"):format(tool.ToolName.Value)])
@@ -669,16 +444,6 @@
 		if config.Tool.ToolName.Value == "EndTimesAxe" and config.Cutevent.Parent.TreeClass.Value == "LoneCave" then
 			damage = 10000000;
 			MIXI_ENDTIME_PART()
-		elseif config.Tool.ToolName.Value == "OvergrownAxe" and config.Cutevent.Parent.TreeClass.Value == "GreenSwampy" then
-			damage = 7;
-		elseif config.Tool.ToolName.Value == "OvergrownAxe" and config.Cutevent.Parent.TreeClass.Value == "GoldSwampy" then
-			damage = 5.35;
-		elseif config.Tool.ToolName.Value == "FireAxe" and config.Cutevent.Parent.TreeClass.Value == "Volcano" then
-			damage = 6.35;
-		elseif config.Tool.ToolName.Value == "CaveAxe" and config.Cutevent.Parent.TreeClass.Value == "CaveCrawler" then
-			damage = 7.2;
-		elseif config.Tool.ToolName.Value == "IceAxe" and config.Cutevent.Parent.TreeClass.Value == "Frost" then
-	        damage = 6;
 		else
 			damage = getDamage(config.Tool);
 		end
@@ -708,11 +473,6 @@
 		for i, v in next, axes do
 			local damage
 			if v.ToolName.Value == "EndTimesAxe" and tree == "LoneCave" then return v
-			elseif v.ToolName.Value == "OvergrownAxe" and tree == "GreenSwampy" then return v
-			elseif v.ToolName.Value == "OvergrownAxe" and tree == "GoldSwampy" then return v
-		    elseif v.ToolName.Value == "IceAxe" and tree == "Frost" then return v
-			elseif v.ToolName.Value == "FireAxe" and tree == "Volcano" then return v
-			elseif v.ToolName.Value == "CaveAxe" and tree == "CaveCrawler" then return v
 			else table.insert(bbb, v) end
 		end
 		for i, v in next, bbb do
@@ -723,7 +483,7 @@
 	
 	local getAxe = function(tree)
 		local Axe = getNo1Axe(tree);
-		if not Axe then return library:Notify({Title = "错误!", Text = "没有找到斧头!", Duration = 4}) end
+		if not Axe then return end
 		return Axe
 	end
 	   
@@ -735,18 +495,12 @@
 		
 		if not getAxe(config.TreeValue) then 
 		    HONG:Teleport(oldpos)
-		    return library:Notify({Title = "错误!", Text = "没有找到斧头!", Duration = 3})
+		    return
 		end
 		    
 		local woods = {}
 		local sum = 0;
 		while sum < config.Quantity  do
-		    if getgenv()["不想砍树"] == true then
-		        HONG:Teleport(oldpos)
-		        HONG.WKSPC.Camera.CameraSubject = HONG.LP.Character
-         		togggleInvisible(0)
-				return
-		    end
 			local wood, treeToCut;
 			local checkWoodSize = {};
 			for _, v in next, game:GetService("Workspace"):GetDescendants() do
@@ -770,7 +524,6 @@
 			end
 			
 			if wood == nil then
-				library:Notify({Title = "错误!", Text = "没有找到树!", Duration = 4})
 				HONG:Teleport(oldpos)
 				return
 			end
@@ -785,12 +538,6 @@
 			end
 			togggleInvisible(1)
 			repeat
-			    if getgenv()["不想砍树"] == true then
-		            HONG:Teleport(oldpos)
-		            HONG.WKSPC.Camera.CameraSubject = HONG.LP.Character
-	             	togggleInvisible(0)
-				    return
-		        end
 				HONG.WKSPC.Camera.CameraSubject = woodPart;
 				HONG:Teleport(woodPart.CFrame + Vector3.new(0, 2.5, 3.5));
 				task.wait()
@@ -861,10 +608,4 @@
 			Quantity = tonumber(getgenv()["带来树数量"]);
 		})
 	end)
-	
-	Page4:NewButton("停止", function()
-	    getgenv()["不想砍树"] = true;
-	    wait(1)
-	    getgenv()["不想砍树"] = false;
-	end)
-end)("木材 原版UI完美版")
+end)("纯伐木版")
