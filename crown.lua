@@ -5,7 +5,6 @@
 	
 	local _CONFIGS = {
 	   ["UI_NAME"] = define,
-	   ["总开关"] = nil,
 	   ["防误触开关"] = true,
 	   ["无限跳"] = false,
 	   ["穿墙开关"] = false,
@@ -25,44 +24,24 @@
 	   ["飞行速度"] = 4,
 	   ["步行速度"] = 16,
 	   ["跳跃力"] = 50,
-	   ["悬浮高度"] = 0,
-	   ["重力"] = 198,
+	   ["悬浮高度"] = 2,
+	   ["重力"] = 196.2,
 	   ["相机焦距"] = 100,
 	   ["广角"] = 70,
 	};
 	
 	local function ClearConfig()
-		if _CONFIGS["总开关"] ~= nil then
-			_CONFIGS["总开关"]:Disconnect()
-			_CONFIGS["总开关"] = nil;
-			_CONFIGS["防误触开关"] = nil;
-			_CONFIGS["无限跳"] = false;
-			_CONFIGS["穿墙开关"] = false;
-			_CONFIGS["UI长"] = 250;
-			_CONFIGS["UI宽"] = 300;
-			_CONFIGS["飞行速度"] = 4
-			_CONFIGS["飞行开关"] = false
-			_CONFIGS["isBuying"] = false;
-			getgenv()["点击出售木头"] = false;
-			_CONFIGS["取消购买"] = false;
-			_CONFIGS["传送模式"] = 2;
-			_CONFIGS["处理木头"] = false;
-			_CONFIGS["处理木头并加工"] = false
-			_CONFIGS["点击砍树"] = false;
-			_CONFIGS["填充工具"] = false
-			_CONFIGS["刷粉车"] = false
-			if getgenv().Test then getgenv().Test:Disconnect(); getgenv().Test = nil; end
-			if getgenv().CutWoodToSawmill then getgenv().CutWoodToSawmill:Disconnect(); getgenv().CutWoodToSawmill = nil end
-			if _G.HardDraggerConnection then _G.HardDraggerConnection:Disconnect(); _G.HardDraggerConnection = nil end
-			if _CONFIGS["cutPlankByHONG"] then _CONFIGS["cutPlankByHONG"]:Disconnect(); _CONFIGS["cutPlankByHONG"] = nil; end
-			if _G.OrigDrag then _G.OrigDrag = nil end
-			if clickSellLog then clickSellLog:Disconnect(); clickSellLog = nil; end
-			if mod then mod:Disconnect(); mod = nil; end
-			if _CONFIGS["自动砍树"] then _CONFIGS["自动砍树"]:Disconnect(); _CONFIGS["自动砍树"] = nil; end
-			if DayOfNight then DayOfNight:Disconnect(); DayOfNight = nil end
-			if getgenv().PlankToBp then getgenv().PlankToBp:Disconnect(); getgenv().PlankToBp = nil end
-			if _CONFIGS["粉车器"] then _CONFIGS["粉车器"]:Disconnect(); _CONFIGS["粉车器"] = nil; end
-		end
+		if getgenv().Test then getgenv().Test:Disconnect(); getgenv().Test = nil; end
+		if getgenv().CutWoodToSawmill then getgenv().CutWoodToSawmill:Disconnect(); getgenv().CutWoodToSawmill = nil end
+		if _G.HardDraggerConnection then _G.HardDraggerConnection:Disconnect(); _G.HardDraggerConnection = nil end
+		if _CONFIGS["cutPlankByHONG"] then _CONFIGS["cutPlankByHONG"]:Disconnect(); _CONFIGS["cutPlankByHONG"] = nil; end
+		if _G.OrigDrag then _G.OrigDrag = nil end
+		if clickSellLog then clickSellLog:Disconnect(); clickSellLog = nil; end
+		if mod then mod:Disconnect(); mod = nil; end
+		if _CONFIGS["自动砍树"] then _CONFIGS["自动砍树"]:Disconnect(); _CONFIGS["自动砍树"] = nil; end
+		if DayOfNight then DayOfNight:Disconnect(); DayOfNight = nil end
+		if getgenv().PlankToBp then getgenv().PlankToBp:Disconnect(); getgenv().PlankToBp = nil end
+		if _CONFIGS["粉车器"] then _CONFIGS["粉车器"]:Disconnect(); _CONFIGS["粉车器"] = nil; end
 	end
 	ClearConfig()
 	
@@ -75,18 +54,6 @@
 	HONG.WKSPC = HONG.GS"Workspace"
 	HONG.COREGUI = HONG.GS "CoreGui";
 	local Mouse = HONG.LP:GetMouse()
-	
-	function HONG:printf(...) print(string.format(...)); end
-	
-	function HONG:SelectNotify(...)
-		local Args = { ... }
-		local NotificationBindable = Instance.new("BindableFunction")
-		NotificationBindable.OnInvoke = Args[6]
-		game.StarterGui:SetCore("SendNotification", {
-			Title = Args[1], Text = Args[2], Icon = nil, Duration = Args[5], Button1 = Args[3], Button2 = Args[4], Callback = NotificationBindable
-		})
-		return Args
-	end
 	
 	function HONG:DragModel(...)
 		local Args = { ... };
@@ -109,12 +76,8 @@
 		end
 		for i = 1, 3 do self:DragModel(self.LP.Character, Args[1]); task.wait(); end
 	end
-	
-	function HONG:TP(x, y, z) self:Teleport(CFrame.new(x, y, z)); end
-	function HONG:ServiceTP(ID) HONG.TPS:Teleport(ID, HONG.LP) end
     
 	if true then
-		local a = { Plrs = "Players", LP = "LocalPlayer", RS = "ReplicatedStorage" }
 		local b = setmetatable({}, {
 			__index = function(self, c) return game.GetService(game, c) end,
 			__call = function(self, c) return game:GetService(c) end
@@ -639,23 +602,6 @@
 			end
 		})
 		
-		_CONFIGS["总开关"] = HONG.RS.RenderStepped:Connect(function()
-			pcall(function()
-				if HONG.LP.Character and HONG.LP.Character:FindFirstChild("Humanoid") then
-					HONG.LP.Character.Humanoid.WalkSpeed = _CONFIGS["步行速度"]
-					HONG.LP.Character.Humanoid.JumpPower = _CONFIGS["跳跃力"]
-					HONG.LP.Character.Humanoid.HipHeight = _CONFIGS["悬浮高度"]
-					HONG.WKSPC.Gravity = _CONFIGS["重力"]
-					HONG.LP.CameraMaxZoomDistance = _CONFIGS["相机焦距"]
-					HONG.WKSPC.Camera.FieldOfView = _CONFIGS["广角"]
-				end
-			end)
-		end)
-		
-		function HONG:NOTIFY(title, text, duration)
-		    return library:Notify({ Title = title, Text = text, Duration = duration })
-		end
-
 		local Page1 = library:CreateTab("设置");
 		local Page4 = library:CreateTab("木材菜单");
 		
@@ -671,12 +617,6 @@
 			local modTool = require(game:GetService("ReplicatedStorage").AxeClasses[("AxeClass_%s"):format(tool.ToolName.Value)])
 			local t = modTool.new()
 			return t.Damage
-		end
-		
-		local function getCurrentAxe()
-			local tool = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
-			if tool and tool.Name ~= "BlueprintTool" then return tool end
-			return false;
 		end
 		
 		local MIXI_ENDTIME_PART = function()
@@ -756,7 +696,7 @@
 		
 		local getAxe = function(tree)
 			local Axe = getNo1Axe(tree);
-			if not Axe then return HONG:NOTIFY("错误!", "没有找到斧头!", 4) end
+			if not Axe then return library:Notify({Title = "错误!", Text = "没有找到斧头!", Duration = 4}) end
 			return Axe
 		end
 		   
@@ -768,7 +708,7 @@
 			
 			if not getAxe(config.TreeValue) then 
 			    HONG:Teleport(oldpos)
-			    return HONG:NOTIFY("错误!", "没有找到斧头!", 3)
+			    return library:Notify({Title = "错误!", Text = "没有找到斧头!", Duration = 3})
 			end
 			    
 			local woods = {}
@@ -791,6 +731,7 @@
 										if not model:FindFirstChild("RootCut") then
 											if model.TreeClass.Value == config.TreeValue then
 												wood = model;
+												break;
 											end
 										end
 									end
@@ -798,10 +739,11 @@
 							end
 						end
 					end
+					if wood then break end
 				end
 				
 				if wood == nil then
-					HONG:NOTIFY("错误!", "没有找到树!", 4)
+					library:Notify({Title = "错误!", Text = "没有找到树!", Duration = 4})
 					HONG:Teleport(oldpos)
 					return
 				end
@@ -889,11 +831,7 @@
 		
 		Page4:NewDropdown("选择树", "select_tree", tree_list, function(list)
 			local matched = string.match(list, "%((.+)%)")
-			if matched then
-				select_tree = matched
-			else
-				select_tree = list
-			end
+			if matched then select_tree = matched else select_tree = list end
 		end)
 		
 		Page4:NewButton("带来树", function()
