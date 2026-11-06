@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材辅助终端1.1",
+    Title = "木材辅助终端1.2",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
@@ -36,6 +36,43 @@ RunService.RenderStepped:Connect(function()
         end
     end)
 end)
+
+local function DragModel(m, cf)
+	pcall(function() RS.Interaction.ClientIsDragging:FireServer(m) end)
+	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
+	if m.PrimaryPart then m:SetPrimaryPartCFrame(cf) end
+end
+
+local function Teleport(cf)
+	if not player.Character then return end
+	if player.Character.Humanoid.SeatPart then
+		task.spawn(function() 
+            for i = 1, 15 do DragModel(player.Character.Humanoid.SeatPart.Parent, cf) end 
+        end)
+		return
+	end
+	for i = 1, 3 do 
+        DragModel(player.Character, cf)
+        task.wait()
+    end
+end
+
+local function toggleInvis(num)
+	if not player.Character then return end
+	for i, v in pairs(player.Character:GetChildren()) do
+		if v:IsA("Accessory") then 
+			for i, k in pairs(v:GetChildren()) do 
+				if k:IsA("Part") then k.Transparency = num end 
+			end 
+		end
+		if v:IsA("Part") and v.Name ~= "HumanoidRootPart" then
+			v.Transparency = num
+			if v.Name == "Head" and v:FindFirstChild("face") then 
+				v:FindFirstChild("face").Transparency = num 
+			end
+		end
+	end
+end
 
 local TabDrag = Window:Tab({ Title = "完美拖拽", Icon = "rbxassetid://10734898355" })
 local isDragEnabled = false
@@ -124,44 +161,6 @@ local tree_list = {
 	"洞穴木 (Cavern)", "岩浆木 (Magma)", "蓝木 (CaveCrawler)", "灵魂木 (Spirit)", "烈焰木 (Flame)", "星辰木 (Celestial)", "橡木 (Oak)", "绿色沼泽木 (GreenSwampy)",
 	"沙子木 (Sand)", "松木 (Pine)", "玻璃木 (Glass)", "彩虹木 (Rainbow)", "冰木 (Ice)"
 }
-
-local function DragModel(m, cf)
-	pcall(function() RS.Interaction.ClientIsDragging:FireServer(m) end)
-	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
-	if m.PrimaryPart then m:SetPrimaryPartCFrame(cf) end
-end
-
-local function Teleport(cf)
-	if not player.Character then return end
-	if player.Character.Humanoid.SeatPart then
-		for i = 1, 15 do DragModel(player.Character.Humanoid.SeatPart.Parent, cf); task.wait() end
-		return
-	end
-	for i = 1, 3 do DragModel(player.Character, cf); task.wait() end
-end
-
-local function toggleInvis(num)
-	if not player.Character then return end
-	for i, v in pairs(player.Character:GetChildren()) do
-		if v:IsA("Accessory") then 
-			for i, k in pairs(v:GetChildren()) do 
-				if k:IsA("Part") then 
-					k.Transparency = num 
-					k.CanCollide = false
-				end 
-			end 
-		end
-		if v:IsA("Part") then
-			v.CanCollide = false
-			if v.Name ~= "HumanoidRootPart" then
-				v.Transparency = num
-			end
-			if v.Name == "Head" and v:FindFirstChild("face") then 
-				v:FindFirstChild("face").Transparency = num 
-			end
-		end
-	end
-end
 
 local function getAxe()
 	for _, v in next, player.Character:GetChildren() do if v:IsA("Tool") and v:FindFirstChild("CuttingTool") then return v end end
@@ -277,14 +276,7 @@ TabWood:Button({
                             break
                         end
                         
-                        -- 完全还原原作者实时计算逻辑
                         Teleport(woodPart.CFrame + Vector3.new(0, 2.5, 3.5))
-                        
-                        -- 加入免死金牌：强行清空掉落速度，防止跟随抖动摔死
-                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            player.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-                        end
-                        
                         task.wait(0.05)
                         cutTree(targetWood, axe)
                         timeout = timeout + 1
@@ -296,7 +288,7 @@ TabWood:Button({
                             if b:FindFirstChild("Owner") and b.Owner.Value == player then Log = b end
                         end
                         if Log then
-                            for i = 1, 15 do
+                            for i = 1, 20 do
                                 DragModel(Log, oldpos)
                                 task.wait(0.1)
                             end
