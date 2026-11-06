@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材辅助终端",
+    Title = "木材辅助终端1.0",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
@@ -119,10 +119,22 @@ end
 local function toggleInvis(num)
 	if not player.Character then return end
 	for i, v in pairs(player.Character:GetChildren()) do
-		if v:IsA("Accessory") then for i, k in pairs(v:GetChildren()) do if k:IsA("Part") then k.Transparency = num end end end
-		if v:IsA("Part") and v.Name ~= "HumanoidRootPart" then
-			v.Transparency = num
-			if v.Name == "Head" and v:FindFirstChild("face") then v:FindFirstChild("face").Transparency = num end
+		if v:IsA("Accessory") then 
+			for i, k in pairs(v:GetChildren()) do 
+				if k:IsA("Part") then 
+					k.Transparency = num 
+					k.CanCollide = false
+				end 
+			end 
+		end
+		if v:IsA("Part") then
+			v.CanCollide = false
+			if v.Name ~= "HumanoidRootPart" then
+				v.Transparency = num
+			end
+			if v.Name == "Head" and v:FindFirstChild("face") then 
+				v:FindFirstChild("face").Transparency = num 
+			end
 		end
 	end
 end
@@ -166,6 +178,30 @@ TabWood:Slider({
     end
 })
 
+local function resetCuttingState()
+    isCutting = false
+    toggleInvis(0)
+end
+
+player.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid")
+    hum.Died:Connect(function()
+        if isCutting then
+            resetCuttingState()
+            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，伐木已自动中断！", Duration = 4 })
+        end
+    end)
+end)
+
+if player.Character then
+    player.Character:WaitForChild("Humanoid").Died:Connect(function()
+        if isCutting then
+            resetCuttingState()
+            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，伐木已自动中断！", Duration = 4 })
+        end
+    end)
+end
+
 TabWood:Button({
     Title = "开始自动伐木",
     Desc = "自动隐身、传送、砍树并拉回原位",
@@ -187,6 +223,11 @@ TabWood:Button({
         
         task.spawn(function()
             while isCutting and count < woodQty do
+                if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+                    isCutting = false
+                    break
+                end
+                
                 local targetWood = nil
                 for _, v in next, Workspace:GetDescendants() do
                     if v.Name == "TreeRegion" then
@@ -205,13 +246,23 @@ TabWood:Button({
                     toggleInvis(1)
                     local woodPart = targetWood:FindFirstChild("WoodSection")
                     
-                    while isCutting and not targetWood:FindFirstChild("RootCut") do
-                        Teleport(woodPart.CFrame + Vector3.new(0, 2.5, 3.5))
-                        task.wait()
+                    local treeRadius = math.max(woodPart.Size.X, woodPart.Size.Z) * 0.5
+                    local safeOffset = Vector3.new(0, 3, treeRadius + 6)
+                    
+                    local timeout = 0
+                    while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 150 do
+                        if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+                            isCutting = false
+                            break
+                        end
+                        
+                        Teleport(woodPart.CFrame + safeOffset)
+                        task.wait(0.05)
                         cutTree(targetWood, axe)
+                        timeout = timeout + 1
                     end
                     
-                    if isCutting then
+                    if isCutting and targetWood:FindFirstChild("RootCut") then
                         local Log
                         for _, b in next, Workspace.LogModels:GetDescendants() do
                             if b:FindFirstChild("Owner") and b.Owner.Value == player then Log = b end
@@ -231,11 +282,10 @@ TabWood:Button({
                 task.wait(0.2)
             end
             
-            toggleInvis(0)
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            resetCuttingState()
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
                 Teleport(oldpos)
             end
-            isCutting = false
             WindUI:Notify({ Title = "完成", Content = "已结束本次伐木", Duration = 3 })
         end)
     end
@@ -245,8 +295,7 @@ TabWood:Button({
     Title = "停止伐木",
     Desc = "强行中断并恢复正常状态",
     Callback = function()
-        isCutting = false
-        toggleInvis(0)
+        resetCuttingState()
         WindUI:Notify({ Title = "已停止", Content = "已中断自动伐木", Duration = 3 })
     end
 })
