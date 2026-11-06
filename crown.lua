@@ -1,10 +1,10 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材大亨专用版2.0",
+    Title = "木材大亨专用版2.2",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
-    Size = UDim2.fromOffset(420, 360),
+    Size = UDim2.fromOffset(420, 320),
     Transparent = true,
     Theme = "Dark"
 })
@@ -41,17 +41,11 @@ local function toggleInvis(num)
 	for i, v in pairs(player.Character:GetChildren()) do
 		if v:IsA("Accessory") then 
 			for i, k in pairs(v:GetChildren()) do 
-				if k:IsA("Part") then 
-                    k.Transparency = num 
-                    k.CanCollide = false
-                end 
+				if k:IsA("Part") then k.Transparency = num end 
 			end 
 		end
-		if v:IsA("Part") then
-            v.CanCollide = false -- 关闭全身碰撞防止挤压
-			if v.Name ~= "HumanoidRootPart" then
-				v.Transparency = num
-			end
+		if v:IsA("Part") and v.Name ~= "HumanoidRootPart" then
+			v.Transparency = num
 			if v.Name == "Head" and v:FindFirstChild("face") then 
 				v:FindFirstChild("face").Transparency = num 
 			end
@@ -211,8 +205,8 @@ if player.Character then
 end
 
 TabWood:Button({
-    Title = "开始真实砍树 (定身防死)",
-    Desc = "强制锚定身体，绝对不下落不掉血",
+    Title = "开始贴脸站桩砍树",
+    Desc = "精准站立在树皮外沿，锁定不下落",
     Callback = function()
         if isCutting then return end
         
@@ -259,20 +253,45 @@ TabWood:Button({
                     toggleInvis(1)
                     
                     local baseWood = targetWood:FindFirstChild("WoodSection")
+                    local targetId = 2
                     for _, w in pairs(targetWood:GetDescendants()) do
-                        if w.Name == "WoodSection" and w:FindFirstChild("ID") and w.ID.Value == 1 then
-                            baseWood = w
-                            break
+                        if w.Name == "WoodSection" and w:FindFirstChild("ID") then
+                            if w.ID.Value == 1 then
+                                baseWood = w
+                                targetId = 1
+                                break
+                            else
+                                baseWood = w
+                                targetId = w.ID.Value
+                            end
                         end
                     end
                     
                     if baseWood then
-                        local safePos = CFrame.new(baseWood.Position.X + 4, baseWood.Position.Y + 1, baseWood.Position.Z + 4)
+                        -- 射线找地面
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterDescendantsInstances = {player.Character, targetWood}
+                        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                        
+                        local result = Workspace:Raycast(baseWood.Position + Vector3.new(0, 10, 0), Vector3.new(0, -500, 0), raycastParams)
+                        
+                        local groundY = baseWood.Position.Y
+                        if result then
+                            groundY = result.Position.Y
+                        end
+                        
+                        -- 计算贴脸距离：树半径 + 玩家半径(约2) + 0.5缝隙
+                        local treeRadius = math.max(baseWood.Size.X, baseWood.Size.Z) / 2
+                        local standDist = treeRadius + 2.5
+                        
+                        -- 站在树的 Z 轴正前方
+                        local safePos = CFrame.new(baseWood.Position.X, groundY + 3, baseWood.Position.Z + standDist)
                         Teleport(safePos)
                         
+                        -- 锁死在地面
                         local hrp = player.Character.HumanoidRootPart
                         if hrp then
-                            hrp.Anchored = true -- 绝对定身，杜绝任何下落速度
+                            hrp.Anchored = true 
                             hrp.AssemblyLinearVelocity = Vector3.zero
                             hrp.AssemblyAngularVelocity = Vector3.zero
                         end
@@ -286,12 +305,7 @@ TabWood:Button({
                             
                             local currentTool = player.Character:FindFirstChild("Tool")
                             if currentTool then
-                                local currentSectionId = 1
-                                local ws = targetWood:FindFirstChild("WoodSection")
-                                if ws and ws:FindFirstChild("ID") then
-                                    currentSectionId = ws.ID.Value
-                                end
-                                cutTree(targetWood, currentTool, currentSectionId)
+                                cutTree(targetWood, currentTool, targetId)
                             end
                             
                             task.wait(0.1)
@@ -299,7 +313,7 @@ TabWood:Button({
                         end
                         
                         if hrp then
-                            hrp.Anchored = false
+                            hrp.Anchored = false 
                         end
                         
                         if isCutting and targetWood:FindFirstChild("RootCut") then
