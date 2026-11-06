@@ -5,6 +5,7 @@
 	
 	local _CONFIGS = {
 	   ["UI_NAME"] = define,
+	   ["总开关"] = nil,
 	   ["防误触开关"] = true,
 	   ["无限跳"] = false,
 	   ["穿墙开关"] = false,
@@ -24,24 +25,44 @@
 	   ["飞行速度"] = 4,
 	   ["步行速度"] = 16,
 	   ["跳跃力"] = 50,
-	   ["悬浮高度"] = 2,
-	   ["重力"] = 196.2,
+	   ["悬浮高度"] = 0,
+	   ["重力"] = 198,
 	   ["相机焦距"] = 100,
 	   ["广角"] = 70,
 	};
 	
 	local function ClearConfig()
-		if getgenv().Test then getgenv().Test:Disconnect(); getgenv().Test = nil; end
-		if getgenv().CutWoodToSawmill then getgenv().CutWoodToSawmill:Disconnect(); getgenv().CutWoodToSawmill = nil end
-		if _G.HardDraggerConnection then _G.HardDraggerConnection:Disconnect(); _G.HardDraggerConnection = nil end
-		if _CONFIGS["cutPlankByHONG"] then _CONFIGS["cutPlankByHONG"]:Disconnect(); _CONFIGS["cutPlankByHONG"] = nil; end
-		if _G.OrigDrag then _G.OrigDrag = nil end
-		if clickSellLog then clickSellLog:Disconnect(); clickSellLog = nil; end
-		if mod then mod:Disconnect(); mod = nil; end
-		if _CONFIGS["自动砍树"] then _CONFIGS["自动砍树"]:Disconnect(); _CONFIGS["自动砍树"] = nil; end
-		if DayOfNight then DayOfNight:Disconnect(); DayOfNight = nil end
-		if getgenv().PlankToBp then getgenv().PlankToBp:Disconnect(); getgenv().PlankToBp = nil end
-		if _CONFIGS["粉车器"] then _CONFIGS["粉车器"]:Disconnect(); _CONFIGS["粉车器"] = nil; end
+		if _CONFIGS["总开关"] ~= nil then
+			_CONFIGS["总开关"]:Disconnect()
+			_CONFIGS["总开关"] = nil;
+			_CONFIGS["防误触开关"] = nil;
+			_CONFIGS["无限跳"] = false;
+			_CONFIGS["穿墙开关"] = false;
+			_CONFIGS["UI长"] = 250;
+			_CONFIGS["UI宽"] = 300;
+			_CONFIGS["飞行速度"] = 4
+			_CONFIGS["飞行开关"] = false
+			_CONFIGS["isBuying"] = false;
+			getgenv()["点击出售木头"] = false;
+			_CONFIGS["取消购买"] = false;
+			_CONFIGS["传送模式"] = 2;
+			_CONFIGS["处理木头"] = false;
+			_CONFIGS["处理木头并加工"] = false
+			_CONFIGS["点击砍树"] = false;
+			_CONFIGS["填充工具"] = false
+			_CONFIGS["刷粉车"] = false
+			if getgenv().Test then getgenv().Test:Disconnect(); getgenv().Test = nil; end
+			if getgenv().CutWoodToSawmill then getgenv().CutWoodToSawmill:Disconnect(); getgenv().CutWoodToSawmill = nil end
+			if _G.HardDraggerConnection then _G.HardDraggerConnection:Disconnect(); _G.HardDraggerConnection = nil end
+			if _CONFIGS["cutPlankByHONG"] then _CONFIGS["cutPlankByHONG"]:Disconnect(); _CONFIGS["cutPlankByHONG"] = nil; end
+			if _G.OrigDrag then _G.OrigDrag = nil end
+			if clickSellLog then clickSellLog:Disconnect(); clickSellLog = nil; end
+			if mod then mod:Disconnect(); mod = nil; end
+			if _CONFIGS["自动砍树"] then _CONFIGS["自动砍树"]:Disconnect(); _CONFIGS["自动砍树"] = nil; end
+			if DayOfNight then DayOfNight:Disconnect(); DayOfNight = nil end
+			if getgenv().PlankToBp then getgenv().PlankToBp:Disconnect(); getgenv().PlankToBp = nil end
+			if _CONFIGS["粉车器"] then _CONFIGS["粉车器"]:Disconnect(); _CONFIGS["粉车器"] = nil; end
+		end
 	end
 	ClearConfig()
 	
@@ -602,6 +623,19 @@
 			end
 		})
 		
+		_CONFIGS["总开关"] = HONG.RS.RenderStepped:Connect(function()
+			pcall(function()
+				if HONG.LP.Character and HONG.LP.Character:FindFirstChild("Humanoid") then
+					HONG.LP.Character.Humanoid.WalkSpeed = _CONFIGS["步行速度"]
+					HONG.LP.Character.Humanoid.JumpPower = _CONFIGS["跳跃力"]
+					HONG.LP.Character.Humanoid.HipHeight = _CONFIGS["悬浮高度"]
+					HONG.WKSPC.Gravity = _CONFIGS["重力"]
+					HONG.LP.CameraMaxZoomDistance = _CONFIGS["相机焦距"]
+					HONG.WKSPC.Camera.FieldOfView = _CONFIGS["广角"]
+				end
+			end)
+		end)
+		
 		local Page1 = library:CreateTab("设置");
 		local Page4 = library:CreateTab("木材菜单");
 		
@@ -731,7 +765,6 @@
 										if not model:FindFirstChild("RootCut") then
 											if model.TreeClass.Value == config.TreeValue then
 												wood = model;
-												break;
 											end
 										end
 									end
@@ -739,7 +772,6 @@
 							end
 						end
 					end
-					if wood then break end
 				end
 				
 				if wood == nil then
