@@ -879,4 +879,4 @@
 		    getgenv()["不想砍树"] = false;
 		end)
 	end
-end)("木材 纯净版")
+end)("木材")
