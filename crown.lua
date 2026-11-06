@@ -1,10 +1,10 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材大亨专用版2.2",
+    Title = "木材大亨专用版",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
-    Size = UDim2.fromOffset(420, 320),
+    Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark"
 })
@@ -133,6 +133,9 @@ local TabWood = Window:Tab({ Title = "自动伐木", Icon = "rbxassetid://107349
 local isCutting = false
 local targetTree = "Generic"
 local woodQty = 1
+local offsetX = 0
+local offsetY = 2.5
+local offsetZ = 3.5
 
 local tree_list = {
 	"普通木 (Generic)", "幻影木 (LoneCave)", "电木 (Electric)", "胡桃木 (Walnut)", "星木 (Star)", "樱桃木 (Cherry)", "桦木 (Birch)", "冰霜木 (Frost)",
@@ -177,11 +180,22 @@ TabWood:Slider({
     end
 })
 
+TabWood:Slider({ Title = "X 微调", Value = { Min = -10, Max = 10, Default = 0 }, Callback = function(v) offsetX = v end })
+TabWood:Slider({ Title = "Y 微调", Value = { Min = -10, Max = 10, Default = 2.5 }, Callback = function(v) offsetY = v end })
+TabWood:Slider({ Title = "Z 微调", Value = { Min = -10, Max = 10, Default = 3.5 }, Callback = function(v) offsetZ = v end })
+
 local function resetCuttingState()
     isCutting = false
     toggleInvis(0)
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        player.Character.HumanoidRootPart.Anchored = false
+        local hrp = player.Character.HumanoidRootPart
+        local bp = hrp:FindFirstChild("CutBP")
+        if bp then bp:Destroy() end
+        local bg = hrp:FindFirstChild("CutBG")
+        if bg then bg:Destroy() end
+        if player.Character.Humanoid then
+            player.Character.Humanoid.PlatformStand = false
+        end
     end
 end
 
@@ -205,8 +219,8 @@ if player.Character then
 end
 
 TabWood:Button({
-    Title = "开始贴脸站桩砍树",
-    Desc = "精准站立在树皮外沿，锁定不下落",
+    Title = "开始悬空砍树",
+    Desc = "物理锁定悬停，完美还原截图效果",
     Callback = function()
         if isCutting then return end
         
@@ -268,32 +282,25 @@ TabWood:Button({
                     end
                     
                     if baseWood then
-                        -- 射线找地面
-                        local raycastParams = RaycastParams.new()
-                        raycastParams.FilterDescendantsInstances = {player.Character, targetWood}
-                        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-                        
-                        local result = Workspace:Raycast(baseWood.Position + Vector3.new(0, 10, 0), Vector3.new(0, -500, 0), raycastParams)
-                        
-                        local groundY = baseWood.Position.Y
-                        if result then
-                            groundY = result.Position.Y
-                        end
-                        
-                        -- 计算贴脸距离：树半径 + 玩家半径(约2) + 0.5缝隙
-                        local treeRadius = math.max(baseWood.Size.X, baseWood.Size.Z) / 2
-                        local standDist = treeRadius + 2.5
-                        
-                        -- 站在树的 Z 轴正前方
-                        local safePos = CFrame.new(baseWood.Position.X, groundY + 3, baseWood.Position.Z + standDist)
+                        local safePos = baseWood.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
                         Teleport(safePos)
                         
-                        -- 锁死在地面
                         local hrp = player.Character.HumanoidRootPart
-                        if hrp then
-                            hrp.Anchored = true 
-                            hrp.AssemblyLinearVelocity = Vector3.zero
-                            hrp.AssemblyAngularVelocity = Vector3.zero
+                        local hum = player.Character.Humanoid
+                        
+                        -- 核心悬空锁定魔法
+                        if not hrp:FindFirstChild("CutBP") then
+                            local bp = Instance.new("BodyPosition", hrp)
+                            bp.Name = "CutBP"
+                            bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                            bp.Position = safePos.Position
+                            
+                            local bg = Instance.new("BodyGyro", hrp)
+                            bg.Name = "CutBG"
+                            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                            bg.CFrame = safePos
+                            
+                            hum.PlatformStand = true
                         end
                         
                         local timeout = 0
@@ -312,9 +319,12 @@ TabWood:Button({
                             timeout = timeout + 1
                         end
                         
-                        if hrp then
-                            hrp.Anchored = false 
-                        end
+                        -- 砍完清理锁定
+                        local bp = hrp:FindFirstChild("CutBP")
+                        if bp then bp:Destroy() end
+                        local bg = hrp:FindFirstChild("CutBG")
+                        if bg then bg:Destroy() end
+                        hum.PlatformStand = false
                         
                         if isCutting and targetWood:FindFirstChild("RootCut") then
                             local Log
