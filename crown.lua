@@ -1,10 +1,10 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "纯辅助工具盒",
+    Title = "木材大亨全能版",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
-    Size = UDim2.fromOffset(420, 320),
+    Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark"
 })
@@ -14,8 +14,13 @@ local Workspace = game:GetService("Workspace")
 local RS = game:GetService("ReplicatedStorage")
 local Mouse = player:GetMouse()
 
+-- 完美融合 Begin 和 Refresh 的拖拽欺骗
 local function DragModel(m, cf)
-	pcall(function() RS.Interaction.ClientIsDragging:FireServer(m) end)
+	pcall(function() 
+        RS.Interaction.ClientIsDragging:FireServer("Begin", m, 4) 
+        RS.Interaction.ClientIsDragging:FireServer("Refresh", m, 5)
+    end)
+    
 	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
 	if m.PrimaryPart then 
         m.PrimaryPart.Velocity = Vector3.zero
@@ -23,9 +28,8 @@ local function DragModel(m, cf)
     end
 end
 
-local TabTP = Window:Tab({ Title = "树木传送", Icon = "rbxassetid://10734945123" })
-local TabItem = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10882439086" })
-
+-- 页面 1：安全传送砍树
+local TabTP = Window:Tab({ Title = "安全传送", Icon = "rbxassetid://10734945123" })
 local targetTree = "Generic"
 local oldPos = nil
 
@@ -48,7 +52,7 @@ TabTP:Dropdown({
 
 TabTP:Button({
     Title = "保存当前位置",
-    Desc = "传送前先点一下这个，方便迷路后传回来",
+    Desc = "传送前先点一下，方便砍完回来",
     Callback = function()
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             oldPos = player.Character.HumanoidRootPart.CFrame
@@ -97,24 +101,25 @@ TabTP:Button({
 
 TabTP:Button({
     Title = "传送回原点",
-    Desc = "回到你之前保存的安全位置",
     Callback = function()
         if oldPos and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             player.Character.HumanoidRootPart.CFrame = oldPos
-            WindUI:Notify({ Title = "传送成功", Content = "已回到原点", Duration = 3 })
+            WindUI:Notify({ Title = "成功", Content = "已回到原点", Duration = 3 })
         else
             WindUI:Notify({ Title = "错误", Content = "你还没有保存位置", Duration = 3 })
         end
     end
 })
 
+
+-- 页面 2：安全传送物品
+local TabItem = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10882439086" })
+
 TabItem:Button({
-    Title = "设置传送点位",
-    Desc = "在你的脚下生成一个隐形的拉回点",
+    Title = "设置拉回点位",
+    Desc = "在你当前脚下设置一个拉回点",
     Callback = function()
-        if Workspace:FindFirstChild("BRING") then
-            Workspace.BRING:Destroy()
-        end
+        if Workspace:FindFirstChild("BRING") then Workspace.BRING:Destroy() end
         local p = Instance.new("Part", Workspace)
         p.Name = "BRING"
         p.Transparency = 1
@@ -127,62 +132,38 @@ TabItem:Button({
         posBox.Name = "BRINGBOX"
         posBox.Color3 = Color3.new(0, 255, 0)
         posBox.Adornee = posBox.Parent
-        WindUI:Notify({ Title = "设置成功", Content = "传送点位已设置在你的脚下", Duration = 3 })
-    end
-})
-
-TabItem:Button({
-    Title = "删除传送点位",
-    Desc = "移除当前设置的拉回点",
-    Callback = function()
-        if Workspace:FindFirstChild("BRING") then
-            Workspace.BRING:Destroy()
-            WindUI:Notify({ Title = "删除成功", Content = "传送点位已移除", Duration = 3 })
-        else
-            WindUI:Notify({ Title = "提示", Content = "当前没有设置点位", Duration = 3 })
-        end
+        WindUI:Notify({ Title = "成功", Content = "点位已设置", Duration = 3 })
     end
 })
 
 TabItem:Button({
     Title = "获取点击传送工具",
-    Desc = "拿在手上，点击任何掉落物或模型即可拉回点位",
+    Desc = "拿在手上点击木头/物品，直接拉回点位",
     Callback = function()
-        if player.Backpack:FindFirstChild("点击传送任何物品") or player.Character:FindFirstChild("点击传送任何物品") then
-            player.Backpack["点击传送任何物品"]:Destroy()
-        end;
+        if player.Backpack:FindFirstChild("点击传送") or player.Character:FindFirstChild("点击传送") then
+            player.Backpack["点击传送"]:Destroy()
+        end
         local a = Instance.new("Tool", player.Backpack)
-        a.Name = "点击传送任何物品"
-        a.RequiresHandle = false;
+        a.Name = "点击传送"
+        a.RequiresHandle = false
         a.Activated:Connect(function()
             if Workspace:FindFirstChild("BRING") then
-                local b = Workspace.BRING.CFrame;
-                local c = Mouse.Target
-                if c then
-                    c = c.Parent
-                else
-                    return
-                end
+                local targetCFrame = Workspace.BRING.CFrame
+                local targetPart = Mouse.Target
+                if not targetPart then return end
+                local targetModel = targetPart.Parent
                 
-                if c:FindFirstChild("TreeClass") or c.Name == "Plank" or c:FindFirstChild("Type") then
-                    if c:FindFirstChild("Owner") then
-                        local e = c:FindFirstChildOfClass("Part")
-                        pcall(function()
-                            player.Character:MoveTo(e.CFrame.p)
-                        end)
-                        c.PrimaryPart = e;
-                        for f = 1, 60 do
-                            c.PrimaryPart.Velocity = Vector3.new(0, 0, 0)
-                            RS.Interaction.ClientIsDragging:FireServer(c)
-                            c:PivotTo(b)
-                            task.wait(0.01)
-                        end
+                if targetModel and (targetModel.Name == "Plank" or targetModel:FindFirstChild("WoodSection") or targetModel:FindFirstChild("Owner")) then
+                    for i = 1, 40 do
+                        DragModel(targetModel, targetCFrame)
+                        task.wait(0.02)
                     end
+                    WindUI:Notify({ Title = "传送成功", Content = "物品已锁死在点位", Duration = 3 })
                 end
             else
-                WindUI:Notify({ Title = "错误", Content = "请先设置传送点位！", Duration = 3 })
+                WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位！", Duration = 3 })
             end
         end)
-        WindUI:Notify({ Title = "获取成功", Content = "工具已发放至背包", Duration = 3 })
+        WindUI:Notify({ Title = "成功", Content = "工具已放入背包", Duration = 3 })
     end
 })
