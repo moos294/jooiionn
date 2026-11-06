@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存0.1拖拽器",
+    Title = "封存拖拽1.1",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -66,16 +66,16 @@ local function enableSuperDrag()
                 while obj.Parent == Workspace and isHooked do
                     RunService.Heartbeat:Wait()
                     
-                    c.P = 500000
+                    c.P = math.huge
                     c.D = 10000
                     c.maxForce = Vector3.new(math.huge, math.huge, math.huge)
                     b.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                    b.P = 500000
+                    b.P = math.huge
                     b.D = 10000
                     
                     local hrp = char and char:FindFirstChild("HumanoidRootPart")
                     if hrp then
-                        c.Position = hrp.Position + Vector3.new(0, 15, 0)
+                        c.Position = hrp.Position + (hrp.CFrame.LookVector * 3) + Vector3.new(0, 2, 0)
                         
                         pcall(function()
                             if currentDragTarget then
@@ -105,7 +105,7 @@ local function enableSuperDrag()
         end
     end)
     
-    WindUI:Notify({ Title = "开启成功", Content = "物品已锁定头顶，关闭触碰！", Duration = 5 })
+    WindUI:Notify({ Title = "开启成功", Content = "物品已锁在胸前，关闭触碰！", Duration = 5 })
 end
 
 local function disableSuperDrag()
@@ -141,8 +141,8 @@ local function disableSuperDrag()
 end
 
 Tab:Toggle({
-    Title = "开启无限制拖拽",
-    Desc = "锁定头顶，随便飞绝不掉",
+    Title = "开启胸前无敌拖拽",
+    Desc = "锁定胸前 3 格，随便飞绝不掉",
     Default = false,
     Callback = function(state)
         isHooked = state
@@ -156,7 +156,6 @@ Tab:Toggle({
 
 Tab:Button({
     Title = "强制关闭并释放物品",
-    Desc = "如果拖拽卡住，点这里立刻断开",
     Callback = function()
         disableSuperDrag()
     end
