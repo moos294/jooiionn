@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材辅助终端1.4",
+    Title = "木材辅助终端1.5",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
@@ -180,10 +180,6 @@ TabWood:Slider({
 local function resetCuttingState()
     isCutting = false
     toggleInvis(0)
-    if player.Character then
-        local ff = player.Character:FindFirstChild("CuttingForceField")
-        if ff then ff:Destroy() end
-    end
 end
 
 player.CharacterAdded:Connect(function(char)
@@ -224,11 +220,6 @@ TabWood:Button({
         local oldpos = player.Character.HumanoidRootPart.CFrame
         local count = 0
         
-        local ff = Instance.new("ForceField")
-        ff.Name = "CuttingForceField"
-        ff.Visible = false
-        ff.Parent = player.Character
-        
         task.spawn(function()
             while isCutting and count < woodQty do
                 if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
@@ -254,20 +245,13 @@ TabWood:Button({
                     toggleInvis(1)
                     local woodPart = targetWood:FindFirstChild("WoodSection")
                     
-                    local timeout = 0
-                    while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 150 do
-                        if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-                            isCutting = false
-                            break
-                        end
-                        
-                        local safePos = woodPart.CFrame * CFrame.new(0, 3, 10)
-                        Teleport(safePos)
-                        
-                        task.wait(0.15)
+                    repeat
+                        if not isCutting then break end
+                        Workspace.CurrentCamera.CameraSubject = woodPart
+                        Teleport(woodPart.CFrame + Vector3.new(0, 2.5, 3.5))
+                        task.wait()
                         cutTree(targetWood, axe)
-                        timeout = timeout + 1
-                    end
+                    until targetWood:FindFirstChild("RootCut")
                     
                     if isCutting and targetWood:FindFirstChild("RootCut") then
                         local Log
