@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材辅助终端1.0",
+    Title = "木材辅助终端1.1",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
@@ -12,6 +12,30 @@ local Window = WindUI:CreateWindow({
 local player = game.Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local _CONFIGS = {
+    ["步行速度"] = 16,
+    ["跳跃力"] = 50,
+    ["悬浮高度"] = 0,
+    ["重力"] = 198,
+    ["相机焦距"] = 100,
+    ["广角"] = 70
+}
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local char = player.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = _CONFIGS["步行速度"]
+            char.Humanoid.JumpPower = _CONFIGS["跳跃力"]
+            char.Humanoid.HipHeight = _CONFIGS["悬浮高度"]
+            Workspace.Gravity = _CONFIGS["重力"]
+            player.CameraMaxZoomDistance = _CONFIGS["相机焦距"]
+            Workspace.CurrentCamera.FieldOfView = _CONFIGS["广角"]
+        end
+    end)
+end)
 
 local TabDrag = Window:Tab({ Title = "完美拖拽", Icon = "rbxassetid://10734898355" })
 local isDragEnabled = false
@@ -246,9 +270,6 @@ TabWood:Button({
                     toggleInvis(1)
                     local woodPart = targetWood:FindFirstChild("WoodSection")
                     
-                    local treeRadius = math.max(woodPart.Size.X, woodPart.Size.Z) * 0.5
-                    local safeOffset = Vector3.new(0, 3, treeRadius + 6)
-                    
                     local timeout = 0
                     while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 150 do
                         if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
@@ -256,7 +277,14 @@ TabWood:Button({
                             break
                         end
                         
-                        Teleport(woodPart.CFrame + safeOffset)
+                        -- 完全还原原作者实时计算逻辑
+                        Teleport(woodPart.CFrame + Vector3.new(0, 2.5, 3.5))
+                        
+                        -- 加入免死金牌：强行清空掉落速度，防止跟随抖动摔死
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+                        end
+                        
                         task.wait(0.05)
                         cutTree(targetWood, axe)
                         timeout = timeout + 1
