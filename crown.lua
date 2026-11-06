@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存拖拽器0.1",
+    Title = "封存0.1拖拽器",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(400, 300),
@@ -66,7 +66,6 @@ local function enableSuperDrag()
                 while obj.Parent == Workspace and isHooked do
                     RunService.Heartbeat:Wait()
                     
-                    -- 物理拉力拉满
                     c.P = 500000
                     c.D = 10000
                     c.maxForce = Vector3.new(math.huge, math.huge, math.huge)
@@ -76,10 +75,8 @@ local function enableSuperDrag()
                     
                     local hrp = char and char:FindFirstChild("HumanoidRootPart")
                     if hrp then
-                        -- 核心绝杀 1：直接拉到头顶 15 格的高空
                         c.Position = hrp.Position + Vector3.new(0, 15, 0)
                         
-                        -- 核心绝杀 2：彻底关闭触碰和碰撞事件
                         pcall(function()
                             if currentDragTarget then
                                 if currentDragTarget:IsA("BasePart") then
@@ -96,7 +93,6 @@ local function enableSuperDrag()
                             end
                         end)
 
-                        -- 狂发拖拽包欺骗服务器
                         local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
                         if dragEvent and currentDragTarget then
                             for i = 1, 3 do
