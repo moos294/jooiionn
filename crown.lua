@@ -1,17 +1,17 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-
-local Window = WindUI:CreateWindow({
-    Title = "木材大亨专用版",
-    Icon = "rbxassetid://10882439086",
-    Author = "Bypass",
-    Size = UDim2.fromOffset(420, 360),
-    Transparent = true,
-    Theme = "Dark"
-})
-
+local RunService = game:GetService("RunService")
 local player = game.Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local RS = game:GetService("ReplicatedStorage")
+
+local Window = WindUI:CreateWindow({
+    Title = "木材大亨终极悬空版",
+    Icon = "rbxassetid://10882439086",
+    Author = "Bypass",
+    Size = UDim2.fromOffset(420, 320),
+    Transparent = true,
+    Theme = "Dark"
+})
 
 local function DragModel(m, cf)
 	pcall(function() RS.Interaction.ClientIsDragging:FireServer(m) end)
@@ -22,17 +22,18 @@ local function DragModel(m, cf)
     end
 end
 
-local function Teleport(cf)
-	if not player.Character then return end
-	if player.Character.Humanoid.SeatPart then
-		task.spawn(function() 
-            for i = 1, 15 do DragModel(player.Character.Humanoid.SeatPart.Parent, cf) end 
-        end)
-		return
-	end
-	for i = 1, 3 do 
-        DragModel(player.Character, cf)
-        task.wait()
+local function toggleGhost(enable)
+    if not player.Character then return end
+    local hum = player.Character:FindFirstChild("Humanoid")
+    for _, v in pairs(player.Character:GetDescendants()) do
+        if v:IsA("BasePart") then
+            if v.Name ~= "HumanoidRootPart" then
+                v.CanCollide = not enable
+            end
+        end
+    end
+    if hum then
+        hum.PlatformStand = enable
     end
 end
 
@@ -71,31 +72,20 @@ local function startDrag()
     dragConn = Workspace.ChildAdded:Connect(function(obj)
         if obj.Name == "Dragger" and isDragEnabled then
             obj.BrickColor = BrickColor.new("Bright green")
-            
             task.spawn(function()
                 local b = obj:WaitForChild("BodyGyro", 2)
                 local c = obj:WaitForChild("BodyPosition", 2)
                 if not b or not c then return end
-                
                 task.wait(0.1)
-                
                 obj.CanCollide = false
                 obj.CanTouch = false
-                
                 while obj.Parent == Workspace and isDragEnabled do
-                    c.P = 120000
-                    c.D = 1000
+                    c.P = 120000; c.D = 1000
                     c.maxForce = Vector3.new(1, 1, 1) * 1000000
-                    
                     b.MaxTorque = Vector3.new(1, 1, 1) * 200
-                    b.P = 1200
-                    b.D = 140
-                    
+                    b.P = 1200; b.D = 140
                     local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-                    if dragEvent then
-                        pcall(function() dragEvent:FireServer() end)
-                    end
-                    
+                    if dragEvent then pcall(function() dragEvent:FireServer() end) end
                     task.wait()
                 end
             end)
@@ -118,24 +108,11 @@ TabDrag:Toggle({
     end
 })
 
-TabDrag:Button({
-    Title = "强制关闭拖拽",
-    Desc = "如果遇到卡顿，点此强行断开",
-    Callback = function()
-        stopDrag()
-        local toggleObj = Window:GetToggle("开启完美拖拽")
-        if toggleObj then toggleObj:Set(false) end
-    end
-})
-
 local TabWood = Window:Tab({ Title = "自动伐木", Icon = "rbxassetid://10734945123" })
 
 local isCutting = false
 local targetTree = "Generic"
 local woodQty = 1
-local offsetX = 0
-local offsetY = 2.5
-local offsetZ = 3.5
 
 local tree_list = {
 	"普通木 (Generic)", "幻影木 (LoneCave)", "电木 (Electric)", "胡桃木 (Walnut)", "星木 (Star)", "樱桃木 (Cherry)", "桦木 (Birch)", "冰霜木 (Frost)",
@@ -144,20 +121,18 @@ local tree_list = {
 	"沙子木 (Sand)", "松木 (Pine)", "玻璃木 (Glass)", "彩虹木 (Rainbow)", "冰木 (Ice)"
 }
 
-local function cutTree(wood, tool, secId)
+local function cutTree(wood, tool, secId, hVal)
 	local damage = 1
 	local success, mod = pcall(function() return require(RS.AxeClasses[("AxeClass_%s"):format(tool.ToolName.Value)]) end)
 	if success then damage = mod.new().Damage end
     
-    if damage < 5 then damage = damage * 50 end
-    
 	RS.Interaction.RemoteProxy:FireServer(wood.CutEvent, {
 		["tool"] = tool;
         ["faceVector"] = Vector3.zAxis;
-        ["height"] = 0.3;
-        ["sectionId"] = tonumber(secId); 
+        ["height"] = tonumber(hVal); 
+        ["sectionId"] = tonumber(secId);  
         ["hitPoints"] = tonumber(damage); 
-        ["cooldown"] = 0;
+        ["cooldown"] = 0.01;              
         ["cuttingClass"] = "Axe";
 	})
 end
@@ -175,28 +150,13 @@ TabWood:Dropdown({
 TabWood:Slider({
     Title = "砍伐数量",
     Value = { Min = 1, Max = 50, Default = 1 },
-    Callback = function(val)
-        woodQty = val
-    end
+    Callback = function(val) woodQty = val end
 })
-
-TabWood:Slider({ Title = "X 微调", Value = { Min = -10, Max = 10, Default = 0 }, Callback = function(v) offsetX = v end })
-TabWood:Slider({ Title = "Y 微调", Value = { Min = -10, Max = 10, Default = 2.5 }, Callback = function(v) offsetY = v end })
-TabWood:Slider({ Title = "Z 微调", Value = { Min = -10, Max = 10, Default = 3.5 }, Callback = function(v) offsetZ = v end })
 
 local function resetCuttingState()
     isCutting = false
     toggleInvis(0)
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = player.Character.HumanoidRootPart
-        local bp = hrp:FindFirstChild("CutBP")
-        if bp then bp:Destroy() end
-        local bg = hrp:FindFirstChild("CutBG")
-        if bg then bg:Destroy() end
-        if player.Character.Humanoid then
-            player.Character.Humanoid.PlatformStand = false
-        end
-    end
+    toggleGhost(false)
 end
 
 player.CharacterAdded:Connect(function(char)
@@ -219,8 +179,8 @@ if player.Character then
 end
 
 TabWood:Button({
-    Title = "开始悬空砍树",
-    Desc = "物理锁定悬停，完美还原截图效果",
+    Title = "开始终极悬空砍树",
+    Desc = "完美复刻截图，物理锁死，绝对不掉血",
     Callback = function()
         if isCutting then return end
         
@@ -265,43 +225,41 @@ TabWood:Button({
                 
                 if targetWood then
                     toggleInvis(1)
+                    toggleGhost(true) -- 幽灵模式，断掉一切碰撞
                     
                     local baseWood = targetWood:FindFirstChild("WoodSection")
-                    local targetId = 2
+                    local targetId = 1
+                    local hVal = 0.225
+                    
                     for _, w in pairs(targetWood:GetDescendants()) do
                         if w.Name == "WoodSection" and w:FindFirstChild("ID") then
                             if w.ID.Value == 1 then
                                 baseWood = w
                                 targetId = 1
+                                hVal = w.Size.Y / 2 
                                 break
                             else
                                 baseWood = w
                                 targetId = w.ID.Value
+                                hVal = w.Size.Y / 2
                             end
                         end
                     end
                     
                     if baseWood then
-                        local safePos = baseWood.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
-                        Teleport(safePos)
-                        
+                        -- 精确贴脸位置
+                        local safeCFrame = baseWood.CFrame * CFrame.new(0, 1.5, -2.5)
                         local hrp = player.Character.HumanoidRootPart
-                        local hum = player.Character.Humanoid
                         
-                        -- 核心悬空锁定魔法
-                        if not hrp:FindFirstChild("CutBP") then
-                            local bp = Instance.new("BodyPosition", hrp)
-                            bp.Name = "CutBP"
-                            bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                            bp.Position = safePos.Position
-                            
-                            local bg = Instance.new("BodyGyro", hrp)
-                            bg.Name = "CutBG"
-                            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                            bg.CFrame = safePos
-                            
-                            hum.PlatformStand = true
-                        end
+                        -- 核心魔法：开启渲染帧循环，把角色死死焊在半空
+                        local lockConnection
+                        lockConnection = RunService.Stepped:Connect(function()
+                            if hrp and hrp.Parent then
+                                hrp.CFrame = safeCFrame
+                                hrp.AssemblyLinearVelocity = Vector3.zero
+                                hrp.AssemblyAngularVelocity = Vector3.zero
+                            end
+                        end)
                         
                         local timeout = 0
                         while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 100 do
@@ -312,19 +270,15 @@ TabWood:Button({
                             
                             local currentTool = player.Character:FindFirstChild("Tool")
                             if currentTool then
-                                cutTree(targetWood, currentTool, targetId)
+                                cutTree(targetWood, currentTool, targetId, hVal)
                             end
                             
                             task.wait(0.1)
                             timeout = timeout + 1
                         end
                         
-                        -- 砍完清理锁定
-                        local bp = hrp:FindFirstChild("CutBP")
-                        if bp then bp:Destroy() end
-                        local bg = hrp:FindFirstChild("CutBG")
-                        if bg then bg:Destroy() end
-                        hum.PlatformStand = false
+                        -- 解除位置锁定
+                        lockConnection:Disconnect()
                         
                         if isCutting and targetWood:FindFirstChild("RootCut") then
                             local Log
@@ -349,7 +303,7 @@ TabWood:Button({
             
             resetCuttingState()
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
-                Teleport(oldpos)
+                player.Character.HumanoidRootPart.CFrame = oldpos
             end
         end)
     end
