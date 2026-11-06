@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材大亨专用版1.9",
+    Title = "木材大亨专用版2.0",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 360),
@@ -41,11 +41,17 @@ local function toggleInvis(num)
 	for i, v in pairs(player.Character:GetChildren()) do
 		if v:IsA("Accessory") then 
 			for i, k in pairs(v:GetChildren()) do 
-				if k:IsA("Part") then k.Transparency = num end 
+				if k:IsA("Part") then 
+                    k.Transparency = num 
+                    k.CanCollide = false
+                end 
 			end 
 		end
-		if v:IsA("Part") and v.Name ~= "HumanoidRootPart" then
-			v.Transparency = num
+		if v:IsA("Part") then
+            v.CanCollide = false -- 关闭全身碰撞防止挤压
+			if v.Name ~= "HumanoidRootPart" then
+				v.Transparency = num
+			end
 			if v.Name == "Head" and v:FindFirstChild("face") then 
 				v:FindFirstChild("face").Transparency = num 
 			end
@@ -132,9 +138,7 @@ local TabWood = Window:Tab({ Title = "自动伐木", Icon = "rbxassetid://107349
 
 local isCutting = false
 local targetTree = "Generic"
-local offsetX = 0
-local offsetY = 2.5
-local offsetZ = 3.5
+local woodQty = 1
 
 local tree_list = {
 	"普通木 (Generic)", "幻影木 (LoneCave)", "电木 (Electric)", "胡桃木 (Walnut)", "星木 (Star)", "樱桃木 (Cherry)", "桦木 (Birch)", "冰霜木 (Frost)",
@@ -148,13 +152,15 @@ local function cutTree(wood, tool, secId)
 	local success, mod = pcall(function() return require(RS.AxeClasses[("AxeClass_%s"):format(tool.ToolName.Value)]) end)
 	if success then damage = mod.new().Damage end
     
+    if damage < 5 then damage = damage * 50 end
+    
 	RS.Interaction.RemoteProxy:FireServer(wood.CutEvent, {
 		["tool"] = tool;
         ["faceVector"] = Vector3.zAxis;
         ["height"] = 0.3;
         ["sectionId"] = tonumber(secId); 
         ["hitPoints"] = tonumber(damage); 
-        ["cooldown"] = -0.5;
+        ["cooldown"] = 0;
         ["cuttingClass"] = "Axe";
 	})
 end
@@ -169,15 +175,19 @@ TabWood:Dropdown({
     end
 })
 
-TabWood:Slider({ Title = "X 偏移", Value = { Min = -15, Max = 15, Default = 0 }, Callback = function(v) offsetX = v end })
-TabWood:Slider({ Title = "Y 偏移", Value = { Min = -10, Max = 20, Default = 2.5 }, Callback = function(v) offsetY = v end })
-TabWood:Slider({ Title = "Z 偏移", Value = { Min = -15, Max = 15, Default = 3.5 }, Callback = function(v) offsetZ = v end })
+TabWood:Slider({
+    Title = "砍伐数量",
+    Value = { Min = 1, Max = 50, Default = 1 },
+    Callback = function(val)
+        woodQty = val
+    end
+})
 
 local function resetCuttingState()
     isCutting = false
     toggleInvis(0)
-    if player.Character and player.Character:FindFirstChild("WoodFF") then
-        player.Character.WoodFF:Destroy()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.Anchored = false
     end
 end
 
@@ -201,8 +211,8 @@ if player.Character then
 end
 
 TabWood:Button({
-    Title = "开始真实砍树",
-    Desc = "使用真实抓包代码，配合微调位置",
+    Title = "开始真实砍树 (定身防死)",
+    Desc = "强制锚定身体，绝对不下落不掉血",
     Callback = function()
         if isCutting then return end
         
@@ -219,79 +229,98 @@ TabWood:Button({
         
         isCutting = true
         local oldpos = player.Character.HumanoidRootPart.CFrame
-        
-        local ff = Instance.new("ForceField", player.Character)
-        ff.Name = "WoodFF"
+        local count = 0
         
         task.spawn(function()
-            local targetWood = nil
-            
-            for _, v in next, Workspace:GetDescendants() do
-                if v.Name == "TreeRegion" then
-                    for _, m in next, v:GetChildren() do
-                        if m:FindFirstChild("CutEvent") and not m:FindFirstChild("RootCut") then
-                            if m:FindFirstChild("TreeClass") and m.TreeClass.Value == targetTree then 
-                                if m:FindFirstChild("Owner") and (m.Owner.Value == nil or m.Owner.Value == player) then
-                                    targetWood = m
-                                    break
+            while isCutting and count < woodQty do
+                if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+                    isCutting = false
+                    break
+                end
+                
+                local targetWood = nil
+                for _, v in next, Workspace:GetDescendants() do
+                    if v.Name == "TreeRegion" then
+                        for _, m in next, v:GetChildren() do
+                            if m:FindFirstChild("CutEvent") and not m:FindFirstChild("RootCut") then
+                                if m:FindFirstChild("TreeClass") and m.TreeClass.Value == targetTree then 
+                                    if m:FindFirstChild("Owner") and (m.Owner.Value == nil or m.Owner.Value == player) then
+                                        targetWood = m
+                                        break
+                                    end
                                 end
                             end
                         end
                     end
-                end
-                if targetWood then break end
-            end
-            
-            if targetWood then
-                toggleInvis(1)
-                local woodPart = targetWood:FindFirstChild("WoodSection")
-                local hrp = player.Character.HumanoidRootPart
-                
-                local safePos = woodPart.CFrame + Vector3.new(offsetX, offsetY, offsetZ)
-                Teleport(safePos)
-                
-                if hrp then
-                    hrp.AssemblyLinearVelocity = Vector3.zero
-                    hrp.AssemblyAngularVelocity = Vector3.zero
+                    if targetWood then break end
                 end
                 
-                local timeout = 0
-                while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 100 do
-                    if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-                        isCutting = false
-                        break
+                if targetWood then
+                    toggleInvis(1)
+                    
+                    local baseWood = targetWood:FindFirstChild("WoodSection")
+                    for _, w in pairs(targetWood:GetDescendants()) do
+                        if w.Name == "WoodSection" and w:FindFirstChild("ID") and w.ID.Value == 1 then
+                            baseWood = w
+                            break
+                        end
                     end
                     
-                    local currentTool = player.Character:FindFirstChild("Tool")
-                    if currentTool then
-                        -- 动态抓取真实的 Section ID
-                        local currentSectionId = 1
-                        local ws = targetWood:FindFirstChild("WoodSection")
-                        if ws and ws:FindFirstChild("ID") then
-                            currentSectionId = ws.ID.Value
+                    if baseWood then
+                        local safePos = CFrame.new(baseWood.Position.X + 4, baseWood.Position.Y + 1, baseWood.Position.Z + 4)
+                        Teleport(safePos)
+                        
+                        local hrp = player.Character.HumanoidRootPart
+                        if hrp then
+                            hrp.Anchored = true -- 绝对定身，杜绝任何下落速度
+                            hrp.AssemblyLinearVelocity = Vector3.zero
+                            hrp.AssemblyAngularVelocity = Vector3.zero
                         end
                         
-                        cutTree(targetWood, currentTool, currentSectionId)
-                    end
-                    
-                    task.wait(0.1)
-                    timeout = timeout + 1
-                end
-                
-                if isCutting and targetWood:FindFirstChild("RootCut") then
-                    local Log
-                    for _, b in next, Workspace.LogModels:GetDescendants() do
-                        if b:FindFirstChild("Owner") and b.Owner.Value == player then Log = b end
-                    end
-                    if Log then
-                        for i = 1, 20 do
-                            DragModel(Log, oldpos)
+                        local timeout = 0
+                        while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 100 do
+                            if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+                                isCutting = false
+                                break
+                            end
+                            
+                            local currentTool = player.Character:FindFirstChild("Tool")
+                            if currentTool then
+                                local currentSectionId = 1
+                                local ws = targetWood:FindFirstChild("WoodSection")
+                                if ws and ws:FindFirstChild("ID") then
+                                    currentSectionId = ws.ID.Value
+                                end
+                                cutTree(targetWood, currentTool, currentSectionId)
+                            end
+                            
                             task.wait(0.1)
+                            timeout = timeout + 1
+                        end
+                        
+                        if hrp then
+                            hrp.Anchored = false
+                        end
+                        
+                        if isCutting and targetWood:FindFirstChild("RootCut") then
+                            local Log
+                            for _, b in next, Workspace.LogModels:GetDescendants() do
+                                if b:FindFirstChild("Owner") and b.Owner.Value == player then Log = b end
+                            end
+                            if Log then
+                                for i = 1, 20 do
+                                    DragModel(Log, oldpos)
+                                    task.wait(0.1)
+                                end
+                            end
+                            count = count + 1
                         end
                     end
+                else
+                    WindUI:Notify({ Title = "提示", Content = "未发现目标树木", Duration = 3 })
+                    break
                 end
-            else
-                WindUI:Notify({ Title = "提示", Content = "未发现目标树木", Duration = 3 })
+                task.wait(0.2)
             end
             
             resetCuttingState()
