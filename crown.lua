@@ -1,17 +1,18 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-local RunService = game:GetService("RunService")
-local player = game.Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
-local RS = game:GetService("ReplicatedStorage")
 
 local Window = WindUI:CreateWindow({
-    Title = "木材大亨终极悬空版",
+    Title = "纯辅助工具盒",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 320),
     Transparent = true,
     Theme = "Dark"
 })
+
+local player = game.Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local RS = game:GetService("ReplicatedStorage")
+local Mouse = player:GetMouse()
 
 local function DragModel(m, cf)
 	pcall(function() RS.Interaction.ClientIsDragging:FireServer(m) end)
@@ -22,97 +23,11 @@ local function DragModel(m, cf)
     end
 end
 
-local function toggleGhost(enable)
-    if not player.Character then return end
-    local hum = player.Character:FindFirstChild("Humanoid")
-    for _, v in pairs(player.Character:GetDescendants()) do
-        if v:IsA("BasePart") then
-            if v.Name ~= "HumanoidRootPart" then
-                v.CanCollide = not enable
-            end
-        end
-    end
-    if hum then
-        hum.PlatformStand = enable
-    end
-end
+local TabTP = Window:Tab({ Title = "树木传送", Icon = "rbxassetid://10734945123" })
+local TabItem = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10882439086" })
 
-local function toggleInvis(num)
-	if not player.Character then return end
-	for i, v in pairs(player.Character:GetChildren()) do
-		if v:IsA("Accessory") then 
-			for i, k in pairs(v:GetChildren()) do 
-				if k:IsA("Part") then k.Transparency = num end 
-			end 
-		end
-		if v:IsA("Part") and v.Name ~= "HumanoidRootPart" then
-			v.Transparency = num
-			if v.Name == "Head" and v:FindFirstChild("face") then 
-				v:FindFirstChild("face").Transparency = num 
-			end
-		end
-	end
-end
-
-local TabDrag = Window:Tab({ Title = "完美拖拽", Icon = "rbxassetid://10734898355" })
-local isDragEnabled = false
-local dragConn = nil
-
-local function stopDrag()
-    isDragEnabled = false
-    if dragConn then
-        dragConn:Disconnect()
-        dragConn = nil
-    end
-    WindUI:Notify({ Title = "已停止", Content = "拖拽功能已关闭", Duration = 3 })
-end
-
-local function startDrag()
-    if dragConn then dragConn:Disconnect() end
-    dragConn = Workspace.ChildAdded:Connect(function(obj)
-        if obj.Name == "Dragger" and isDragEnabled then
-            obj.BrickColor = BrickColor.new("Bright green")
-            task.spawn(function()
-                local b = obj:WaitForChild("BodyGyro", 2)
-                local c = obj:WaitForChild("BodyPosition", 2)
-                if not b or not c then return end
-                task.wait(0.1)
-                obj.CanCollide = false
-                obj.CanTouch = false
-                while obj.Parent == Workspace and isDragEnabled do
-                    c.P = 120000; c.D = 1000
-                    c.maxForce = Vector3.new(1, 1, 1) * 1000000
-                    b.MaxTorque = Vector3.new(1, 1, 1) * 200
-                    b.P = 1200; b.D = 140
-                    local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-                    if dragEvent then pcall(function() dragEvent:FireServer() end) end
-                    task.wait()
-                end
-            end)
-        end
-    end)
-end
-
-TabDrag:Toggle({
-    Title = "开启完美拖拽",
-    Desc = "锁定物理拉力，随便飞绝对不掉",
-    Default = false,
-    Callback = function(state)
-        isDragEnabled = state
-        if isDragEnabled then
-            startDrag()
-            WindUI:Notify({ Title = "开启成功", Content = "直接用手抓取物品起飞！", Duration = 3 })
-        else
-            stopDrag()
-        end
-    end
-})
-
-local TabWood = Window:Tab({ Title = "自动伐木", Icon = "rbxassetid://10734945123" })
-
-local isCutting = false
 local targetTree = "Generic"
-local woodQty = 1
+local oldPos = nil
 
 local tree_list = {
 	"普通木 (Generic)", "幻影木 (LoneCave)", "电木 (Electric)", "胡桃木 (Walnut)", "星木 (Star)", "樱桃木 (Cherry)", "桦木 (Birch)", "冰霜木 (Frost)",
@@ -121,23 +36,7 @@ local tree_list = {
 	"沙子木 (Sand)", "松木 (Pine)", "玻璃木 (Glass)", "彩虹木 (Rainbow)", "冰木 (Ice)"
 }
 
-local function cutTree(wood, tool, secId, hVal)
-	local damage = 1
-	local success, mod = pcall(function() return require(RS.AxeClasses[("AxeClass_%s"):format(tool.ToolName.Value)]) end)
-	if success then damage = mod.new().Damage end
-    
-	RS.Interaction.RemoteProxy:FireServer(wood.CutEvent, {
-		["tool"] = tool;
-        ["faceVector"] = Vector3.zAxis;
-        ["height"] = tonumber(hVal); 
-        ["sectionId"] = tonumber(secId);  
-        ["hitPoints"] = tonumber(damage); 
-        ["cooldown"] = 0.01;              
-        ["cuttingClass"] = "Axe";
-	})
-end
-
-TabWood:Dropdown({
+TabTP:Dropdown({
     Title = "选择树木种类",
     Values = tree_list,
     Value = "普通木 (Generic)",
@@ -147,173 +46,143 @@ TabWood:Dropdown({
     end
 })
 
-TabWood:Slider({
-    Title = "砍伐数量",
-    Value = { Min = 1, Max = 50, Default = 1 },
-    Callback = function(val) woodQty = val end
-})
-
-local function resetCuttingState()
-    isCutting = false
-    toggleInvis(0)
-    toggleGhost(false)
-end
-
-player.CharacterAdded:Connect(function(char)
-    local hum = char:WaitForChild("Humanoid")
-    hum.Died:Connect(function()
-        if isCutting then
-            resetCuttingState()
-            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，已自动中断！", Duration = 4 })
-        end
-    end)
-end)
-
-if player.Character then
-    player.Character:WaitForChild("Humanoid").Died:Connect(function()
-        if isCutting then
-            resetCuttingState()
-            WindUI:Notify({ Title = "警告", Content = "检测到角色死亡，已自动中断！", Duration = 4 })
-        end
-    end)
-end
-
-TabWood:Button({
-    Title = "开始终极悬空砍树",
-    Desc = "完美复刻截图，物理锁死，绝对不掉血",
+TabTP:Button({
+    Title = "保存当前位置",
+    Desc = "传送前先点一下这个，方便迷路后传回来",
     Callback = function()
-        if isCutting then return end
-        
-        local tool = player.Character:FindFirstChild("Tool") or player.Backpack:FindFirstChild("Tool") or player.Backpack:FindFirstChildWhichIsA("Tool")
-        if not tool then
-            WindUI:Notify({ Title = "错误", Content = "背包里没有斧头！", Duration = 3 })
-            return
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            oldPos = player.Character.HumanoidRootPart.CFrame
+            WindUI:Notify({ Title = "成功", Content = "已保存当前位置", Duration = 3 })
         end
-        
-        if tool.Parent ~= player.Character then
-            player.Character.Humanoid:EquipTool(tool)
-            task.wait(0.5)
-        end
-        
-        isCutting = true
-        local oldpos = player.Character.HumanoidRootPart.CFrame
-        local count = 0
-        
-        task.spawn(function()
-            while isCutting and count < woodQty do
-                if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-                    isCutting = false
-                    break
-                end
-                
-                local targetWood = nil
-                for _, v in next, Workspace:GetDescendants() do
-                    if v.Name == "TreeRegion" then
-                        for _, m in next, v:GetChildren() do
-                            if m:FindFirstChild("CutEvent") and not m:FindFirstChild("RootCut") then
-                                if m:FindFirstChild("TreeClass") and m.TreeClass.Value == targetTree then 
-                                    if m:FindFirstChild("Owner") and (m.Owner.Value == nil or m.Owner.Value == player) then
-                                        targetWood = m
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    if targetWood then break end
-                end
-                
-                if targetWood then
-                    toggleInvis(1)
-                    toggleGhost(true) -- 幽灵模式，断掉一切碰撞
-                    
-                    local baseWood = targetWood:FindFirstChild("WoodSection")
-                    local targetId = 1
-                    local hVal = 0.225
-                    
-                    for _, w in pairs(targetWood:GetDescendants()) do
-                        if w.Name == "WoodSection" and w:FindFirstChild("ID") then
-                            if w.ID.Value == 1 then
-                                baseWood = w
-                                targetId = 1
-                                hVal = w.Size.Y / 2 
-                                break
-                            else
-                                baseWood = w
-                                targetId = w.ID.Value
-                                hVal = w.Size.Y / 2
-                            end
-                        end
-                    end
-                    
-                    if baseWood then
-                        -- 精确贴脸位置
-                        local safeCFrame = baseWood.CFrame * CFrame.new(0, 1.5, -2.5)
-                        local hrp = player.Character.HumanoidRootPart
-                        
-                        -- 核心魔法：开启渲染帧循环，把角色死死焊在半空
-                        local lockConnection
-                        lockConnection = RunService.Stepped:Connect(function()
-                            if hrp and hrp.Parent then
-                                hrp.CFrame = safeCFrame
-                                hrp.AssemblyLinearVelocity = Vector3.zero
-                                hrp.AssemblyAngularVelocity = Vector3.zero
-                            end
-                        end)
-                        
-                        local timeout = 0
-                        while isCutting and not targetWood:FindFirstChild("RootCut") and timeout < 100 do
-                            if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-                                isCutting = false
-                                break
-                            end
-                            
-                            local currentTool = player.Character:FindFirstChild("Tool")
-                            if currentTool then
-                                cutTree(targetWood, currentTool, targetId, hVal)
-                            end
-                            
-                            task.wait(0.1)
-                            timeout = timeout + 1
-                        end
-                        
-                        -- 解除位置锁定
-                        lockConnection:Disconnect()
-                        
-                        if isCutting and targetWood:FindFirstChild("RootCut") then
-                            local Log
-                            for _, b in next, Workspace.LogModels:GetDescendants() do
-                                if b:FindFirstChild("Owner") and b.Owner.Value == player then Log = b end
-                            end
-                            if Log then
-                                for i = 1, 20 do
-                                    DragModel(Log, oldpos)
-                                    task.wait(0.1)
-                                end
-                            end
-                            count = count + 1
-                        end
-                    end
-                else
-                    WindUI:Notify({ Title = "提示", Content = "未发现目标树木", Duration = 3 })
-                    break
-                end
-                task.wait(0.2)
-            end
-            
-            resetCuttingState()
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
-                player.Character.HumanoidRootPart.CFrame = oldpos
-            end
-        end)
     end
 })
 
-TabWood:Button({
-    Title = "停止",
-    Desc = "强行中断",
+TabTP:Button({
+    Title = "传送到树旁",
+    Desc = "安全传送到树旁边的空地上，绝对不会卡树",
     Callback = function()
-        resetCuttingState()
-        WindUI:Notify({ Title = "已停止", Content = "已中断", Duration = 3 })
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local targetWood = nil
+        for _, v in next, Workspace:GetDescendants() do
+            if v.Name == "TreeRegion" then
+                for _, m in next, v:GetChildren() do
+                    if m:FindFirstChild("CutEvent") and not m:FindFirstChild("RootCut") then
+                        if m:FindFirstChild("TreeClass") and m.TreeClass.Value == targetTree then 
+                            if m:FindFirstChild("Owner") and (m.Owner.Value == nil or m.Owner.Value == player) then
+                                targetWood = m
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            if targetWood then break end
+        end
+        
+        if targetWood then
+            local baseWood = targetWood:FindFirstChild("WoodSection")
+            if baseWood then
+                local safePos = baseWood.CFrame + Vector3.new(0, 2.5, 3.5)
+                player.Character.HumanoidRootPart.CFrame = safePos
+                WindUI:Notify({ Title = "传送成功", Content = "请手动挥动斧头砍树", Duration = 3 })
+            else
+                WindUI:Notify({ Title = "提示", Content = "找不到树干部分", Duration = 3 })
+            end
+        else
+            WindUI:Notify({ Title = "错误", Content = "附近没有找到这种树", Duration = 3 })
+        end
+    end
+})
+
+TabTP:Button({
+    Title = "传送回原点",
+    Desc = "回到你之前保存的安全位置",
+    Callback = function()
+        if oldPos and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = oldPos
+            WindUI:Notify({ Title = "传送成功", Content = "已回到原点", Duration = 3 })
+        else
+            WindUI:Notify({ Title = "错误", Content = "你还没有保存位置", Duration = 3 })
+        end
+    end
+})
+
+TabItem:Button({
+    Title = "设置传送点位",
+    Desc = "在你的脚下生成一个隐形的拉回点",
+    Callback = function()
+        if Workspace:FindFirstChild("BRING") then
+            Workspace.BRING:Destroy()
+        end
+        local p = Instance.new("Part", Workspace)
+        p.Name = "BRING"
+        p.Transparency = 1
+        p.Anchored = true
+        p.CFrame = player.Character.HumanoidRootPart.CFrame
+        p.CanCollide = false
+        p.Size = player.Character.HumanoidRootPart.Size
+        
+        local posBox = Instance.new("SelectionBox", p)
+        posBox.Name = "BRINGBOX"
+        posBox.Color3 = Color3.new(0, 255, 0)
+        posBox.Adornee = posBox.Parent
+        WindUI:Notify({ Title = "设置成功", Content = "传送点位已设置在你的脚下", Duration = 3 })
+    end
+})
+
+TabItem:Button({
+    Title = "删除传送点位",
+    Desc = "移除当前设置的拉回点",
+    Callback = function()
+        if Workspace:FindFirstChild("BRING") then
+            Workspace.BRING:Destroy()
+            WindUI:Notify({ Title = "删除成功", Content = "传送点位已移除", Duration = 3 })
+        else
+            WindUI:Notify({ Title = "提示", Content = "当前没有设置点位", Duration = 3 })
+        end
+    end
+})
+
+TabItem:Button({
+    Title = "获取点击传送工具",
+    Desc = "拿在手上，点击任何掉落物或模型即可拉回点位",
+    Callback = function()
+        if player.Backpack:FindFirstChild("点击传送任何物品") or player.Character:FindFirstChild("点击传送任何物品") then
+            player.Backpack["点击传送任何物品"]:Destroy()
+        end;
+        local a = Instance.new("Tool", player.Backpack)
+        a.Name = "点击传送任何物品"
+        a.RequiresHandle = false;
+        a.Activated:Connect(function()
+            if Workspace:FindFirstChild("BRING") then
+                local b = Workspace.BRING.CFrame;
+                local c = Mouse.Target
+                if c then
+                    c = c.Parent
+                else
+                    return
+                end
+                
+                if c:FindFirstChild("TreeClass") or c.Name == "Plank" or c:FindFirstChild("Type") then
+                    if c:FindFirstChild("Owner") then
+                        local e = c:FindFirstChildOfClass("Part")
+                        pcall(function()
+                            player.Character:MoveTo(e.CFrame.p)
+                        end)
+                        c.PrimaryPart = e;
+                        for f = 1, 60 do
+                            c.PrimaryPart.Velocity = Vector3.new(0, 0, 0)
+                            RS.Interaction.ClientIsDragging:FireServer(c)
+                            c:PivotTo(b)
+                            task.wait(0.01)
+                        end
+                    end
+                end
+            else
+                WindUI:Notify({ Title = "错误", Content = "请先设置传送点位！", Duration = 3 })
+            end
+        end)
+        WindUI:Notify({ Title = "获取成功", Content = "工具已发放至背包", Duration = 3 })
     end
 })
