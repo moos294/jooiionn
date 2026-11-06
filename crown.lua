@@ -1,86 +1,72 @@
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-
-local Window = WindUI:CreateWindow({
-    Title = "第一版完美强化",
-    Icon = "rbxassetid://10882439086",
-    Author = "Bypass",
-    Size = UDim2.fromOffset(400, 300),
-    Transparent = true,
-    Theme = "Dark"
-})
-
-local Tab = Window:Tab({ Title = "拖拽控制", Icon = "rbxassetid://10734898355" })
 local player = game.Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
 local RS = game:GetService("ReplicatedStorage")
 
-local dragConnection = nil
-local isHooked = false
+local isEnabled = false
+local dragConn = nil
 
-local function enableSuperDrag()
-    if dragConnection then dragConnection:Disconnect() end
-    
-    dragConnection = Workspace.ChildAdded:Connect(function(obj)
-        if obj.Name == "Dragger" and isHooked then
-            obj.BrickColor = BrickColor.new("Bright green")
-            
-            task.spawn(function()
-                local b = obj:WaitForChild("BodyGyro", 2)
-                local c = obj:WaitForChild("BodyPosition", 2)
-                if not b or not c then return end
+if game.CoreGui:FindFirstChild("SuperDragUI") then game.CoreGui.SuperDragUI:Destroy() end
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "SuperDragUI"
+
+local btn = Instance.new("TextButton", gui)
+btn.Size = UDim2.new(0, 130, 0, 40)
+btn.Position = UDim2.new(0, 20, 0.5, 0)
+btn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn.Text = "原版拖拽: 关"
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 14
+btn.Draggable = true
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+btn.MouseButton1Click:Connect(function()
+    isEnabled = not isEnabled
+    if isEnabled then
+        btn.Text = "原版拖拽: 开"
+        btn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        
+        if dragConn then dragConn:Disconnect() end
+        dragConn = Workspace.ChildAdded:Connect(function(obj)
+            if obj.Name == "Dragger" and isEnabled then
+                obj.BrickColor = BrickColor.new("Bright green")
                 
-                local char = player.Character
-                
-                while obj.Parent == Workspace and isHooked do
-                    RunService.Heartbeat:Wait()
+                task.spawn(function()
+                    local b = obj:WaitForChild("BodyGyro", 2)
+                    local c = obj:WaitForChild("BodyPosition", 2)
+                    if not b or not c then return end
                     
-                    c.P = math.huge
-                    c.D = 10000
-                    c.maxForce = Vector3.new(math.huge, math.huge, math.huge)
-                    b.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                    b.P = math.huge
-                    b.D = 10000
+                    -- 核心修复 1：等待0.1秒，等引擎把 Weld 焊接完，绝不报 Weld is locked 错误！
+                    task.wait(0.1)
                     
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        c.Position = hrp.Position + Vector3.new(0, 8, 0)
+                    -- 核心修复 2：关闭隐形球的碰撞和触碰，这样飞的时候就算刮到你的脚，也绝对不会强行断开！
+                    obj.CanCollide = false
+                    obj.CanTouch = false
+                    
+                    while obj.Parent == Workspace and isEnabled do
+                        -- 核心修复 3：完美复刻原版参数，绝不用 math.huge 挤爆引擎
+                        c.P = 120000
+                        c.D = 1000
+                        c.maxForce = Vector3.new(1, 1, 1) * 1000000
                         
+                        b.MaxTorque = Vector3.new(1, 1, 1) * 200
+                        b.P = 1200
+                        b.D = 140
+                        
+                        -- 狂发合法拖拽包，防止服务器拉回
                         local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
                         if dragEvent then
-                            for i = 1, 3 do
-                                pcall(function() dragEvent:FireServer() end)
-                            end
+                            pcall(function() dragEvent:FireServer() end)
                         end
+                        
+                        task.wait()
                     end
-                end
-            end)
-        end
-    end)
-    
-    WindUI:Notify({ Title = "开启成功", Content = "第一版完美逻辑，随便飞绝不掉！", Duration = 5 })
-end
-
-local function disableSuperDrag()
-    isHooked = false
-    if dragConnection then
-        dragConnection:Disconnect()
-        dragConnection = nil
+                end)
+            end
+        end)
+    else
+        btn.Text = "原版拖拽: 关"
+        btn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        if dragConn then dragConn:Disconnect() dragConn = nil end
     end
-    WindUI:Notify({ Title = "已关闭", Content = "拖拽已停止", Duration = 3 })
-end
-
-Tab:Toggle({
-    Title = "开启无敌拖拽",
-    Desc = "锁定头顶8格，无视任何拉回",
-    Default = false,
-    Callback = function(state)
-        isHooked = state
-        if isHooked then enableSuperDrag() else disableSuperDrag() end
-    end
-})
-
-Tab:Button({
-    Title = "强制关闭",
-    Callback = function() disableSuperDrag() end
-})
+end)
