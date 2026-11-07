@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v0.1",
+    Title = "封存木材 v0.6",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -108,7 +108,7 @@ TabBuy:Slider({
 
 TabBuy:Button({
     Title = "开始购买神秘箱子",
-    Desc = "死磕柜台判定，自动获取动态ID",
+    Desc = "全自动试错，无需填参数",
     Callback = function()
         local startMoney = GetMoney()
         local totalPrice = cratePrice * buyAmount
@@ -169,15 +169,18 @@ TabBuy:Button({
             for i = 1, buyAmount do
                 WindUI:Notify({ Title = "购买中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
                 
-                for j = 1, 15 do
-                    pcall(function() RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, 2) end)
+                local boxCF = targetCounter.CFrame + Vector3.new(0, 1, 0)
+                
+                -- 自动暴力尝试参数 1 到 10 来拖拽展示盒
+                for param = 1, 10 do
+                    pcall(function() RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, param) end)
                     if targetBox.PrimaryPart then
-                        targetBox:SetPrimaryPartCFrame(targetCounter.CFrame)
+                        targetBox:SetPrimaryPartCFrame(boxCF)
                     end
-                    task.wait(0.05)
+                    task.wait(0.02)
                 end
                 
-                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 5, 0)
+                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 3, 3)
                 task.wait(0.5)
                 
                 local expectedMoney = GetMoney()
@@ -191,12 +194,11 @@ TabBuy:Button({
                     end
                 end)
                 
-                WindUI:Notify({ Title = "系统ID", Content = "当前获取到的 ID: " .. tostring(dynamicID), Duration = 3 })
-                
                 task.wait(0.1)
                 pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
                 task.wait(0.1)
                 
+                -- 尝试发送购买包
                 task.spawn(function()
                     pcall(function()
                         local args = {
@@ -234,18 +236,20 @@ TabBuy:Button({
                     end
                     
                     if boughtItemModel then
-                        for j = 1, 30 do
+                        WindUI:Notify({ Title = "拖回", Content = "找到新箱子，正在自动拖回...", Duration = 2 })
+                        -- 自动暴力尝试参数 1 到 10 来拖拽新箱子
+                        for param = 1, 10 do
                             pcall(function() 
-                                RS.Interaction.ClientIsDragging:FireServer("Refresh", boughtItemModel, 2) 
+                                RS.Interaction.ClientIsDragging:FireServer("Refresh", boughtItemModel, param) 
                             end)
                             if boughtItemModel.PrimaryPart then
                                 boughtItemModel:SetPrimaryPartCFrame(oldpos + Vector3.new(0, 3, 0))
                             end
-                            task.wait(0.05)
+                            task.wait(0.02)
                         end
                     end
                 else
-                    WindUI:Notify({ Title = "购买失败", Content = "未能扣除金钱，请再次点击测试", Duration = 4 })
+                    WindUI:Notify({ Title = "购买失败", Content = "未能扣除金钱，请再次点击", Duration = 4 })
                     break
                 end
             end
