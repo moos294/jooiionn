@@ -1,7 +1,36 @@
+local player = game.Players.LocalPlayer
+local WhitelistURL = "https://raw.githubusercontent.com/moos294/jooiionn/main/whitelist.txt" 
+
+local function CheckWhitelist()
+    local success, response = pcall(function()
+        return game:HttpGet(WhitelistURL)
+    end)
+    
+    if not success or not response then
+        return false
+    end
+    
+    if string.find(response, player.Name) or string.find(response, tostring(player.UserId)) then
+        return true
+    end
+    
+    return false
+end
+
+local isWhitelisted = CheckWhitelist()
+if not isWhitelisted then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "系统提示",
+        Text = "你并没有白名单无法用此脚本",
+        Duration = 5
+    })
+    return 
+end
+
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "木材大亨全能版",
+    Title = "封存木材",
     Icon = "rbxassetid://10882439086",
     Author = "Bypass",
     Size = UDim2.fromOffset(420, 360),
@@ -9,12 +38,10 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
-local player = game.Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local RS = game:GetService("ReplicatedStorage")
 local Mouse = player:GetMouse()
 
--- 完美融合 Begin 和 Refresh 的拖拽欺骗
 local function DragModel(m, cf)
 	pcall(function() 
         RS.Interaction.ClientIsDragging:FireServer("Begin", m, 4) 
@@ -28,7 +55,6 @@ local function DragModel(m, cf)
     end
 end
 
--- 页面 1：安全传送砍树
 local TabTP = Window:Tab({ Title = "安全传送", Icon = "rbxassetid://10734945123" })
 local targetTree = "Generic"
 local oldPos = nil
@@ -89,12 +115,12 @@ TabTP:Button({
             if baseWood then
                 local safePos = baseWood.CFrame + Vector3.new(0, 2.5, 3.5)
                 player.Character.HumanoidRootPart.CFrame = safePos
-                WindUI:Notify({ Title = "传送成功", Content = "请手动挥动斧头砍树", Duration = 3 })
+                WindUI:Notify({ Title = "传送成功", Content = "已传送完成", Duration = 3 })
             else
                 WindUI:Notify({ Title = "提示", Content = "找不到树干部分", Duration = 3 })
             end
         else
-            WindUI:Notify({ Title = "错误", Content = "附近没有找到这种树", Duration = 3 })
+            WindUI:Notify({ Title = "错误", Content = "并没有这种树", Duration = 3 })
         end
     end
 })
@@ -111,8 +137,6 @@ TabTP:Button({
     end
 })
 
-
--- 页面 2：安全传送物品
 local TabItem = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10882439086" })
 
 TabItem:Button({
@@ -158,12 +182,72 @@ TabItem:Button({
                         DragModel(targetModel, targetCFrame)
                         task.wait(0.02)
                     end
-                    WindUI:Notify({ Title = "传送成功", Content = "物品已锁死在点位", Duration = 3 })
+                    WindUI:Notify({ Title = "传送成功", Content = "传送成功", Duration = 3 })
                 end
             else
                 WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位！", Duration = 3 })
             end
         end)
         WindUI:Notify({ Title = "成功", Content = "工具已放入背包", Duration = 3 })
+    end
+})
+
+local TabDrag = Window:Tab({ Title = "完美拖拽", Icon = "rbxassetid://10734898355" })
+local isDragEnabled = false
+local dragConn = nil
+
+local function stopDrag()
+    isDragEnabled = false
+    if dragConn then
+        dragConn:Disconnect()
+        dragConn = nil
+    end
+    WindUI:Notify({ Title = "已停止", Content = "拖拽功能已关闭", Duration = 3 })
+end
+
+local function startDrag()
+    if dragConn then dragConn:Disconnect() end
+    dragConn = Workspace.ChildAdded:Connect(function(obj)
+        if obj.Name == "Dragger" and isDragEnabled then
+            obj.BrickColor = BrickColor.new("Bright green")
+            task.spawn(function()
+                local b = obj:WaitForChild("BodyGyro", 2)
+                local c = obj:WaitForChild("BodyPosition", 2)
+                if not b or not c then return end
+                task.wait(0.1)
+                obj.CanCollide = false
+                obj.CanTouch = false
+                while obj.Parent == Workspace and isDragEnabled do
+                    c.P = 120000; c.D = 1000; c.maxForce = Vector3.new(1, 1, 1) * 1000000
+                    b.MaxTorque = Vector3.new(1, 1, 1) * 200; b.P = 1200; b.D = 140
+                    task.wait()
+                end
+            end)
+        end
+    end)
+end
+
+TabDrag:Toggle({
+    Title = "开启拖拽器",
+    Desc = "锁定物理拉力，随便飞绝对不掉",
+    Default = false,
+    Callback = function(state)
+        isDragEnabled = state
+        if isDragEnabled then
+            startDrag()
+            WindUI:Notify({ Title = "开启成功", Content = "直接用手抓取物品起飞！", Duration = 3 })
+        else
+            stopDrag()
+        end
+    end
+})
+
+TabDrag:Button({
+    Title = "强制关闭拖拽",
+    Desc = "如果遇到卡顿，点此强行断开",
+    Callback = function()
+        stopDrag()
+        local toggleObj = Window:GetToggle("开启完美拖拽")
+        if toggleObj then toggleObj:Set(false) end
     end
 })
