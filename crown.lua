@@ -22,28 +22,21 @@ end
 
 game:GetService("StarterGui"):SetCore("SendNotification", {Title = "验证成功", Text = "欢迎尊贵的白名单使用此脚本", Duration = 5})
 
+local isDragEnabled = false
+local dragConn = nil
+
 local function CleanupAll()
     isDragEnabled = false
-    if dragConn then
-        dragConn:Disconnect()
-        dragConn = nil
-    end
-
+    if dragConn then dragConn:Disconnect() dragConn = nil end
     for i = 1, 3 do
         local bringPoint = Workspace:FindFirstChild("BRING"..i)
         if bringPoint then bringPoint:Destroy() end
     end
-
     local backpack = player:FindFirstChild("Backpack")
-    if backpack and backpack:FindFirstChild("点击传送") then
-        backpack["点击传送"]:Destroy()
-    end
+    if backpack and backpack:FindFirstChild("点击传送") then backpack["点击传送"]:Destroy() end
     local char = player.Character
-    if char and char:FindFirstChild("点击传送") then
-        char["点击传送"]:Destroy()
-    end
-
-    local oldGui = CoreGui:FindFirstChild("封存木材")
+    if char and char:FindFirstChild("点击传送") then char["点击传送"]:Destroy() end
+    local oldGui = CoreGui:FindFirstChild("封存木材1.2")
     if oldGui then oldGui:Destroy() end
 end
 
@@ -54,8 +47,8 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "作者:封存NB 0.2",
-    Size = UDim2.fromOffset(420, 360),
+    Author = "封存NB",
+    Size = UDim2.fromOffset(420, 420),
     Transparent = true,
     Theme = "Dark"
 })
@@ -71,6 +64,214 @@ local function DragModel(m, cf)
         m:SetPrimaryPartCFrame(cf) 
     end
 end
+
+local function GetMoney()
+    local stats = player:FindFirstChild("leaderstats")
+    if stats then
+        for _, v in pairs(stats:GetChildren()) do
+            if v.Name == "Money" or v.Name == "Cash" or v.Name == "Gold" then
+                return v.Value
+            end
+        end
+    end
+    return 0 
+end
+
+local TabBuy = Window:Tab({ Title = "万能购买", Icon = "rbxassetid://10734945123" })
+local itemMap = {}
+local buyAmount = 1
+local selectedItemEN = ""
+
+local TranslationMap = {
+    ["SeaSide"]="海边商店", ["VIPSHOP"]="VIP商店", ["MountainSide"]="山边商店", ["BlackMarket"]="黑市",
+    ["LogicStore"]="逻辑商店", ["FineArt"]="艺术品商店", ["FineFinds"]="寻宝商店", ["FurnitureStore"]="家具店",
+    ["SaplingCart"]="树苗车", ["PlanterStore"]="种植商店", ["CarStore"]="汽车店", ["WoodRUs"]="木材反斗城",
+    ["SallysSeasonal"]="莎莉商店", ["StoneRUs"]="石头反斗城", ["Igloo"]="冰屋", ["MusicStore"]="音乐商店",
+    ["BasicHatchet"]="基础斧头", ["SilverAxe"]="银斧头", ["EndTimesAxe"]="末世斧", ["Chainsaw"]="电锯",
+    ["OffRoadTruck"]="越野卡车", ["UtilityTruck"]="多用途运载车", ["Pickup1"]="皮卡1", ["Pickup2"]="皮卡2",
+    ["Painting1"]="画作1", ["Painting2"]="画作2", ["Wall1"]="矮波纹墙", ["Floor1"]="地板",
+    ["Sawmill"]="破旧锯木厂", ["Sawmill2"]="普通锯木厂", ["Wire"]="电线", ["Button0"]="按钮"
+}
+
+local npcIDs = {
+    ["Thom"] = 7, ["Corey"] = 8, ["Jenny"] = 9, ["Bob"] = 10, ["Timothy"] = 11, 
+    ["Lincoln"] = 12, ["Ruhven"] = 1, ["Seranok"] = 14, ["Hoover"] = 15, ["Manachron"] = 20
+}
+
+local function ScanShops()
+    itemMap = {}
+    local tempList = {}
+    
+    for _, v in next, Workspace:GetDescendants() do
+        if v.Name == "ShopItems" then
+            local storeFolder = v.Parent
+            local npcModel = nil
+            local counter = storeFolder:FindFirstChild("Counter") or storeFolder:FindFirstChild("counter")
+            
+            for _, child in next, storeFolder:GetChildren() do
+                if child:IsA("Model") and child:FindFirstChild("Dialog") then
+                    npcModel = child break
+                end
+            end
+            
+            if npcModel and counter then
+                local storeNameCN = TranslationMap[storeFolder.Name] or storeFolder.Name
+                for _, box in next, v:GetChildren() do
+                    if box:FindFirstChild("BoxItemName") then
+                        local bName = box.BoxItemName.Value
+                        local bNameCN = TranslationMap[bName] or bName
+                        local displayName = "[" .. storeNameCN .. "] " .. bNameCN
+                        
+                        local price = 0
+                        for _, val in pairs(box:GetChildren()) do
+                            if val:IsA("NumberValue") or val:IsA("IntValue") or val:IsA("StringValue") then
+                                if val.Name == "Price" or val.Name == "BoxItemPrice" or val.Name == "Cost" then
+                                    price = tonumber(val.Value) or 0
+                                    break
+                                end
+                            end
+                        end
+                        
+                        if not itemMap[displayName] then
+                            itemMap[displayName] = {
+                                Box = box,
+                                Counter = counter,
+                                NPC = npcModel,
+                                NPCName = npcModel.Name,
+                                ItemEN = bName,
+                                Price = price
+                            }
+                            table.insert(tempList, displayName)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    table.sort(tempList)
+    return tempList
+end
+
+local PriceLabel = TabBuy:Paragraph({
+    Title = "价格预览",
+    Desc = "请选择物品",
+    Color = Color3.fromRGB(255, 200, 0)
+})
+
+local BuyDropdown = TabBuy:Dropdown({
+    Title = "选择要购买的物品",
+    Values = {"加载中..."},
+    Value = "加载中...",
+    Callback = function(opt) 
+        selectedItemEN = opt 
+        local data = itemMap[opt]
+        if data then
+            local total = data.Price * buyAmount
+            PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", data.Price, buyAmount, total, GetMoney()))
+        end
+    end
+})
+
+TabBuy:Slider({
+    Title = "购买数量 (上限30)",
+    Value = { Min = 1, Max = 30, Default = 1 },
+    Callback = function(val)
+        buyAmount = val
+        local data = itemMap[selectedItemEN]
+        if data then
+            local total = data.Price * buyAmount
+            PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", data.Price, buyAmount, total, GetMoney()))
+        end
+    end
+})
+
+task.spawn(function()
+    local list = ScanShops()
+    if #list > 0 then
+        BuyDropdown:Refresh(list)
+        BuyDropdown:SetValue(list[1])
+        selectedItemEN = list[1]
+        local data = itemMap[list[1]]
+        PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", data.Price, buyAmount, data.Price * buyAmount, GetMoney()))
+    end
+end)
+
+TabBuy:Button({
+    Title = "开始批量购买",
+    Desc = "自动校验余额，不够立刻停止",
+    Callback = function()
+        if not selectedItemEN or selectedItemEN == "加载中..." then return end
+        local data = itemMap[selectedItemEN]
+        if not data then return end
+        
+        local unitPrice = data.Price
+        local totalPrice = unitPrice * buyAmount
+        local currentMoney = GetMoney()
+        
+        if currentMoney < totalPrice then
+            WindUI:Notify({ Title = "余额不足", Content = "你的钱不够！需要 " .. totalPrice .. "，你只有 " .. currentMoney, Duration = 5 })
+            return
+        end
+        
+        local box = data.Box
+        local counter = data.Counter
+        local npc = data.NPC
+        local npcID = npcIDs[data.NPCName] or 20 
+        local oldpos = player.Character.HumanoidRootPart.CFrame
+        
+        task.spawn(function()
+            local successCount = 0
+            for i = 1, buyAmount do
+                if GetMoney() < unitPrice then
+                    WindUI:Notify({ Title = "中断", Content = "余额不足，已停止购买", Duration = 4 })
+                    break
+                end
+                
+                WindUI:Notify({ Title = "搬运中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
+                
+                if box:FindFirstChild("Main") then
+                    player.Character.HumanoidRootPart.CFrame = box.Main.CFrame + Vector3.new(0, 1, 5)
+                end
+                
+                local t = 0
+                repeat
+                    DragModel(box, counter.CFrame + Vector3.new(0, 1, 0))
+                    task.wait(0.05)
+                    t = t + 0.05
+                until (box:FindFirstChild("Main") and (box.Main.Position - counter.Position).Magnitude < 6) or t > 3
+                
+                if npc:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = npc.HumanoidRootPart.CFrame + Vector3.new(0, 1, 5)
+                end
+                task.wait(0.2)
+                
+                local args = {
+                    {
+                        ID = npcID,
+                        Character = npc,
+                        Name = npc.Name,
+                        Dialog = npc:FindFirstChild("Dialog")
+                    },
+                    "ConfirmPurchase"
+                }
+                pcall(function()
+                    RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
+                end)
+                task.wait(0.5)
+                
+                for j = 1, 15 do
+                    DragModel(box, oldpos)
+                    task.wait(0.02)
+                end
+                successCount = successCount + 1
+            end
+            
+            WindUI:Notify({ Title = "完成", Content = "成功购买并拉回 " .. successCount .. " 个物品", Duration = 4 })
+            player.Character.HumanoidRootPart.CFrame = oldpos
+            PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", unitPrice, buyAmount, unitPrice * buyAmount, GetMoney()))
+        end)
+    end
+})
 
 local TabTP = Window:Tab({ Title = "安全传送", Icon = "rbxassetid://10734945123" })
 local targetTree = "Generic"
@@ -236,17 +437,11 @@ end
 
 TabServer:Button({
     Title = "重进当前服务器",
-    Desc = "快速重连当前服务器",
-    Callback = function()
-        pcall(function()
-            TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-        end)
-    end
+    Callback = function() pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player) end) end
 })
 
 TabServer:Button({
     Title = "指定服务器换服",
-    Desc = "需在上方填写 PlaceId，精准抓取新服",
     Callback = function()
         local id = tonumber(targetPlaceId)
         if id then
@@ -265,7 +460,6 @@ TabServer:Button({
 
 TabServer:Button({
     Title = "随机换服",
-    Desc = "使用官方API获取真实JobId，秒进",
     Callback = function()
         local servers = getServerList(game.PlaceId)
         if #servers > 0 then
@@ -278,15 +472,10 @@ TabServer:Button({
 })
 
 local TabExtra = Window:Tab({ Title = "其他功能", Icon = "rbxassetid://10882439086" })
-local isDragEnabled = false
-local dragConn = nil
 
 local function stopDrag()
     isDragEnabled = false
-    if dragConn then
-        dragConn:Disconnect()
-        dragConn = nil
-    end
+    if dragConn then dragConn:Disconnect() dragConn = nil end
     WindUI:Notify({ Title = "已停止", Content = "拖拽功能已关闭", Duration = 3 })
 end
 
@@ -295,31 +484,16 @@ local function startDrag()
     dragConn = Workspace.ChildAdded:Connect(function(obj)
         if obj.Name == "Dragger" and isDragEnabled then
             obj.BrickColor = BrickColor.new("Bright green")
-            
             task.spawn(function()
                 local b = obj:WaitForChild("BodyGyro", 2)
                 local c = obj:WaitForChild("BodyPosition", 2)
                 if not b or not c then return end
-                
                 task.wait(0.1)
-                
                 obj.CanCollide = false
                 obj.CanTouch = false
-                
                 while obj.Parent == Workspace and isDragEnabled do
-                    c.P = 120000
-                    c.D = 1000
-                    c.maxForce = Vector3.new(1, 1, 1) * 1000000
-                    
-                    b.MaxTorque = Vector3.new(1, 1, 1) * 200
-                    b.P = 1200
-                    b.D = 140
-                    
-                    local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-                    if dragEvent then
-                        pcall(function() dragEvent:FireServer() end)
-                    end
-                    
+                    c.P = 120000; c.D = 1000; c.maxForce = Vector3.new(1, 1, 1) * 1000000
+                    b.MaxTorque = Vector3.new(1, 1, 1) * 200; b.P = 1200; b.D = 140
                     task.wait()
                 end
             end)
@@ -344,7 +518,6 @@ TabExtra:Toggle({
 
 TabExtra:Button({
     Title = "强制关闭并释放物品",
-    Desc = "如果遇到卡顿，点此强行断开",
     Callback = function()
         stopDrag()
         local toggleObj = Window:GetToggle("开启拖拽器")
@@ -364,7 +537,6 @@ TabExtra:Button({
 
 TabExtra:Button({
     Title = "彻底关闭并清理缓存",
-    Desc = "关闭UI并清除所有残留工具与点位",
     Callback = function()
         CleanupAll()
     end
