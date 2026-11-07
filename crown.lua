@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v7.1",
+    Title = "封存木材 v8.3",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -233,7 +233,7 @@ end)
 
 TabBuy:Button({
     Title = "开始购买",
-    Desc = "补齐物理拖拽包，强制确认所有权",
+    Desc = "双包死循环，没确认所有权前绝不松口",
     Callback = function()
         if not selectedShopEN or not selectedItemEN then 
             WindUI:Notify({ Title = "错误", Content = "请先选择商店和物品！", Duration = 3 })
@@ -291,28 +291,25 @@ TabBuy:Button({
                 
                 local t = 0
                 repeat
-                    DragModel(targetBox, targetCounter.CFrame + Vector3.new(0, 1, 0))
+                    DragModel(targetBox, targetCounter.CFrame + Vector3.new(0, 0.6, 0))
                     if targetBox:FindFirstChild("Main") then
-                        player.Character.HumanoidRootPart.CFrame = targetBox.Main.CFrame + Vector3.new(0, 1, 3)
+                        player.Character.HumanoidRootPart.CFrame = targetBox.Main.CFrame + Vector3.new(0, 1, 5)
                     end
-                    task.wait(0.05)
-                    t = t + 0.05
-                until (targetBox:FindFirstChild("Main") and (targetBox.Main.Position - targetCounter.Position).Magnitude < 6) or t > 3
+                    task.wait(0.1)
+                    t = t + 0.1
+                until (targetBox:FindFirstChild("Main") and (targetBox.Main.Position - targetCounter.Position).Magnitude < 5) or t > 3
                 
-                if targetCounter then
-                    player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 3, 5)
-                end
-                task.wait(0.4)
+                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 5, 5)
+                task.wait(0.5)
                 
                 local buySuccess = false
                 local buyTimeout = 0
                 
-                -- 核心：还原原版双包连发逻辑
-                while not buySuccess and buyTimeout < 5 do
+                while not buySuccess and buyTimeout < 3 do
                     pcall(function()
-                        -- 1. 发送物品拖拽状态包（告诉服务器物品在柜台上，我抓着）
-                        RS.Interaction.ClientIsDragging:FireServer(targetBox)
-                        -- 2. 发送购买确认包
+                        RS.Interaction.ClientIsDragging:FireServer("Begin", targetBox, 4)
+                        RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, 5)
+                        
                         RS.NPCDialog.PlayerChatted:InvokeServer(
                             {
                                 ID = currentNpcID,
@@ -324,19 +321,24 @@ TabBuy:Button({
                         )
                     end)
                     
-                    task.wait(0.3)
-                    buyTimeout = buyTimeout + 0.3
+                    task.wait(0.15)
+                    buyTimeout = buyTimeout + 0.15
                     
-                    -- 检查所有权
                     if targetBox:FindFirstChild("Owner") and targetBox.Owner.Value == player then
                         buySuccess = true
                     end
                 end
                 
                 if buySuccess then
-                    for j = 1, 15 do
-                        DragModel(targetBox, oldpos)
-                        task.wait(0.02)
+                    for j = 1, 30 do
+                        pcall(function() 
+                            RS.Interaction.ClientIsDragging:FireServer("Begin", targetBox, 4) 
+                            RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, 5)
+                        end)
+                        if targetBox.PrimaryPart then
+                            targetBox:PivotTo(oldpos)
+                        end
+                        task.wait(0.01)
                     end
                     successCount = successCount + 1
                 else
@@ -471,7 +473,10 @@ TabItem:Button({
                 local targetModel = targetPart.Parent
                 if targetModel and (targetModel.Name == "Plank" or targetModel:FindFirstChild("WoodSection") or targetModel:FindFirstChild("Owner")) then
                     for i = 1, 40 do
-                        DragModel(targetModel, targetCFrame)
+                        pcall(function() RS.Interaction.ClientIsDragging:FireServer("Begin", targetModel, 4) RS.Interaction.ClientIsDragging:FireServer("Refresh", targetModel, 5) end)
+                        if targetModel.PrimaryPart then
+                            targetModel:PivotTo(targetCFrame)
+                        end
                         task.wait(0.02)
                     end
                     WindUI:Notify({ Title = "传送成功", Content = "物品已拉回", Duration = 3 })
@@ -505,7 +510,7 @@ local function startDrag()
                 obj.CanCollide = false
                 obj.CanTouch = false
                 while obj.Parent == Workspace and isDragEnabled do
-                    c.P = 120000; c.D = 1000; c.maxForce = Vector3.new(1, 1, 1) * 1000000
+                    c.P = 120000; c.D = 1000; c.MaxForce = Vector3.new(1, 1, 1) * 1000000
                     b.MaxTorque = Vector3.new(1, 1, 1) * 200; b.P = 1200; b.D = 140
                     task.wait()
                 end
