@@ -198,7 +198,75 @@ TabItem:Button({
     end
 })
 
-local TabDrag = Window:Tab({ Title = "完美拖拽", Icon = "rbxassetid://10734898355" })
+local TabCustomTP = Window:Tab({ Title = "自定义传送点", Icon = "rbxassetid://10734945123" })
+local customTps = {}
+local selectedTpName = nil
+
+local function getTpNames()
+    local names = {}
+    for name, _ in pairs(customTps) do
+        table.insert(names, name)
+    end
+    if #names == 0 then
+        table.insert(names, "暂无点位")
+    end
+    return names
+end
+
+local tpDropdown = TabCustomTP:Dropdown({
+    Title = "选择传送点",
+    Values = {"暂无点位"},
+    Value = "暂无点位",
+    Callback = function(val)
+        selectedTpName = val
+    end
+})
+
+TabCustomTP:Button({
+    Title = "保存当前坐标为新点位",
+    Desc = "自动命名为 传送点_1, 传送点_2...",
+    Callback = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local name = "传送点_" .. tostring(#getTpNames() + 1)
+            if name == "传送点_1" and customTps["暂无点位"] ~= nil then
+            end
+            customTps[name] = player.Character.HumanoidRootPart.CFrame
+            tpDropdown:SetValues(getTpNames())
+            WindUI:Notify({ Title = "成功", Content = "已保存点位: " .. name, Duration = 3 })
+        end
+    end
+})
+
+TabCustomTP:Button({
+    Title = "传送到选中点位",
+    Callback = function()
+        if selectedTpName and selectedTpName ~= "暂无点位" and customTps[selectedTpName] then
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = customTps[selectedTpName]
+                WindUI:Notify({ Title = "成功", Content = "已传送至: " .. selectedTpName, Duration = 3 })
+            end
+        else
+            WindUI:Notify({ Title = "错误", Content = "请先在下方选择有效点位", Duration = 3 })
+        end
+    end
+})
+
+TabCustomTP:Button({
+    Title = "删除选中点位",
+    Callback = function()
+        if selectedTpName and selectedTpName ~= "暂无点位" and customTps[selectedTpName] then
+            customTps[selectedTpName] = nil
+            tpDropdown:SetValues(getTpNames())
+            selectedTpName = "暂无点位"
+            WindUI:Notify({ Title = "成功", Content = "已删除选中点位", Duration = 3 })
+        else
+            WindUI:Notify({ Title = "错误", Content = "请先在下方选择有效点位", Duration = 3 })
+        end
+    end
+})
+
+local TabExtra = Window:Tab({ Title = "其他功能", Icon = "rbxassetid://10882439086" })
+
 local isDragEnabled = false
 local dragConn = nil
 
@@ -233,7 +301,7 @@ local function startDrag()
     end)
 end
 
-TabDrag:Toggle({
+TabExtra:Toggle({
     Title = "开启拖拽器",
     Desc = "锁定物理拉力，随便飞绝对不掉",
     Default = false,
@@ -248,12 +316,23 @@ TabDrag:Toggle({
     end
 })
 
-TabDrag:Button({
+TabExtra:Button({
     Title = "强制关闭拖拽",
     Desc = "如果遇到卡顿，点此强行断开",
     Callback = function()
         stopDrag()
         local toggleObj = Window:GetToggle("开启拖拽器")
         if toggleObj then toggleObj:Set(false) end
+    end
+})
+
+TabExtra:Button({
+    Title = "开启飞行",
+    Desc = "点击加载飞行脚本V3（全游戏通用）",
+    Callback = function()
+        WindUI:Notify({ Title = "加载中", Content = "正在注入飞行脚本...", Duration = 3 })
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/385j8888/ZOUMAGUIX/refs/heads/main/%E9%A3%9E%E8%A1%8C%E8%84%9A%E6%9C%ACV3(%E5%85%A8%E6%B8%B8%E6%88%8F%E9%80%9A%E7%94%A8).txt"))()
+        end)
     end
 })
