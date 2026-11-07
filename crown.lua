@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 local RS = game:GetService("ReplicatedStorage")
 local Mouse = player:GetMouse()
 local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 
 local WhitelistURL = "https://raw.githubusercontent.com/moos294/jooiionn/main/whitelist.txt" 
 
@@ -56,7 +57,7 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NB",
+    Author = "作者封存NB 0.1",
     Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark"
@@ -228,27 +229,70 @@ TabServer:Input({
     Callback = function(text) targetPlaceId = text end
 })
 
+local function getServerList(pid)
+	local candidates = {}
+	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(pid)
+	local ok, res = pcall(function()
+		return HttpService:JSONDecode(game:HttpGet(url))
+	end)
+	if ok and res and res.data then
+		for _, s in ipairs(res.data) do
+			if s.id ~= game.JobId and s.playing >= 2 and s.playing <= s.maxPlayers - 2 then
+				table.insert(candidates, s.id)
+			end
+		end
+	end
+	return candidates
+end
+
 TabServer:Button({
-    Title = "重新进入当前服务器",
+    Title = "重进当前服务器",
+    Desc = "快速重连当前服务器",
     Callback = function()
-        local options = Instance.new("TeleportOptions")
-        options.ServerInstanceId = game.JobId
-        pcall(function() TS:TeleportAsync(game.PlaceId, {player}, options) end)
+        pcall(function()
+            TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+        end)
     end
 })
 
 TabServer:Button({
     Title = "指定服务器换服",
+    Desc = "需在上方填写 PlaceId，精准抓取新服",
     Callback = function()
         local id = tonumber(targetPlaceId)
-        if id then pcall(function() TS:TeleportAsync(id, {player}) end) end
+        if id then
+            local servers = getServerList(id)
+            if #servers > 0 then
+                local randomJobId = servers[math.random(1, #servers)]
+                pcall(function()
+                    TS:TeleportToPlaceInstance(id, randomJobId, player)
+                end)
+            else
+                pcall(function()
+                    TS:Teleport(id, player)
+                end)
+            end
+        else
+            WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
+        end
     end
 })
 
 TabServer:Button({
     Title = "随机换服",
+    Desc = "使用官方API获取真实JobId，秒进",
     Callback = function()
-        pcall(function() TS:TeleportAsync(game.PlaceId, {player}) end)
+        local servers = getServerList(game.PlaceId)
+        if #servers > 0 then
+            local randomJobId = servers[math.random(1, #servers)]
+            pcall(function()
+                TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player)
+            end)
+        else
+            pcall(function()
+                TS:Teleport(game.PlaceId, player)
+            end)
+        end
     end
 })
 
@@ -321,7 +365,6 @@ TabExtra:Button({
 
 TabExtra:Button({
     Title = "彻底关闭并清理缓存",
-    Desc = "关闭UI并清除所有残留工具与点位",
     Callback = function()
         CleanupAll()
     end
