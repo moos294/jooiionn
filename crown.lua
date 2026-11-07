@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v0.6",
+    Title = "封存木材 v0.8",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -108,7 +108,7 @@ TabBuy:Slider({
 
 TabBuy:Button({
     Title = "开始购买神秘箱子",
-    Desc = "全自动试错，无需填参数",
+    Desc = "纯净购买，绝不拖拽展示盒",
     Callback = function()
         local startMoney = GetMoney()
         local totalPrice = cratePrice * buyAmount
@@ -145,65 +145,31 @@ TabBuy:Button({
             local npcModel = shopModel:WaitForChild("Manachron", 5)
             local npcDialog = npcModel:WaitForChild("Dialog", 5)
             
-            local targetBox = nil
-            local targetCounter = nil
-            
-            for _, v in next, shopModel:GetDescendants() do
-                if v.Name == "Counter" or v.Name == "counter" then targetCounter = v end
-                if v.Name == "ShopItems" then
-                    for _, box in next, v:GetChildren() do
-                        local nameObj = box:FindFirstChild("BoxItemName") or (box:FindFirstChild("Configuration") and box.Configuration:FindFirstChild("BoxItemName"))
-                        if nameObj and nameObj.Value == "Crate" then
-                            targetBox = box
-                        end
-                    end
-                end
-            end
-            
-            if not targetBox or not targetCounter then
-                WindUI:Notify({ Title = "失败", Content = "箱子或柜台未找到", Duration = 4 })
-                player.Character.HumanoidRootPart.CFrame = oldpos
-                return
-            end
-            
             for i = 1, buyAmount do
                 WindUI:Notify({ Title = "购买中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
                 
-                local boxCF = targetCounter.CFrame + Vector3.new(0, 1, 0)
-                
-                -- 自动暴力尝试参数 1 到 10 来拖拽展示盒
-                for param = 1, 10 do
-                    pcall(function() RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, param) end)
-                    if targetBox.PrimaryPart then
-                        targetBox:SetPrimaryPartCFrame(boxCF)
-                    end
-                    task.wait(0.02)
+                -- 把玩家直接贴在商人脸上
+                if npcModel:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 3, 2)
+                else
+                    player.Character.HumanoidRootPart.CFrame = npcModel.PrimaryPart.CFrame + Vector3.new(0, 3, 2)
                 end
-                
-                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 3, 3)
                 task.wait(0.5)
                 
                 local expectedMoney = GetMoney()
                 local buySuccess = false
+                local buyTimeout = 0
                 
-                local dynamicID = 18
-                pcall(function()
-                    local ret = RS.NPCDialog.SetChattingValue:InvokeServer(1)
-                    if typeof(ret) == "number" then
-                        dynamicID = ret
-                    end
-                end)
-                
-                task.wait(0.1)
-                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
-                task.wait(0.1)
-                
-                -- 尝试发送购买包
-                task.spawn(function()
+                -- 核心策略：纯发包，死磕扣钱
+                while not buySuccess and buyTimeout < 3 do
                     pcall(function()
+                        local retID = 18
+                        local ret = RS.NPCDialog.SetChattingValue:InvokeServer(1)
+                        if typeof(ret) == "number" then retID = ret end
+                        
                         local args = {
                             {
-                                ID = dynamicID,
+                                ID = retID,
                                 Character = npcModel,
                                 Name = "Manachron",
                                 Dialog = npcDialog
@@ -212,18 +178,21 @@ TabBuy:Button({
                         }
                         RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
                     end)
-                end)
-                
-                task.wait(1.5)
-                
-                if GetMoney() < expectedMoney then
-                    buySuccess = true
+                    
+                    task.wait(0.15)
+                    buyTimeout = buyTimeout + 0.15
+                    
+                    if GetMoney() < expectedMoney then
+                        buySuccess = true
+                    end
                 end
                 
                 pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
                 
                 if buySuccess then
+                    WindUI:Notify({ Title = "扣款成功", Content = "正在找回箱子并拖回...", Duration = 2 })
                     task.wait(0.5)
+                    
                     local boughtItemModel = nil
                     local playerModels = Workspace:FindFirstChild("PlayerModels")
                     if playerModels then
@@ -236,25 +205,23 @@ TabBuy:Button({
                     end
                     
                     if boughtItemModel then
-                        WindUI:Notify({ Title = "拖回", Content = "找到新箱子，正在自动拖回...", Duration = 2 })
-                        -- 自动暴力尝试参数 1 到 10 来拖拽新箱子
-                        for param = 1, 10 do
+                        for j = 1, 30 do
                             pcall(function() 
-                                RS.Interaction.ClientIsDragging:FireServer("Refresh", boughtItemModel, param) 
+                                RS.Interaction.ClientIsDragging:FireServer("Refresh", boughtItemModel, 2) 
                             end)
                             if boughtItemModel.PrimaryPart then
                                 boughtItemModel:SetPrimaryPartCFrame(oldpos + Vector3.new(0, 3, 0))
                             end
                             task.wait(0.02)
                         end
+                        WindUI:Notify({ Title = "大功告成", Content = "箱子已拉回！", Duration = 4 })
                     end
                 else
-                    WindUI:Notify({ Title = "购买失败", Content = "未能扣除金钱，请再次点击", Duration = 4 })
+                    WindUI:Notify({ Title = "购买失败", Content = "未能扣除金钱，请联系作者", Duration = 4 })
                     break
                 end
             end
             
-            WindUI:Notify({ Title = "执行完毕", Content = "购买流程结束，已返回原位", Duration = 4 })
             player.Character.HumanoidRootPart.CFrame = oldpos
             UpdatePriceUI()
         end)
