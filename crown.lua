@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v4.1",
+    Title = "封存木材 v4.4",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -81,6 +81,7 @@ local selectedItemEN = ""
 local selectedShopEN = ""
 local currentPrice = 0
 local currentNpcID = 0
+local currentNpcName = ""
 
 local ShopDB = {
     ["WoodRUs"] = { NameCN = "木材反斗城", NPC = "Thom", ID = 24, Items = {["Axe1"]={"普通斧头", 90},["Axe2"]={"钢斧", 190},["Axe3"]={"硬化斧", 550},["SilverAxe"]={"银斧头", 2040},["Rukiryaxe"]={"无敌斧", 7400},["Sawmill"]={"破旧锯木厂", 130},["Sawmill2"]={"普通锯木厂", 1600},["Sawmill3"]={"锯木机01", 11000},["Sawmill4"]={"锯木机02", 22500},["Sawmill4L"]={"锯木机02L", 86500},["UtilityTruck"]={"多用途运载车", 400},["WorkLight"]={"工作灯", 80},["BagOfSand"]={"沙子袋", 1600},["ChopSaw"]={"劈锯", 12200},["Wire"]={"电线", 205},["Button0"]={"按钮", 320},["Lever0"]={"控制杆", 520},["PressurePlate"]={"压力板", 640},["StraightConveyor"]={"直式传送带", 80},["TiltConveyor"]={"倾斜传送带", 95},["ConveyorFunnel"]={"漏斗式传送带", 60},["ConveyorSwitch"]={"切换传送器", 320},["LogSweeper"]={"木头清扫机", 430}} },
@@ -110,38 +111,22 @@ local PriceLabel = TabBuy:Paragraph({
     Color = Color3.fromRGB(255, 200, 0)
 })
 
-local function OnItemSelected(selectedStr)
-    if not selectedShopEN then return end
-    local shopData = ShopDB[selectedShopEN]
-    if not shopData then return end
-    
-    local pureName = string.match(selectedStr, "^(.+) %(")
-    if pureName then
-        for itemEN, itemData in pairs(shopData.Items) do
-            if itemData[1] == pureName then
-                selectedItemEN = itemEN
-                currentPrice = itemData[2]
-                currentNpcID = shopData.ID
-                break
-            end
-        end
-        
+local function UpdatePriceUI()
+    if currentPrice > 0 then
         local total = currentPrice * buyAmount
         PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", currentPrice, buyAmount, total, GetMoney()))
+    else
+        PriceLabel:SetDesc("未获取到价格")
     end
 end
 
-local ItemDropdown = TabBuy:Dropdown({
-    Title = "第二步：选择商品",
-    Values = {"请先在上方选择商店"},
-    Value = "请先在上方选择商店",
-    Callback = OnItemSelected
-})
+local StoreDropdown
+local ItemDropdown
 
-local StoreDropdown = TabBuy:Dropdown({
+StoreDropdown = TabBuy:Dropdown({
     Title = "第一步：选择商店",
     Values = shopListCN,
-    Value = shopListCN[1],
+    Value = shopListCN[1] or "无",
     Callback = function(selectedCN)
         selectedShopEN = shopCNToEN[selectedCN]
         local shopData = ShopDB[selectedShopEN]
@@ -156,30 +141,82 @@ local StoreDropdown = TabBuy:Dropdown({
             end
             table.sort(itemListCN)
             
-            ItemDropdown:Refresh(itemListCN)
-            if #itemListCN > 0 then
-                ItemDropdown:SetValue(itemListCN[1])
-                OnItemSelected(itemListCN[1])
+            task.spawn(function()
+                ItemDropdown:Refresh(itemListCN)
+                task.wait(0.05)
+                if #itemListCN > 0 then
+                    ItemDropdown:SetValue(itemListCN[1])
+                    local pureName = string.match(itemListCN[1], "^(.+) %(")
+                    if pureName then
+                        for itemEN, itemData in pairs(shopData.Items) do
+                            if itemData[1] == pureName then
+                                selectedItemEN = itemEN
+                                currentPrice = itemData[2]
+                                currentNpcID = shopData.ID
+                                currentNpcName = shopData.NPC
+                                break
+                            end
+                        end
+                    end
+                    UpdatePriceUI()
+                else
+                    selectedItemEN = ""
+                    currentPrice = 0
+                    PriceLabel:SetDesc("该商店无商品")
+                end
+            end)
+        end
+    end
+})
+
+ItemDropdown = TabBuy:Dropdown({
+    Title = "第二步：选择商品",
+    Values = {"请先选择商店"},
+    Value = "请先选择商店",
+    Callback = function(selectedStr)
+        if not selectedShopEN then return end
+        local shopData = ShopDB[selectedShopEN]
+        if not shopData then return end
+        
+        local pureName = string.match(selectedStr, "^(.+) %(")
+        if pureName then
+            for itemEN, itemData in pairs(shopData.Items) do
+                if itemData[1] == pureName then
+                    selectedItemEN = itemEN
+                    currentPrice = itemData[2]
+                    currentNpcID = shopData.ID
+                    currentNpcName = shopData.NPC
+                    break
+                end
             end
+            UpdatePriceUI()
         end
     end
 })
 
 TabBuy:Slider({
-    Title = "购买数量 (上限30)",
+    Title = "购买数量",
     Value = { Min = 1, Max = 30, Default = 1 },
     Callback = function(val)
         buyAmount = val
-        if currentPrice > 0 then
-            local total = currentPrice * buyAmount
-            PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", currentPrice, buyAmount, total, GetMoney()))
-        end
+        UpdatePriceUI()
     end
 })
 
+task.spawn(function()
+    task.wait(0.2)
+    if #shopListCN > 0 then
+        StoreDropdown:SetValue(shopListCN[1])
+        task.wait(0.1)
+        if StoreDropdown.Callback then
+            StoreDropdown.Callback(shopListCN[1])
+        end
+    end
+end)
+
 TabBuy:Button({
     Title = "开始购买",
-    Desc = "真实ID发包，精准验证所有权",
+    Desc = "完美复刻成功发包逻辑，精准验证所有权",
     Callback = function()
         if not selectedShopEN or not selectedItemEN then 
             WindUI:Notify({ Title = "错误", Content = "请先选择商店和物品！", Duration = 3 })
@@ -197,51 +234,44 @@ TabBuy:Button({
         local oldpos = player.Character.HumanoidRootPart.CFrame
         
         task.spawn(function()
-            local storeFolder = Workspace:FindFirstChild("Stores") and Workspace.Stores:FindFirstChild(selectedShopEN)
-            local npcModel = nil
-            if storeFolder then
-                for _, child in next, storeFolder:GetChildren() do
-                    if child:IsA("Model") and child:FindFirstChild("Dialog") then
-                        npcModel = child break
-                    end
-                end
+            local storeFolder = Workspace:WaitForChild("Stores")
+            local shopModel = storeFolder:WaitForChild(selectedShopEN)
+            local npcModel = shopModel:WaitForChild(currentNpcName)
+            local npcDialog = npcModel:WaitForChild("Dialog")
+            
+            if not npcModel or not npcDialog then
+                WindUI:Notify({ Title = "失败", Content = "找不到商店或NPC模型", Duration = 4 })
+                return
             end
             
-            WindUI:Notify({ Title = "加载中", Content = "传送到商店...", Duration = 2 })
+            WindUI:Notify({ Title = "加载中", Content = "传送并等待模型加载...", Duration = 2 })
             
-            if not npcModel and storeFolder then
-                npcModel = storeFolder:FindFirstChild(ShopDB[selectedShopEN].NPC)
-            end
-            
-            if npcModel and npcModel:FindFirstChild("HumanoidRootPart") then
+            if npcModel:FindFirstChild("HumanoidRootPart") then
                 player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 3, 5)
             end
             
-            task.wait(0.8)
+            task.wait(1.0)
             
             local targetBox = nil
             local targetCounter = nil
             
-            if storeFolder then
-                for _, v in next, storeFolder:GetDescendants() do
-                    if v.Name == "Counter" or v.Name == "counter" then targetCounter = v end
-                    if v.Name == "ShopItems" then
-                        for _, box in next, v:GetChildren() do
-                            if box:FindFirstChild("BoxItemName") and box.BoxItemName.Value == selectedItemEN then
-                                targetBox = box
-                            end
+            for _, v in next, shopModel:GetDescendants() do
+                if v.Name == "Counter" or v.Name == "counter" then targetCounter = v end
+                if v.Name == "ShopItems" then
+                    for _, box in next, v:GetChildren() do
+                        if box:FindFirstChild("BoxItemName") and box.BoxItemName.Value == selectedItemEN then
+                            targetBox = box
                         end
                     end
                 end
             end
             
             if not targetBox or not targetCounter then
-                WindUI:Notify({ Title = "失败", Content = "模型未加载，请重试", Duration = 4 })
+                WindUI:Notify({ Title = "失败", Content = "商品盒子模型未加载", Duration = 4 })
                 player.Character.HumanoidRootPart.CFrame = oldpos
                 return
             end
             
-            local npcName = npcModel.Name
             local successCount = 0
             
             for i = 1, buyAmount do
@@ -255,19 +285,19 @@ TabBuy:Button({
                     end
                     task.wait(0.05)
                     t = t + 0.05
-                until (targetBox:FindFirstChild("Main") and (targetBox.Main.Position - targetCounter.Position).Magnitude < 6) or t > 2
+                until (targetBox:FindFirstChild("Main") and (targetBox.Main.Position - targetCounter.Position).Magnitude < 6) or t > 3
                 
                 if npcModel:FindFirstChild("HumanoidRootPart") then
                     player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 0, 2)
                 end
-                task.wait(0.2)
+                task.wait(0.3)
                 
                 local args = {
                     {
                         ID = currentNpcID,
                         Character = npcModel,
-                        Name = npcName,
-                        Dialog = npcModel:FindFirstChild("Dialog")
+                        Name = currentNpcName,
+                        Dialog = npcDialog
                     },
                     "ConfirmPurchase"
                 }
@@ -275,12 +305,12 @@ TabBuy:Button({
                 local buySuccess = false
                 local buyTimeout = 0
                 
-                while not buySuccess and buyTimeout < 2 do
+                while not buySuccess and buyTimeout < 5 do
                     pcall(function()
                         RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
                     end)
-                    task.wait(0.3)
-                    buyTimeout = buyTimeout + 0.3
+                    task.wait(0.5)
+                    buyTimeout = buyTimeout + 0.5
                     
                     if targetBox:FindFirstChild("Owner") and targetBox.Owner.Value == player then
                         buySuccess = true
@@ -294,7 +324,7 @@ TabBuy:Button({
                     end
                     successCount = successCount + 1
                 else
-                    WindUI:Notify({ Title = "购买失败", Content = "未验证成功，可能是钱不够", Duration = 4 })
+                    WindUI:Notify({ Title = "购买失败", Content = "发包被拒，未能确认所有权", Duration = 4 })
                     break
                 end
             end
