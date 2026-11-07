@@ -1,4 +1,5 @@
 local player = game.Players.LocalPlayer
+local TS = game:GetService("TeleportService")
 local WhitelistURL = "https://raw.githubusercontent.com/moos294/jooiionn/main/whitelist.txt" 
 
 local function CheckWhitelist()
@@ -63,7 +64,7 @@ end
 
 local TabTP = Window:Tab({ Title = "安全传送", Icon = "rbxassetid://10734945123" })
 local targetTree = "Generic"
-local oldPos = nil
+local playerPos = {nil, nil, nil}
 
 local tree_list = {
 	"普通木 (Generic)", "幻影木 (LoneCave)", "电木 (Electric)", "胡桃木 (Walnut)", "星木 (Star)", "樱桃木 (Cherry)", "桦木 (Birch)", "冰霜木 (Frost)",
@@ -83,19 +84,8 @@ TabTP:Dropdown({
 })
 
 TabTP:Button({
-    Title = "保存当前位置",
-    Desc = "传送前先点一下，方便砍完回来",
-    Callback = function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            oldPos = player.Character.HumanoidRootPart.CFrame
-            WindUI:Notify({ Title = "成功", Content = "已保存当前位置", Duration = 3 })
-        end
-    end
-})
-
-TabTP:Button({
     Title = "传送到树旁",
-    Desc = "安全传送到树旁边的空地上，绝对不会卡树",
+    Desc = "安全传送到树旁边的空地上",
     Callback = function()
         if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
         
@@ -121,37 +111,98 @@ TabTP:Button({
             if baseWood then
                 local safePos = baseWood.CFrame + Vector3.new(0, 2.5, 3.5)
                 player.Character.HumanoidRootPart.CFrame = safePos
-                WindUI:Notify({ Title = "传送成功", Content = "传送成功", Duration = 3 })
-            else
-                WindUI:Notify({ Title = "提示", Content = "找不到树干部分", Duration = 3 })
+                WindUI:Notify({ Title = "成功", Content = "传送成功", Duration = 3 })
             end
         else
-            WindUI:Notify({ Title = "错误", Content = "没找到", Duration = 3 })
+            WindUI:Notify({ Title = "错误", Content = "没找到这种树", Duration = 3 })
         end
     end
 })
 
 TabTP:Button({
-    Title = "传送回原点",
+    Title = "保存当前位置为 传送点1",
     Callback = function()
-        if oldPos and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = oldPos
-            WindUI:Notify({ Title = "成功", Content = "已回到原点", Duration = 3 })
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            playerPos[1] = player.Character.HumanoidRootPart.CFrame
+            WindUI:Notify({ Title = "成功", Content = "已保存传送点1", Duration = 3 })
+        end
+    end
+})
+
+TabTP:Button({
+    Title = "传送到 传送点1",
+    Callback = function()
+        if playerPos[1] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = playerPos[1]
+            WindUI:Notify({ Title = "成功", Content = "已回到传送点1", Duration = 3 })
         else
-            WindUI:Notify({ Title = "错误", Content = "你没TM保存位置", Duration = 3 })
+            WindUI:Notify({ Title = "错误", Content = "未保存传送点1", Duration = 3 })
+        end
+    end
+})
+
+TabTP:Button({
+    Title = "保存当前位置为 传送点2",
+    Callback = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            playerPos[2] = player.Character.HumanoidRootPart.CFrame
+            WindUI:Notify({ Title = "成功", Content = "已保存传送点2", Duration = 3 })
+        end
+    end
+})
+
+TabTP:Button({
+    Title = "传送到 传送点2",
+    Callback = function()
+        if playerPos[2] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = playerPos[2]
+            WindUI:Notify({ Title = "成功", Content = "已回到传送点2", Duration = 3 })
+        else
+            WindUI:Notify({ Title = "错误", Content = "未保存传送点2", Duration = 3 })
+        end
+    end
+})
+
+TabTP:Button({
+    Title = "保存当前位置为 传送点3",
+    Callback = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            playerPos[3] = player.Character.HumanoidRootPart.CFrame
+            WindUI:Notify({ Title = "成功", Content = "已保存传送点3", Duration = 3 })
+        end
+    end
+})
+
+TabTP:Button({
+    Title = "传送到 传送点3",
+    Callback = function()
+        if playerPos[3] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = playerPos[3]
+            WindUI:Notify({ Title = "成功", Content = "已回到传送点3", Duration = 3 })
+        else
+            WindUI:Notify({ Title = "错误", Content = "未保存传送点3", Duration = 3 })
         end
     end
 })
 
 local TabItem = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10882439086" })
+local selectedBringTarget = "拉回点位1"
+
+TabItem:Dropdown({
+    Title = "选择物品拉回的目标点",
+    Values = {"拉回点位1", "拉回点位2", "拉回点位3"},
+    Value = "拉回点位1",
+    Callback = function(option)
+        selectedBringTarget = option
+    end
+})
 
 TabItem:Button({
-    Title = "设置拉回点位",
-    Desc = "在你当前脚下设置一个拉回点",
+    Title = "设置 物品点位1",
     Callback = function()
-        if Workspace:FindFirstChild("BRING") then Workspace.BRING:Destroy() end
+        if Workspace:FindFirstChild("BRING1") then Workspace.BRING1:Destroy() end
         local p = Instance.new("Part", Workspace)
-        p.Name = "BRING"
+        p.Name = "BRING1"
         p.Transparency = 1
         p.Anchored = true
         p.CFrame = player.Character.HumanoidRootPart.CFrame
@@ -159,16 +210,53 @@ TabItem:Button({
         p.Size = player.Character.HumanoidRootPart.Size
         
         local posBox = Instance.new("SelectionBox", p)
-        posBox.Name = "BRINGBOX"
         posBox.Color3 = Color3.new(0, 255, 0)
-        posBox.Adornee = posBox.Parent
-        WindUI:Notify({ Title = "成功", Content = "点位已设置", Duration = 3 })
+        posBox.Adornee = p
+        WindUI:Notify({ Title = "成功", Content = "物品点位1已设置", Duration = 3 })
+    end
+})
+
+TabItem:Button({
+    Title = "设置 物品点位2",
+    Callback = function()
+        if Workspace:FindFirstChild("BRING2") then Workspace.BRING2:Destroy() end
+        local p = Instance.new("Part", Workspace)
+        p.Name = "BRING2"
+        p.Transparency = 1
+        p.Anchored = true
+        p.CFrame = player.Character.HumanoidRootPart.CFrame
+        p.CanCollide = false
+        p.Size = player.Character.HumanoidRootPart.Size
+        
+        local posBox = Instance.new("SelectionBox", p)
+        posBox.Color3 = Color3.new(0, 255, 0)
+        posBox.Adornee = p
+        WindUI:Notify({ Title = "成功", Content = "物品点位2已设置", Duration = 3 })
+    end
+})
+
+TabItem:Button({
+    Title = "设置 物品点位3",
+    Callback = function()
+        if Workspace:FindFirstChild("BRING3") then Workspace.BRING3:Destroy() end
+        local p = Instance.new("Part", Workspace)
+        p.Name = "BRING3"
+        p.Transparency = 1
+        p.Anchored = true
+        p.CFrame = player.Character.HumanoidRootPart.CFrame
+        p.CanCollide = false
+        p.Size = player.Character.HumanoidRootPart.Size
+        
+        local posBox = Instance.new("SelectionBox", p)
+        posBox.Color3 = Color3.new(0, 255, 0)
+        posBox.Adornee = p
+        WindUI:Notify({ Title = "成功", Content = "物品点位3已设置", Duration = 3 })
     end
 })
 
 TabItem:Button({
     Title = "获取点击传送工具",
-    Desc = "拿在手上点击木头/物品，直接拉回点位",
+    Desc = "拿在手上点击木头，直接拉回选中的点位",
     Callback = function()
         if player.Backpack:FindFirstChild("点击传送") or player.Character:FindFirstChild("点击传送") then
             player.Backpack["点击传送"]:Destroy()
@@ -177,8 +265,12 @@ TabItem:Button({
         a.Name = "点击传送"
         a.RequiresHandle = false
         a.Activated:Connect(function()
-            if Workspace:FindFirstChild("BRING") then
-                local targetCFrame = Workspace.BRING.CFrame
+            local targetPartName = "BRING1"
+            if selectedBringTarget == "拉回点位2" then targetPartName = "BRING2" end
+            if selectedBringTarget == "拉回点位3" then targetPartName = "BRING3" end
+            
+            if Workspace:FindFirstChild(targetPartName) then
+                local targetCFrame = Workspace[targetPartName].CFrame
                 local targetPart = Mouse.Target
                 if not targetPart then return end
                 local targetModel = targetPart.Parent
@@ -188,80 +280,53 @@ TabItem:Button({
                         DragModel(targetModel, targetCFrame)
                         task.wait(0.02)
                     end
-                    WindUI:Notify({ Title = "传送成功", Content = "物品传送成功", Duration = 3 })
+                    WindUI:Notify({ Title = "传送成功", Content = "物品已拉回" .. selectedBringTarget, Duration = 3 })
                 end
             else
-                WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位！", Duration = 3 })
+                WindUI:Notify({ Title = "错误", Content = "请先设置 " .. selectedBringTarget, Duration = 3 })
             end
         end)
         WindUI:Notify({ Title = "成功", Content = "工具已放入背包", Duration = 3 })
     end
 })
 
-local TabCustomTP = Window:Tab({ Title = "自定义传送点", Icon = "rbxassetid://10734945123" })
-local customTps = {}
-local selectedTpName = nil
+local TabServer = Window:Tab({ Title = "服务器", Icon = "rbxassetid://10882439086" })
+local targetPlaceId = tostring(game.PlaceId)
 
-local function getTpNames()
-    local names = {}
-    for name, _ in pairs(customTps) do
-        table.insert(names, name)
-    end
-    if #names == 0 then
-        table.insert(names, "暂无点位")
-    end
-    return names
-end
-
-local tpDropdown = TabCustomTP:Dropdown({
-    Title = "选择传送点",
-    Values = {"暂无点位"},
-    Value = "暂无点位",
-    Callback = function(val)
-        selectedTpName = val
+TabServer:Input({
+    Title = "指定服务器 ID (PlaceId)",
+    Value = tostring(game.PlaceId),
+    Callback = function(text)
+        targetPlaceId = text
     end
 })
 
-TabCustomTP:Button({
-    Title = "保存当前坐标为新点位",
-    Desc = "自动命名为 传送点_1, 传送点_2...",
+TabServer:Button({
+    Title = "重新进入当前服务器",
+    Desc = "默认模式，快速重连当前服",
     Callback = function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local name = "传送点_" .. tostring(#getTpNames() + 1)
-            if name == "传送点_1" and customTps["暂无点位"] ~= nil then
-            end
-            customTps[name] = player.Character.HumanoidRootPart.CFrame
-            tpDropdown:SetValues(getTpNames())
-            WindUI:Notify({ Title = "成功", Content = "已保存点位: " .. name, Duration = 3 })
-        end
+        TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
     end
 })
 
-TabCustomTP:Button({
-    Title = "传送到选中点位",
+TabServer:Button({
+    Title = "指定服务器换服",
+    Desc = "需在上方填写正确的 PlaceId",
     Callback = function()
-        if selectedTpName and selectedTpName ~= "暂无点位" and customTps[selectedTpName] then
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                player.Character.HumanoidRootPart.CFrame = customTps[selectedTpName]
-                WindUI:Notify({ Title = "成功", Content = "已传送至: " .. selectedTpName, Duration = 3 })
-            end
+        local id = tonumber(targetPlaceId)
+        if id then
+            TS:Teleport(id, player)
         else
-            WindUI:Notify({ Title = "错误", Content = "请先在下方选择有效点位", Duration = 3 })
+            WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
         end
     end
 })
 
-TabCustomTP:Button({
-    Title = "删除选中点位",
+TabServer:Button({
+    Title = "随机换服",
+    Desc = "随机加入当前游戏的另一个服务器",
     Callback = function()
-        if selectedTpName and selectedTpName ~= "暂无点位" and customTps[selectedTpName] then
-            customTps[selectedTpName] = nil
-            tpDropdown:SetValues(getTpNames())
-            selectedTpName = "暂无点位"
-            WindUI:Notify({ Title = "成功", Content = "已删除选中点位", Duration = 3 })
-        else
-            WindUI:Notify({ Title = "错误", Content = "请先在下方选择有效点位", Duration = 3 })
-        end
+        TS:Teleport(game.PlaceId, player)
     end
 })
 
@@ -318,7 +383,6 @@ TabExtra:Toggle({
 
 TabExtra:Button({
     Title = "强制关闭拖拽",
-    Desc = "如果遇到卡顿，点此强行断开",
     Callback = function()
         stopDrag()
         local toggleObj = Window:GetToggle("开启拖拽器")
@@ -328,7 +392,7 @@ TabExtra:Button({
 
 TabExtra:Button({
     Title = "开启飞行",
-    Desc = "点击加载飞行脚本V3（全游戏通用）",
+    Desc = "点击加载飞行脚本V3",
     Callback = function()
         WindUI:Notify({ Title = "加载中", Content = "正在注入飞行脚本...", Duration = 3 })
         pcall(function()
