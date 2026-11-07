@@ -43,24 +43,13 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v8.9",
+    Title = "封存木材 v9.4",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
     Transparent = true,
     Theme = "Dark"
 })
-
-local function DragModel(m, cf)
-	pcall(function() 
-        RS.Interaction.ClientIsDragging:FireServer(m)
-    end)
-	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
-	if m.PrimaryPart then 
-        m.PrimaryPart.Velocity = Vector3.zero
-        m:SetPrimaryPartCFrame(cf) 
-    end
-end
 
 local function GetMoney()
     local stats = player:FindFirstChild("leaderstats")
@@ -230,20 +219,36 @@ task.spawn(function()
     end
 end)
 
+local function GetStoreCoords(shopName)
+    local coords = {
+        ["WoodRUs"] = CFrame.new(535, 22, 150),
+        ["FineFinds"] = CFrame.new(175, 22, 180),
+        ["FurnitureStore"] = CFrame.new(-255, 22, 120),
+        ["CarStore"] = CFrame.new(-50, 22, 200),
+        ["SaplingCart"] = CFrame.new(-100, 22, 100),
+        ["LogicStore"] = CFrame.new(400, 22, -100),
+        ["StoneRUs"] = CFrame.new(200, 22, -500),
+        ["Igloo"] = CFrame.new(-500, 22, -500),
+        ["PlantomicsChoice"] = CFrame.new(1000, 22, 1000),
+        ["BlackMarket"] = CFrame.new(-100, 22, 800)
+    }
+    return coords[shopName] or CFrame.new(0, 100, 0)
+end
+
 TabBuy:Button({
     Title = "开始购买",
-    Desc = "已修复流动加载与网络包ID",
+    Desc = "完整抓包流程：购买并拖回",
     Callback = function()
         if not selectedShopEN or not selectedItemEN then 
             WindUI:Notify({ Title = "错误", Content = "请先选择商店和物品！", Duration = 3 })
             return 
         end
         
+        local startMoney = GetMoney()
         local totalPrice = currentPrice * buyAmount
-        local currentMoney = GetMoney()
         
-        if currentMoney < totalPrice then
-            WindUI:Notify({ Title = "余额不足", Content = "你的钱不够！需要 " .. FormatPrice(totalPrice) .. "，你只有 " .. FormatPrice(currentMoney), Duration = 5 })
+        if startMoney < totalPrice then
+            WindUI:Notify({ Title = "余额不足", Content = "你的钱不够！需要 " .. FormatPrice(totalPrice) .. "，你只有 " .. FormatPrice(startMoney), Duration = 5 })
             return
         end
         
@@ -259,80 +264,47 @@ TabBuy:Button({
             if not storeFolder then WindUI:Notify({ Title="失败", Content="商店文件夹未加载", Duration=4 }) return end
             
             local shopModel = storeFolder:FindFirstChild(selectedShopEN)
-            local npcModel = nil
             
-            WindUI:Notify({ Title = "加载中", Content = "正在传送到商店...", Duration = 2 })
-            if shopModel then
-                npcModel = shopModel:FindFirstChild(currentNpcName)
-                if npcModel and npcModel:FindFirstChild("HumanoidRootPart") then
-                    player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 3, 5)
-                end
-            else
-                player.Character.HumanoidRootPart.CFrame = CFrame.new(0, 100, 0) 
+            if not shopModel then
+                WindUI:Notify({ Title = "加载中", Content = "正在传送到商店加载模型...", Duration = 3 })
+                player.Character.HumanoidRootPart.CFrame = GetStoreCoords(selectedShopEN)
+                task.wait(2)
+                shopModel = storeFolder:WaitForChild(selectedShopEN, 10)
             end
             
-            task.wait(1.5)
-            
-            shopModel = storeFolder:WaitForChild(selectedShopEN, 10)
             if not shopModel then 
                 WindUI:Notify({ Title="失败", Content="商店加载超时", Duration=4 }) 
                 player.Character.HumanoidRootPart.CFrame = oldpos
                 return 
             end
             
-            npcModel = shopModel:WaitForChild(currentNpcName, 10)
+            local npcModel = shopModel:WaitForChild(currentNpcName, 5)
             if not npcModel then 
-                WindUI:Notify({ Title="失败", Content="商人加载超时", Duration=4 }) 
+                WindUI:Notify({ Title="失败", Content="商人模型未加载", Duration=4 }) 
                 player.Character.HumanoidRootPart.CFrame = oldpos
                 return 
             end
             
-            local npcDialog = npcModel:WaitForChild("Dialog", 10)
-            if not npcDialog then 
-                WindUI:Notify({ Title="失败", Content="对话未加载", Duration=4 }) 
-                player.Character.HumanoidRootPart.CFrame = oldpos
-                return 
-            end
+            local npcDialog = npcModel:WaitForChild("Dialog", 5)
             
             if npcModel:FindFirstChild("HumanoidRootPart") then
-                player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 3, 5)
+                player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 3, 3)
             end
             task.wait(0.5)
-            
-            local targetBox = nil
-            local targetCounter = nil
-            for _, v in next, shopModel:GetDescendants() do
-                if v.Name == "Counter" or v.Name == "counter" then targetCounter = v end
-                if v.Name == "ShopItems" then
-                    for _, box in next, v:GetChildren() do
-                        if box:FindFirstChild("BoxItemName") and box.BoxItemName.Value == selectedItemEN then
-                            targetBox = box
-                        end
-                    end
-                end
-            end
-            
-            if not targetBox or not targetCounter then
-                WindUI:Notify({ Title = "失败", Content = "商品盒子未找到", Duration = 4 })
-                player.Character.HumanoidRootPart.CFrame = oldpos
-                return
-            end
             
             local successCount = 0
             
             for i = 1, buyAmount do
-                WindUI:Notify({ Title = "购买中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
+                WindUI:Notify({ Title = "购买中", Content = "正在尝试购买 " .. i .. "/" .. buyAmount, Duration = 2 })
                 
-                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
-                task.wait(0.1)
-                
-                pcall(function() RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, 3) end)
-                
-                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 3, 5)
-                task.wait(0.3)
-                
+                local expectedMoney = GetMoney()
                 local buySuccess = false
                 local buyTimeout = 0
+                
+                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
+                task.wait(0.1)
+                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
+                task.wait(0.1)
                 
                 while not buySuccess and buyTimeout < 3 do
                     pcall(function()
@@ -351,30 +323,58 @@ TabBuy:Button({
                     task.wait(0.2)
                     buyTimeout = buyTimeout + 0.2
                     
-                    if not targetBox.Parent or (targetBox:FindFirstChild("Owner") and targetBox.Owner.Value == player) then
+                    if GetMoney() < expectedMoney then
                         buySuccess = true
                     end
                 end
                 
-                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
+                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
                 
                 if buySuccess then
                     successCount = successCount + 1
-                else
-                    for j = 1, 10 do
-                        pcall(function() RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, 3) end)
-                        if targetBox.PrimaryPart then
-                            targetBox:SetPrimaryPartCFrame(targetCounter.CFrame + Vector3.new(0, 0.6, 0))
+                    task.wait(0.3) 
+                    
+                    local boughtItemModel = nil
+                    local playerModels = Workspace:FindFirstChild("PlayerModels")
+                    if playerModels then
+                        for _, obj in pairs(playerModels:GetChildren()) do
+                            if string.find(obj.Name, "Purchased by " .. player.Name) then
+                                boughtItemModel = obj
+                                break
+                            end
                         end
-                        task.wait(0.05)
                     end
-                    WindUI:Notify({ Title = "购买失败", Content = "未能确认所有权，已还原", Duration = 4 })
+                    
+                    if boughtItemModel then
+                        WindUI:Notify({ Title = "拖回", Content = "找到物品，正在拖回原位...", Duration = 2 })
+                        for j = 1, 30 do
+                            pcall(function() 
+                                RS.Interaction.ClientIsDragging:FireServer("Refresh", boughtItemModel, 4) 
+                            end)
+                            if boughtItemModel.PrimaryPart then
+                                boughtItemModel:SetPrimaryPartCFrame(oldpos + Vector3.new(0, 3, 0))
+                            end
+                            task.wait(0.05)
+                        end
+                    else
+                        local hasTool = false
+                        for _, tool in pairs(player.Backpack:GetChildren()) do
+                            if tool.Name == selectedItemEN then hasTool = true break end
+                        end
+                        if hasTool then
+                            WindUI:Notify({ Title = "成功", Content = "工具已进入背包", Duration = 2 })
+                        else
+                            WindUI:Notify({ Title = "提示", Content = "购买成功，但未找到实体", Duration = 3 })
+                        end
+                    end
+                else
+                    WindUI:Notify({ Title = "购买失败", Content = "未扣除金钱，请重试", Duration = 4 })
                     break
                 end
             end
             
             if successCount > 0 then
-                WindUI:Notify({ Title = "完成", Content = "成功购买 " .. successCount .. " 个物品", Duration = 4 })
+                WindUI:Notify({ Title = "完成", Content = "共成功购买 " .. successCount .. " 个物品", Duration = 4 })
             end
             player.Character.HumanoidRootPart.CFrame = oldpos
         end)
