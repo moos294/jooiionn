@@ -7,14 +7,8 @@ local function CheckWhitelist()
         return game:HttpGet(WhitelistURL)
     end)
     
-    if not success or not response then
-        return false
-    end
-    
-    if string.find(response, player.Name) or string.find(response, tostring(player.UserId)) then
-        return true
-    end
-    
+    if not success or not response then return false end
+    if string.find(response, player.Name) or string.find(response, tostring(player.UserId)) then return true end
     return false
 end
 
@@ -39,7 +33,7 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "作者:封存NB",
+    Author = "封存NB",
     Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark"
@@ -294,7 +288,7 @@ local TabServer = Window:Tab({ Title = "服务器", Icon = "rbxassetid://1088243
 local targetPlaceId = tostring(game.PlaceId)
 
 TabServer:Input({
-    Title = "指定服务器 ID (PlaceId)",
+    Title = "指定服务器 ID",
     Value = tostring(game.PlaceId),
     Callback = function(text)
         targetPlaceId = text
@@ -321,7 +315,7 @@ TabServer:Button({
 
 TabServer:Button({
     Title = "指定服务器换服",
-    Desc = "需在上方填写正确的 PlaceId",
+    Desc = "需在上方 Input 填写 PlaceId",
     Callback = function()
         local id = tonumber(targetPlaceId)
         if id then
