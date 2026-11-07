@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v1.6",
+    Title = "封存木材 v2.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -80,6 +80,43 @@ local function FormatPrice(price)
     end
 end
 
+local function PhysicsDrag(model, targetCFrame)
+    local main = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
+    if not main then return end
+    
+    pcall(function() RS.Interaction.ClientIsDragging:FireServer(model) end)
+    
+    local bp = main:FindFirstChild("TempBodyPosition")
+    local bg = main:FindFirstChild("TempBodyGyro")
+    
+    if not bp then
+        bp = Instance.new("BodyPosition")
+        bp.Name = "TempBodyPosition"
+        bp.Parent = main
+    end
+    if not bg then
+        bg = Instance.new("BodyGyro")
+        bg.Name = "TempBodyGyro"
+        bg.Parent = main
+    end
+    
+    bp.P = 120000; bp.D = 1000; bp.MaxForce = Vector3.new(1, 1, 1) * 1000000
+    bp.Position = targetCFrame.Position
+    
+    bg.MaxTorque = Vector3.new(1, 1, 1) * 200; bg.P = 1200; bg.D = 140
+    bg.CFrame = targetCFrame
+end
+
+local function RemovePhysicsDrag(model)
+    local main = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
+    if main then
+        local bp = main:FindFirstChild("TempBodyPosition")
+        local bg = main:FindFirstChild("TempBodyGyro")
+        if bp then bp:Destroy() end
+        if bg then bg:Destroy() end
+    end
+end
+
 local TabBuy = Window:Tab({ Title = "神秘箱子购买", Icon = "rbxassetid://10734945123" })
 local buyAmount = 1
 local cratePrice = 75000000
@@ -108,7 +145,7 @@ TabBuy:Slider({
 
 TabBuy:Button({
     Title = "开始购买神秘箱子",
-    Desc = "无参拖拽 + 物理点击双重触发",
+    Desc = "使用原版物理拖拽器，绝不产生灵魂体",
     Callback = function()
         local startMoney = GetMoney()
         local totalPrice = cratePrice * buyAmount
@@ -167,22 +204,19 @@ TabBuy:Button({
             end
             
             for i = 1, buyAmount do
-                WindUI:Notify({ Title = "购买中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
+                WindUI:Notify({ Title = "购买中", Content = "正在物理拖拽第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
                 
                 player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 3, 3)
-                task.wait(0.2)
+                task.wait(0.3)
                 
-                local boxCF = targetCounter.CFrame + Vector3.new(0, 1, 0)
+                local boxTargetCF = targetCounter.CFrame + Vector3.new(0, 1.5, 0)
                 
-                for j = 1, 20 do
-                    pcall(function() RS.Interaction.ClientIsDragging:FireServer(targetBox) end)
-                    if targetBox.PrimaryPart then
-                        targetBox.PrimaryPart.Velocity = Vector3.zero
-                        targetBox:SetPrimaryPartCFrame(boxCF)
-                    end
-                    task.wait(0.05)
-                end
+                -- 启动物理拖拽
+                PhysicsDrag(targetBox, boxTargetCF)
+                task.wait(1.5) -- 给它点时间飞过去
                 
+                -- 停止物理拖拽，让它自由落体产生碰撞
+                RemovePhysicsDrag(targetBox)
                 task.wait(0.5)
                 
                 local expectedMoney = GetMoney()
@@ -213,17 +247,6 @@ TabBuy:Button({
                         task.wait(0.02)
                     end
                     
-                    for _, v in pairs(targetBox:GetDescendants()) do
-                        if v:IsA("ClickDetector") then
-                            pcall(function() fireclickdetector(v) end)
-                        end
-                    end
-                    for _, v in pairs(targetCounter:GetDescendants()) do
-                        if v:IsA("ClickDetector") then
-                            pcall(function() fireclickdetector(v) end)
-                        end
-                    end
-                    
                     task.wait(0.2)
                     timeout = timeout + 0.2
                     
@@ -239,15 +262,11 @@ TabBuy:Button({
                     WindUI:Notify({ Title = "购买成功", Content = "钱已扣！正在拖回...", Duration = 2 })
                     task.wait(0.3)
                     
-                    for j = 1, 30 do
-                        pcall(function() 
-                            RS.Interaction.ClientIsDragging:FireServer(targetBox) 
-                        end)
-                        if targetBox.PrimaryPart then
-                            targetBox:SetPrimaryPartCFrame(oldpos + Vector3.new(0, 3, 0))
-                        end
-                        task.wait(0.02)
-                    end
+                    local oldPlayerCF = oldpos + Vector3.new(0, 3, 0)
+                    PhysicsDrag(targetBox, oldPlayerCF)
+                    task.wait(1.5)
+                    RemovePhysicsDrag(targetBox)
+                    
                     WindUI:Notify({ Title = "大功告成", Content = "实体箱子已拉回！", Duration = 4 })
                 else
                     WindUI:Notify({ Title = "购买失败", Content = "未扣钱，服务器拒绝交易", Duration = 4 })
