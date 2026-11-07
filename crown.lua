@@ -1,32 +1,55 @@
 local player = game.Players.LocalPlayer
 local TS = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
+local RS = game:GetService("ReplicatedStorage")
+local Mouse = player:GetMouse()
+local CoreGui = game:GetService("CoreGui")
+
 local WhitelistURL = "https://raw.githubusercontent.com/moos294/jooiionn/main/whitelist.txt" 
 
 local function CheckWhitelist()
-    local success, response = pcall(function()
-        return game:HttpGet(WhitelistURL)
-    end)
-    
+    local success, response = pcall(function() return game:HttpGet(WhitelistURL) end)
     if not success or not response then return false end
     if string.find(response, player.Name) or string.find(response, tostring(player.UserId)) then return true end
     return false
 end
 
-local isWhitelisted = CheckWhitelist()
-if not isWhitelisted then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "系统提示",
-        Text = "你并没有白名单无法用此脚本",
-        Duration = 5
-    })
+if not CheckWhitelist() then
+    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "系统提示", Text = "你并没有白名单无法用此脚本", Duration = 5})
     return 
 end
 
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "验证成功",
-    Text = "欢迎尊贵的白名单使用此脚本",
-    Duration = 5
-})
+game:GetService("StarterGui"):SetCore("SendNotification", {Title = "验证成功", Text = "欢迎尊贵的白名单使用此脚本", Duration = 5})
+
+local isDragEnabled = false
+local dragConn = nil
+
+local function CleanupAll()
+    isDragEnabled = false
+    if dragConn then
+        dragConn:Disconnect()
+        dragConn = nil
+    end
+
+    for i = 1, 3 do
+        local bringPoint = Workspace:FindFirstChild("BRING"..i)
+        if bringPoint then bringPoint:Destroy() end
+    end
+
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack and backpack:FindFirstChild("点击传送") then
+        backpack["点击传送"]:Destroy()
+    end
+    local char = player.Character
+    if char and char:FindFirstChild("点击传送") then
+        char["点击传送"]:Destroy()
+    end
+
+    local oldGui = CoreGui:FindFirstChild("封存木材")
+    if oldGui then oldGui:Destroy() end
+end
+
+CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
@@ -39,16 +62,17 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark"
 })
 
-local Workspace = game:GetService("Workspace")
-local RS = game:GetService("ReplicatedStorage")
-local Mouse = player:GetMouse()
+pcall(function()
+    Window:OnClose(function()
+        CleanupAll()
+    end)
+end)
 
 local function DragModel(m, cf)
 	pcall(function() 
         RS.Interaction.ClientIsDragging:FireServer("Begin", m, 4) 
         RS.Interaction.ClientIsDragging:FireServer("Refresh", m, 5)
     end)
-    
 	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
 	if m.PrimaryPart then 
         m.PrimaryPart.Velocity = Vector3.zero
@@ -82,7 +106,6 @@ TabTP:Button({
     Desc = "安全传送到树旁边的空地上",
     Callback = function()
         if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-        
         local targetWood = nil
         for _, v in next, Workspace:GetDescendants() do
             if v.Name == "TreeRegion" then
@@ -90,8 +113,7 @@ TabTP:Button({
                     if m:FindFirstChild("CutEvent") and not m:FindFirstChild("RootCut") then
                         if m:FindFirstChild("TreeClass") and m.TreeClass.Value == targetTree then 
                             if m:FindFirstChild("Owner") and (m.Owner.Value == nil or m.Owner.Value == player) then
-                                targetWood = m
-                                break
+                                targetWood = m break
                             end
                         end
                     end
@@ -99,154 +121,72 @@ TabTP:Button({
             end
             if targetWood then break end
         end
-        
-        if targetWood then
-            local baseWood = targetWood:FindFirstChild("WoodSection")
-            if baseWood then
-                local safePos = baseWood.CFrame + Vector3.new(0, 2.5, 3.5)
-                player.Character.HumanoidRootPart.CFrame = safePos
-                WindUI:Notify({ Title = "成功", Content = "传送成功", Duration = 3 })
-            end
+        if targetWood and targetWood:FindFirstChild("WoodSection") then
+            player.Character.HumanoidRootPart.CFrame = targetWood.WoodSection.CFrame + Vector3.new(0, 2.5, 3.5)
+            WindUI:Notify({ Title = "成功", Content = "传送成功", Duration = 3 })
         else
             WindUI:Notify({ Title = "错误", Content = "没找到这种树", Duration = 3 })
         end
     end
 })
 
-TabTP:Button({
-    Title = "保存当前位置为 传送点1",
-    Callback = function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            playerPos[1] = player.Character.HumanoidRootPart.CFrame
-            WindUI:Notify({ Title = "成功", Content = "已保存传送点1", Duration = 3 })
+for i = 1, 3 do
+    TabTP:Button({
+        Title = "保存当前位置为 传送点"..i,
+        Callback = function()
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                playerPos[i] = player.Character.HumanoidRootPart.CFrame
+                WindUI:Notify({ Title = "成功", Content = "已保存传送点"..i, Duration = 3 })
+            end
         end
-    end
-})
-
-TabTP:Button({
-    Title = "传送到 传送点1",
-    Callback = function()
-        if playerPos[1] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = playerPos[1]
-            WindUI:Notify({ Title = "成功", Content = "已回到传送点1", Duration = 3 })
-        else
-            WindUI:Notify({ Title = "错误", Content = "未保存传送点1", Duration = 3 })
+    })
+    TabTP:Button({
+        Title = "传送到 传送点"..i,
+        Callback = function()
+            if playerPos[i] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = playerPos[i]
+                WindUI:Notify({ Title = "成功", Content = "已回到传送点"..i, Duration = 3 })
+            else
+                WindUI:Notify({ Title = "错误", Content = "未保存传送点"..i, Duration = 3 })
+            end
         end
-    end
-})
-
-TabTP:Button({
-    Title = "保存当前位置为 传送点2",
-    Callback = function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            playerPos[2] = player.Character.HumanoidRootPart.CFrame
-            WindUI:Notify({ Title = "成功", Content = "已保存传送点2", Duration = 3 })
-        end
-    end
-})
-
-TabTP:Button({
-    Title = "传送到 传送点2",
-    Callback = function()
-        if playerPos[2] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = playerPos[2]
-            WindUI:Notify({ Title = "成功", Content = "已回到传送点2", Duration = 3 })
-        else
-            WindUI:Notify({ Title = "错误", Content = "未保存传送点2", Duration = 3 })
-        end
-    end
-})
-
-TabTP:Button({
-    Title = "保存当前位置为 传送点3",
-    Callback = function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            playerPos[3] = player.Character.HumanoidRootPart.CFrame
-            WindUI:Notify({ Title = "成功", Content = "已保存传送点3", Duration = 3 })
-        end
-    end
-})
-
-TabTP:Button({
-    Title = "传送到 传送点3",
-    Callback = function()
-        if playerPos[3] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = playerPos[3]
-            WindUI:Notify({ Title = "成功", Content = "已回到传送点3", Duration = 3 })
-        else
-            WindUI:Notify({ Title = "错误", Content = "未保存传送点3", Duration = 3 })
-        end
-    end
-})
+    })
+end
 
 local TabItem = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10882439086" })
-local selectedBringTarget = "拉回点位1"
+local selectedBringTarget = "BRING1"
 
 TabItem:Dropdown({
     Title = "选择物品拉回的目标点",
     Values = {"拉回点位1", "拉回点位2", "拉回点位3"},
     Value = "拉回点位1",
     Callback = function(option)
-        selectedBringTarget = option
+        if option == "拉回点位1" then selectedBringTarget = "BRING1"
+        elseif option == "拉回点位2" then selectedBringTarget = "BRING2"
+        elseif option == "拉回点位3" then selectedBringTarget = "BRING3" end
     end
 })
 
-TabItem:Button({
-    Title = "设置 物品点位1",
-    Callback = function()
-        if Workspace:FindFirstChild("BRING1") then Workspace.BRING1:Destroy() end
-        local p = Instance.new("Part", Workspace)
-        p.Name = "BRING1"
-        p.Transparency = 1
-        p.Anchored = true
-        p.CFrame = player.Character.HumanoidRootPart.CFrame
-        p.CanCollide = false
-        p.Size = player.Character.HumanoidRootPart.Size
-        
-        local posBox = Instance.new("SelectionBox", p)
-        posBox.Color3 = Color3.new(0, 255, 0)
-        posBox.Adornee = p
-        WindUI:Notify({ Title = "成功", Content = "物品点位1已设置", Duration = 3 })
-    end
-})
-
-TabItem:Button({
-    Title = "设置 物品点位2",
-    Callback = function()
-        if Workspace:FindFirstChild("BRING2") then Workspace.BRING2:Destroy() end
-        local p = Instance.new("Part", Workspace)
-        p.Name = "BRING2"
-        p.Transparency = 1
-        p.Anchored = true
-        p.CFrame = player.Character.HumanoidRootPart.CFrame
-        p.CanCollide = false
-        p.Size = player.Character.HumanoidRootPart.Size
-        
-        local posBox = Instance.new("SelectionBox", p)
-        posBox.Color3 = Color3.new(0, 255, 0)
-        posBox.Adornee = p
-        WindUI:Notify({ Title = "成功", Content = "物品点位2已设置", Duration = 3 })
-    end
-})
-
-TabItem:Button({
-    Title = "设置 物品点位3",
-    Callback = function()
-        if Workspace:FindFirstChild("BRING3") then Workspace.BRING3:Destroy() end
-        local p = Instance.new("Part", Workspace)
-        p.Name = "BRING3"
-        p.Transparency = 1
-        p.Anchored = true
-        p.CFrame = player.Character.HumanoidRootPart.CFrame
-        p.CanCollide = false
-        p.Size = player.Character.HumanoidRootPart.Size
-        
-        local posBox = Instance.new("SelectionBox", p)
-        posBox.Color3 = Color3.new(0, 255, 0)
-        posBox.Adornee = p
-        WindUI:Notify({ Title = "成功", Content = "物品点位3已设置", Duration = 3 })
-    end
-})
+for i = 1, 3 do
+    TabItem:Button({
+        Title = "设置 物品点位"..i,
+        Callback = function()
+            if Workspace:FindFirstChild("BRING"..i) then Workspace:FindFirstChild("BRING"..i):Destroy() end
+            local p = Instance.new("Part", Workspace)
+            p.Name = "BRING"..i
+            p.Transparency = 1
+            p.Anchored = true
+            p.CFrame = player.Character.HumanoidRootPart.CFrame
+            p.CanCollide = false
+            p.Size = player.Character.HumanoidRootPart.Size
+            
+            local posBox = Instance.new("SelectionBox", p)
+            posBox.Color3 = Color3.new(0, 255, 0)
+            posBox.Adornee = p
+            WindUI:Notify({ Title = "成功", Content = "物品点位"..i.."已设置", Duration = 3 })
+        end
+    })
+end
 
 TabItem:Button({
     Title = "获取点击传送工具",
@@ -259,25 +199,20 @@ TabItem:Button({
         a.Name = "点击传送"
         a.RequiresHandle = false
         a.Activated:Connect(function()
-            local targetPartName = "BRING1"
-            if selectedBringTarget == "拉回点位2" then targetPartName = "BRING2" end
-            if selectedBringTarget == "拉回点位3" then targetPartName = "BRING3" end
-            
-            if Workspace:FindFirstChild(targetPartName) then
-                local targetCFrame = Workspace[targetPartName].CFrame
+            if Workspace:FindFirstChild(selectedBringTarget) then
+                local targetCFrame = Workspace[selectedBringTarget].CFrame
                 local targetPart = Mouse.Target
                 if not targetPart then return end
                 local targetModel = targetPart.Parent
-                
                 if targetModel and (targetModel.Name == "Plank" or targetModel:FindFirstChild("WoodSection") or targetModel:FindFirstChild("Owner")) then
                     for i = 1, 40 do
                         DragModel(targetModel, targetCFrame)
                         task.wait(0.02)
                     end
-                    WindUI:Notify({ Title = "传送成功", Content = "物品已拉回" .. selectedBringTarget, Duration = 3 })
+                    WindUI:Notify({ Title = "传送成功", Content = "物品已拉回", Duration = 3 })
                 end
             else
-                WindUI:Notify({ Title = "错误", Content = "请先设置 " .. selectedBringTarget, Duration = 3 })
+                WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位", Duration = 3 })
             end
         end)
         WindUI:Notify({ Title = "成功", Content = "工具已放入背包", Duration = 3 })
@@ -290,68 +225,34 @@ local targetPlaceId = tostring(game.PlaceId)
 TabServer:Input({
     Title = "指定服务器 ID",
     Value = tostring(game.PlaceId),
-    Callback = function(text)
-        targetPlaceId = text
-    end
+    Callback = function(text) targetPlaceId = text end
 })
 
 TabServer:Button({
     Title = "重新进入当前服务器",
-    Desc = "快速重连当前私人服务器",
     Callback = function()
         local options = Instance.new("TeleportOptions")
         options.ServerInstanceId = game.JobId
-        local success, err = pcall(function()
-            TS:TeleportAsync(game.PlaceId, {player}, options)
-        end)
-        
-        if not success then
-            pcall(function()
-                TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-            end)
-        end
+        pcall(function() TS:TeleportAsync(game.PlaceId, {player}, options) end)
     end
 })
 
 TabServer:Button({
     Title = "指定服务器换服",
-    Desc = "需在上方 Input 填写 PlaceId",
     Callback = function()
         local id = tonumber(targetPlaceId)
-        if id then
-            local success, err = pcall(function()
-                TS:TeleportAsync(id, {player})
-            end)
-            if not success then
-                pcall(function()
-                    TS:Teleport(id, player)
-                end)
-            end
-        else
-            WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
-        end
+        if id then pcall(function() TS:TeleportAsync(id, {player}) end) end
     end
 })
 
 TabServer:Button({
     Title = "随机换服",
-    Desc = "随机加入当前游戏的另一个服务器",
     Callback = function()
-        local success, err = pcall(function()
-            TS:TeleportAsync(game.PlaceId, {player})
-        end)
-        if not success then
-            pcall(function()
-                TS:Teleport(game.PlaceId, player)
-            end)
-        end
+        pcall(function() TS:TeleportAsync(game.PlaceId, {player}) end)
     end
 })
 
 local TabExtra = Window:Tab({ Title = "其他功能", Icon = "rbxassetid://10882439086" })
-
-local isDragEnabled = false
-local dragConn = nil
 
 local function stopDrag()
     isDragEnabled = false
@@ -410,11 +311,18 @@ TabExtra:Button({
 
 TabExtra:Button({
     Title = "开启飞行",
-    Desc = "点击加载飞行脚本V3",
     Callback = function()
         WindUI:Notify({ Title = "加载中", Content = "正在注入飞行脚本...", Duration = 3 })
         pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/385j8888/ZOUMAGUIX/refs/heads/main/%E9%A3%9E%E8%A1%8C%E8%84%9A%E6%9C%ACV3(%E5%85%A8%E6%B8%B8%E6%88%8F%E9%80%9A%E7%94%A8).txt"))()
         end)
+    end
+})
+
+TabExtra:Button({
+    Title = "彻底关闭并清理缓存",
+    Desc = "关闭UI并清除所有残留工具与点位",
+    Callback = function()
+        CleanupAll()
     end
 })
