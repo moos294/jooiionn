@@ -303,9 +303,19 @@ TabServer:Input({
 
 TabServer:Button({
     Title = "重新进入当前服务器",
-    Desc = "默认模式，快速重连当前服",
+    Desc = "快速重连当前私人服务器",
     Callback = function()
-        TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+        local options = Instance.new("TeleportOptions")
+        options.ServerInstanceId = game.JobId
+        local success, err = pcall(function()
+            TS:TeleportAsync(game.PlaceId, {player}, options)
+        end)
+        
+        if not success then
+            pcall(function()
+                TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+            end)
+        end
     end
 })
 
@@ -315,7 +325,14 @@ TabServer:Button({
     Callback = function()
         local id = tonumber(targetPlaceId)
         if id then
-            TS:Teleport(id, player)
+            local success, err = pcall(function()
+                TS:TeleportAsync(id, {player})
+            end)
+            if not success then
+                pcall(function()
+                    TS:Teleport(id, player)
+                end)
+            end
         else
             WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
         end
@@ -326,7 +343,14 @@ TabServer:Button({
     Title = "随机换服",
     Desc = "随机加入当前游戏的另一个服务器",
     Callback = function()
-        TS:Teleport(game.PlaceId, player)
+        local success, err = pcall(function()
+            TS:TeleportAsync(game.PlaceId, {player})
+        end)
+        if not success then
+            pcall(function()
+                TS:Teleport(game.PlaceId, player)
+            end)
+        end
     end
 })
 
