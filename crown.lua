@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v0.8",
+    Title = "封存木材 v1.6",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -108,7 +108,7 @@ TabBuy:Slider({
 
 TabBuy:Button({
     Title = "开始购买神秘箱子",
-    Desc = "纯净购买，绝不拖拽展示盒",
+    Desc = "无参拖拽 + 物理点击双重触发",
     Callback = function()
         local startMoney = GetMoney()
         local totalPrice = cratePrice * buyAmount
@@ -145,79 +145,112 @@ TabBuy:Button({
             local npcModel = shopModel:WaitForChild("Manachron", 5)
             local npcDialog = npcModel:WaitForChild("Dialog", 5)
             
+            local targetBox = nil
+            local targetCounter = nil
+            
+            for _, v in next, shopModel:GetDescendants() do
+                if v.Name == "Counter" or v.Name == "counter" then targetCounter = v end
+                if v.Name == "ShopItems" then
+                    for _, box in next, v:GetChildren() do
+                        local nameObj = box:FindFirstChild("BoxItemName") or (box:FindFirstChild("Configuration") and box.Configuration:FindFirstChild("BoxItemName"))
+                        if nameObj and nameObj.Value == "Crate" then
+                            targetBox = box
+                        end
+                    end
+                end
+            end
+            
+            if not targetBox or not targetCounter then
+                WindUI:Notify({ Title = "失败", Content = "箱子或柜台未找到", Duration = 4 })
+                player.Character.HumanoidRootPart.CFrame = oldpos
+                return
+            end
+            
             for i = 1, buyAmount do
                 WindUI:Notify({ Title = "购买中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
                 
-                -- 把玩家直接贴在商人脸上
-                if npcModel:FindFirstChild("HumanoidRootPart") then
-                    player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 3, 2)
-                else
-                    player.Character.HumanoidRootPart.CFrame = npcModel.PrimaryPart.CFrame + Vector3.new(0, 3, 2)
+                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 3, 3)
+                task.wait(0.2)
+                
+                local boxCF = targetCounter.CFrame + Vector3.new(0, 1, 0)
+                
+                for j = 1, 20 do
+                    pcall(function() RS.Interaction.ClientIsDragging:FireServer(targetBox) end)
+                    if targetBox.PrimaryPart then
+                        targetBox.PrimaryPart.Velocity = Vector3.zero
+                        targetBox:SetPrimaryPartCFrame(boxCF)
+                    end
+                    task.wait(0.05)
                 end
+                
                 task.wait(0.5)
                 
                 local expectedMoney = GetMoney()
                 local buySuccess = false
-                local buyTimeout = 0
+                local timeout = 0
                 
-                -- 核心策略：纯发包，死磕扣钱
-                while not buySuccess and buyTimeout < 3 do
-                    pcall(function()
-                        local retID = 18
-                        local ret = RS.NPCDialog.SetChattingValue:InvokeServer(1)
-                        if typeof(ret) == "number" then retID = ret end
-                        
-                        local args = {
-                            {
-                                ID = retID,
-                                Character = npcModel,
-                                Name = "Manachron",
-                                Dialog = npcDialog
-                            },
-                            "ConfirmPurchase"
-                        }
-                        RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
-                    end)
+                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
+                task.wait(0.1)
+                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
+                task.wait(0.1)
+                
+                while not buySuccess and timeout < 3 do
+                    for tryID = 1, 30 do
+                        task.spawn(function()
+                            pcall(function()
+                                local args = {
+                                    {
+                                        ID = tryID,
+                                        Character = npcModel,
+                                        Name = "Manachron",
+                                        Dialog = npcDialog
+                                    },
+                                    "ConfirmPurchase"
+                                }
+                                RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
+                            end)
+                        end)
+                        task.wait(0.02)
+                    end
                     
-                    task.wait(0.15)
-                    buyTimeout = buyTimeout + 0.15
+                    for _, v in pairs(targetBox:GetDescendants()) do
+                        if v:IsA("ClickDetector") then
+                            pcall(function() fireclickdetector(v) end)
+                        end
+                    end
+                    for _, v in pairs(targetCounter:GetDescendants()) do
+                        if v:IsA("ClickDetector") then
+                            pcall(function() fireclickdetector(v) end)
+                        end
+                    end
+                    
+                    task.wait(0.2)
+                    timeout = timeout + 0.2
                     
                     if GetMoney() < expectedMoney then
                         buySuccess = true
+                        break
                     end
                 end
                 
                 pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
                 
                 if buySuccess then
-                    WindUI:Notify({ Title = "扣款成功", Content = "正在找回箱子并拖回...", Duration = 2 })
-                    task.wait(0.5)
+                    WindUI:Notify({ Title = "购买成功", Content = "钱已扣！正在拖回...", Duration = 2 })
+                    task.wait(0.3)
                     
-                    local boughtItemModel = nil
-                    local playerModels = Workspace:FindFirstChild("PlayerModels")
-                    if playerModels then
-                        for _, obj in pairs(playerModels:GetChildren()) do
-                            if string.find(obj.Name, "Crate Purchased by " .. player.Name) then
-                                boughtItemModel = obj
-                                break
-                            end
+                    for j = 1, 30 do
+                        pcall(function() 
+                            RS.Interaction.ClientIsDragging:FireServer(targetBox) 
+                        end)
+                        if targetBox.PrimaryPart then
+                            targetBox:SetPrimaryPartCFrame(oldpos + Vector3.new(0, 3, 0))
                         end
+                        task.wait(0.02)
                     end
-                    
-                    if boughtItemModel then
-                        for j = 1, 30 do
-                            pcall(function() 
-                                RS.Interaction.ClientIsDragging:FireServer("Refresh", boughtItemModel, 2) 
-                            end)
-                            if boughtItemModel.PrimaryPart then
-                                boughtItemModel:SetPrimaryPartCFrame(oldpos + Vector3.new(0, 3, 0))
-                            end
-                            task.wait(0.02)
-                        end
-                        WindUI:Notify({ Title = "大功告成", Content = "箱子已拉回！", Duration = 4 })
-                    end
+                    WindUI:Notify({ Title = "大功告成", Content = "实体箱子已拉回！", Duration = 4 })
                 else
-                    WindUI:Notify({ Title = "购买失败", Content = "未能扣除金钱，请联系作者", Duration = 4 })
+                    WindUI:Notify({ Title = "购买失败", Content = "未扣钱，服务器拒绝交易", Duration = 4 })
                     break
                 end
             end
@@ -420,7 +453,7 @@ TabExtra:Button({
     Callback = function()
         WindUI:Notify({ Title = "加载中", Content = "正在注入飞行脚本...", Duration = 3 })
         pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/385j8888/ZOOMAGUIX/refs/heads/main/%E9%A3%9E%E8%A1%8C%E8%84%9A%E6%9C%ACV3(%E5%85%A8%E6%B8%B8%E6%88%8F%E9%80%9A%E7%94%A8).txt"))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/385j8888/ZOUMAGUIX/refs/heads/main/%E9%A3%9E%E8%A1%8C%E8%84%9A%E6%9C%ACV3(%E5%85%A8%E6%B8%B8%E6%88%8F%E9%80%9A%E7%94%A8).txt"))()
         end)
     end
 })
