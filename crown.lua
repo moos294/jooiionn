@@ -45,7 +45,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v1.5",
+    Title = "封存木材 v1.7",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -81,41 +81,45 @@ local TabBuy = Window:Tab({ Title = "万能购买", Icon = "rbxassetid://1073494
 local buyAmount = 1
 local selectedItemEN = ""
 local selectedShopEN = ""
+local currentPrice = 0
 
+-- 数据库 (价格直接写死，格式: ["英文名"] = {"中文名", 价格})
 local ShopDB = {
-    ["FineFinds"] = { NameCN = "寻宝商店", NPC = "Manachron", ID = 20, Items = {["BasicHatchet"]="基础斧头",["VirtualAxe"]="虚拟斧",["Pickup3"]="皮卡3",["Pie"]="派",["Furnace"]="熔炉",["Dynamite"]="炸药",["DogWood"]="狗木",["GlobeWood"]="地球木",["PumpkinWood"]="南瓜木",["Titanium"]="钛",["Floor1MegaLarge"]="超大地板1",["Floor2MegaLarge"]="超大地板2",["Wall2Round"]="圆形墙",["WallMadeWithRound"]="圆墙",["Shelf1"]="架子1",["Crate"]="箱子",["Cube"]="方块",["WritableSign"]="可写告示牌"} },
-    ["FurnitureStore"] = { NameCN = "家具店", NPC = "Corey", ID = 8, Items = {["Toilet"]="马桶",["Stove"]="火炉",["Refridgerator"]="冰箱",["Dishwasher"]="洗碗机",["Bed1"]="床1",["Bed2"]="床2",["Seat_Couch"]="长沙发",["Seat_Loveseat"]="双人沙发",["Seat_Armchair"]="扶手椅",["GlassPane1"]="微型玻璃板",["GlassPane2"]="小型玻璃板",["GlassPane3"]="玻璃板",["GlassPane4"]="大型玻璃板",["GlassDoor1"]="玻璃门",["LightBulb"]="灯泡",["WallLight1"]="墙灯1",["WallLight2"]="墙灯2",["Lamp1"]="台灯",["FloorLamp1"]="落地灯",["Cabinet1"]="橱柜",["Cabinet1Thin"]="薄橱柜",["CounterTop1"]="工作台面",["CounterTop1Thin"]="薄工作台面",["CounterTop1Sink"]="带水槽工作台面",["Torch"]="火把",["WashingMachine"]="洗衣机",["largeUmbrella"]="大遮阳伞",["FoldingChair"]="折叠椅",["ParkBench"]="公园长椅",["SmallTable"]="小桌子"} },
-    ["WoodRUs"] = { NameCN = "木材反斗城", NPC = "Thom", ID = 7, Items = {["Axe1"]="普通斧头",["Axe2"]="钢斧",["Axe3"]="硬化斧",["SilverAxe"]="银斧头",["Rukiryaxe"]="无敌斧",["Sawmill"]="破旧锯木厂",["Sawmill2"]="普通锯木厂",["Sawmill3"]="锯木机01",["Sawmill4"]="锯木机02",["Sawmill4L"]="锯木机02L",["UtilityTruck"]="多用途运载车",["WorkLight"]="工作灯",["BagOfSand"]="沙子袋",["ChopSaw"]="劈锯",["Wire"]="电线",["Button0"]="按钮",["Lever0"]="控制杆",["PressurePlate"]="压力板",["StraightConveyor"]="直式传送带",["TiltConveyor"]="倾斜传送带",["ConveyorFunnel"]="漏斗式传送带",["ConveyorSwitch"]="切换传送器",["LogSweeper"]="木头清扫机"} },
-    ["CarStore"] = { NameCN = "汽车店", NPC = "Jenny", ID = 9, Items = {["SmallTrailer"]="小型拖车",["Trailer2"]="拖车2",["Trailer3"]="拖车3",["UtilityTruck2"]="多功能运载车",["Pickup1"]="皮卡1",["Pickup2"]="皮卡2",["Pickup4"]="皮卡4",["PickUp5"]="皮卡5"} },
-    ["BlackMarket"] = { NameCN = "黑市", NPC = "sneakypotato7", ID = 20, Items = {["EndtimesChainsaw"]="末世电锯",["TinyTrailer"]="微型拖车",["UtilityTruckNeon"]="霓虹多功能车",["MiniTruck"]="迷你卡车",["Bigsaw"]="巨型锯",["Cheese"]="奶酪",["Skull"]="骷髅头",["StrangeMan"]="奇怪的人"} },
-    ["SallysSeasonal"] = { NameCN = "莎莉商店", NPC = "Sally", ID = 20, Items = {["SinisterSawmill2"]="邪恶锯木厂2",["SinisterChopSaw"]="邪恶劈锯",["PumpkinClassic"]="经典南瓜",["PumpkinDark"]="黑暗南瓜",["PumpkinSinister"]="邪恶南瓜",["AxeSinister2"]="邪恶斧2"} },
-    ["StoneRUs"] = { NameCN = "石头反斗城", NPC = "Bloxyway", ID = 20, Items = {["QunatumSawmill"]="量子锯木厂",["WoodLauncher"]="木材发射器",["MegaConveyor"]="超级传送带",["MEGATiltConveyor"]="超级倾斜传送带",["MegaFurnace"]="超级熔炉",["MagicLamp"]="神灯",["Lemon"]="柠檬"} },
-    ["Igloo"] = { NameCN = "冰屋", NPC = "Cold Guy", ID = 20, Items = {["AxeIce"]="冰斧",["IceCube"]="冰块",["Cocoa"]="热可可"} },
-    ["LogicStore"] = { NameCN = "逻辑商店", NPC = "Lincoln", ID = 12, Items = {["GateAND"]="与门",["GateOR"]="或门",["GateXOR"]="异或门",["GateNOT"]="非门",["Laser"]="激光",["LaserReceiver"]="激光接收器",["WoodChecker"]="木材检测器",["SignalDelay"]="信号延迟",["SignalSustain"]="信号维持"} },
-    ["MusicStore"] = { NameCN = "音乐商店", NPC = "NazuReborn", ID = 20, Items = {["LumberCD2"]="木材CD2",["MusicBox"]="音乐盒"} },
-    ["PlantomicsChoice"] = { NameCN = "植物学之选", NPC = "Null", ID = 20, Items = {["SpiritAxe"]="灵魂斧",["Tahoe"]="雪佛兰Tahoe",["Cat"]="猫",["HappyBall"]="快乐球",["Egg"]="蛋",["Battery"]="电池"} },
-    ["SeaSide"] = { NameCN = "海边商店", NPC = "Guy", ID = 20, Items = {["BeachBall"]="沙滩球",["Milk"]="牛奶",["Cookie"]="饼干"} },
-    ["VIPSHOP"] = { NameCN = "VIP商店", NPC = "Todd", ID = 20, Items = {["Vip"]="VIP特权",["WaterCar"]="水上汽车",["GoldBall"]="黄金球",["PumpkinGold"]="黄金南瓜",["GoldChop"]="黄金砍伐机",["FurnaceVIP"]="VIP熔炉"} },
-    ["MountainSide"] = { NameCN = "山边商店", NPC = "Mr.Bacon", ID = 20, Items = {["OffRoadTruck"]="越野卡车",["AxeShiny"]="闪亮斧头",["SawmillGift"]="礼物锯木厂"} },
-    ["FineArt"] = { NameCN = "艺术品商店", NPC = "Timothy", ID = 11, Items = {["Painting1"]="画作1",["Painting2"]="画作2",["Painting3"]="画作3",["Painting11"]="画作11"} },
-    ["SaplingCart"] = { NameCN = "树苗车", NPC = "Billy", ID = 20, Items = {["SaplingGeneric"]="普通树苗",["SaplingCrate"]="树苗箱",["Planter2"]="种植机2"} },
-    ["PlanterStore"] = { NameCN = "种植商店", NPC = "OGxOutcast", ID = 20, Items = {["AppleTree"]="苹果树",["WaterCube"]="水方块",["SteamRock"]="蒸汽石",["FireRock"]="火石",["Asphalt"]="沥青"} }
+    ["FineFinds"] = { NameCN = "寻宝商店", NPC = "Manachron", ID = 20, Items = {["BasicHatchet"]={"基础斧头", 12},["VirtualAxe"]={"虚拟斧", 10000},["Pickup3"]={"皮卡3", 10000},["Pie"]={"派", 50},["Furnace"]={"熔炉", 10000},["Dynamite"]={"炸药", 220},["DogWood"]={"狗木", 500},["GlobeWood"]={"地球木", 500},["PumpkinWood"]={"南瓜木", 500},["Titanium"]={"钛", 5000},["Floor1MegaLarge"]={"超大地板1", 80},["Floor2MegaLarge"]={"超大地板2", 80},["Wall2Round"]={"圆形墙", 80},["WallMadeWithRound"]={"圆墙", 80},["Shelf1"]={"架子1", 80},["Crate"]={"箱子", 100},["Cube"]={"方块", 100},["WritableSign"]={"可写告示牌", 80}} },
+    ["FurnitureStore"] = { NameCN = "家具店", NPC = "Corey", ID = 8, Items = {["Toilet"]={"马桶", 90},["Stove"]={"火炉", 340},["Refridgerator"]={"冰箱", 310},["Dishwasher"]={"洗碗机", 380},["Bed1"]={"床1", 250},["Bed2"]={"床2", 350},["Seat_Couch"]={"长沙发", 320},["Seat_Loveseat"]={"双人沙发", 200},["Seat_Armchair"]={"扶手椅", 140},["GlassPane1"]={"微型玻璃板", 12},["GlassPane2"]={"小型玻璃板", 50},["GlassPane3"]={"玻璃板", 220},["GlassPane4"]={"大型玻璃板", 550},["GlassDoor1"]={"玻璃门", 720},["LightBulb"]={"灯泡", 2600},["WallLight1"]={"墙灯1", 90},["WallLight2"]={"墙灯2", 90},["Lamp1"]={"台灯", 90},["FloorLamp1"]={"落地灯", 110},["Cabinet1"]={"橱柜", 80},["Cabinet1Thin"]={"薄橱柜", 80},["CounterTop1"]={"工作台面", 80},["CounterTop1Thin"]={"薄工作台面", 80},["CounterTop1Sink"]={"带水槽工作台面", 80},["Torch"]={"火把", 80},["WashingMachine"]={"洗衣机", 80},["largeUmbrella"]={"大遮阳伞", 80},["FoldingChair"]={"折叠椅", 80},["ParkBench"]={"公园长椅", 80},["SmallTable"]={"小桌子", 80}} },
+    ["WoodRUs"] = { NameCN = "木材反斗城", NPC = "Thom", ID = 7, Items = {["Axe1"]={"普通斧头", 90},["Axe2"]={"钢斧", 190},["Axe3"]={"硬化斧", 550},["SilverAxe"]={"银斧头", 2040},["Rukiryaxe"]={"无敌斧", 7400},["Sawmill"]={"破旧锯木厂", 130},["Sawmill2"]={"普通锯木厂", 1600},["Sawmill3"]={"锯木机01", 11000},["Sawmill4"]={"锯木机02", 22500},["Sawmill4L"]={"锯木机02L", 86500},["UtilityTruck"]={"多用途运载车", 400},["WorkLight"]={"工作灯", 80},["BagOfSand"]={"沙子袋", 1600},["ChopSaw"]={"劈锯", 12200},["Wire"]={"电线", 205},["Button0"]={"按钮", 320},["Lever0"]={"控制杆", 520},["PressurePlate"]={"压力板", 640},["StraightConveyor"]={"直式传送带", 80},["TiltConveyor"]={"倾斜传送带", 95},["ConveyorFunnel"]={"漏斗式传送带", 60},["ConveyorSwitch"]={"切换传送器", 320},["LogSweeper"]={"木头清扫机", 430}} },
+    ["CarStore"] = { NameCN = "汽车店", NPC = "Jenny", ID = 9, Items = {["SmallTrailer"]={"小型拖车", 1800},["Trailer2"]={"拖车2", 13000},["Trailer3"]={"拖车3", 16000},["UtilityTruck2"]={"多功能运载车", 5000},["Pickup1"]={"皮卡1", 19000},["Pickup2"]={"皮卡2", 20000},["Pickup4"]={"皮卡4", 25000},["PickUp5"]={"皮卡5", 30000}} },
+    ["BlackMarket"] = { NameCN = "黑市", NPC = "sneakypotato7", ID = 20, Items = {["EndtimesChainsaw"]={"末世电锯", 500000},["TinyTrailer"]={"微型拖车", 50000},["UtilityTruckNeon"]={"霓虹多功能车", 80000},["MiniTruck"]={"迷你卡车", 40000},["Bigsaw"]={"巨型锯", 100000},["Cheese"]={"奶酪", 1000},["Skull"]={"骷髅头", 5000},["StrangeMan"]={"奇怪的人", 999999}} },
+    ["SallysSeasonal"] = { NameCN = "莎莉商店", NPC = "Sally", ID = 20, Items = {["SinisterSawmill2"]={"邪恶锯木厂2", 25000},["SinisterChopSaw"]={"邪恶劈锯", 20000},["PumpkinClassic"]={"经典南瓜", 500},["PumpkinDark"]={"黑暗南瓜", 500},["PumpkinSinister"]={"邪恶南瓜", 500},["AxeSinister2"]={"邪恶斧2", 25000}} },
+    ["StoneRUs"] = { NameCN = "石头反斗城", NPC = "Bloxyway", ID = 20, Items = {["QunatumSawmill"]={"量子锯木厂", 500000},["WoodLauncher"]={"木材发射器", 100000},["MegaConveyor"]={"超级传送带", 50000},["MEGATiltConveyor"]={"超级倾斜传送带", 50000},["MegaFurnace"]={"超级熔炉", 200000},["MagicLamp"]={"神灯", 100000},["Lemon"]={"柠檬", 100}} },
+    ["Igloo"] = { NameCN = "冰屋", NPC = "Cold Guy", ID = 20, Items = {["AxeIce"]={"冰斧", 5000},["IceCube"]={"冰块", 100},["Cocoa"]={"热可可", 50}} },
+    ["LogicStore"] = { NameCN = "逻辑商店", NPC = "Lincoln", ID = 12, Items = {["GateAND"]={"与门", 260},["GateOR"]={"或门", 260},["GateXOR"]={"异或门", 260},["GateNOT"]={"非门", 200},["Laser"]={"激光", 11300},["LaserReceiver"]={"激光接收器", 3200},["WoodChecker"]={"木材检测器", 11300},["SignalDelay"]={"信号延迟", 520},["SignalSustain"]={"信号维持", 520}} },
+    ["MusicStore"] = { NameCN = "音乐商店", NPC = "NazuReborn", ID = 20, Items = {["LumberCD2"]={"木材CD2", 500},["MusicBox"]={"音乐盒", 1000}} },
+    ["PlantomicsChoice"] = { NameCN = "植物学之选", NPC = "Null", ID = 20, Items = {["SpiritAxe"]={"灵魂斧", 8000},["Tahoe"]={"雪佛兰Tahoe", 20000},["Cat"]={"猫", 1000},["HappyBall"]={"快乐球", 1000},["Egg"]={"蛋", 100},["Battery"]={"电池", 200}} },
+    ["SeaSide"] = { NameCN = "海边商店", NPC = "Guy", ID = 20, Items = {["BeachBall"]={"沙滩球", 100},["Milk"]={"牛奶", 50},["Cookie"]={"饼干", 20}} },
+    ["VIPSHOP"] = { NameCN = "VIP商店", NPC = "Todd", ID = 20, Items = {["Vip"]={"VIP特权", 100000},["WaterCar"]={"水上汽车", 50000},["GoldBall"]={"黄金球", 5000},["PumpkinGold"]={"黄金南瓜", 5000},["GoldChop"]={"黄金砍伐机", 50000},["FurnaceVIP"]={"VIP熔炉", 50000}} },
+    ["MountainSide"] = { NameCN = "山边商店", NPC = "Mr.Bacon", ID = 20, Items = {["OffRoadTruck"]={"越野卡车", 15000},["AxeShiny"]={"闪亮斧头", 10000},["SawmillGift"]={"礼物锯木厂", 5000}} },
+    ["FineArt"] = { NameCN = "艺术品商店", NPC = "Timothy", ID = 11, Items = {["Painting1"]={"画作1", 5980},["Painting2"]={"画作2", 2006},["Painting3"]={"画作3", 6},["Painting11"]={"画作11", 2406000}} },
+    ["SaplingCart"] = { NameCN = "树苗车", NPC = "Billy", ID = 20, Items = {["SaplingGeneric"]={"普通树苗", 50},["SaplingCrate"]={"树苗箱", 500},["Planter2"]={"种植机2", 1000}} },
+    ["PlanterStore"] = { NameCN = "种植商店", NPC = "OGxOutcast", ID = 20, Items = {["AppleTree"]={"苹果树", 1000},["WaterCube"]={"水方块", 100},["SteamRock"]={"蒸汽石", 100},["FireRock"]={"火石", 100},["Asphalt"]={"沥青", 100}} }
 }
 
-local shopListCN = {}
 local itemCNToEN = {}
 local itemToShop = {}
+local itemPrices = {}
 
 for shopEN, shopData in pairs(ShopDB) do
-    table.insert(shopListCN, shopData.NameCN)
-    for itemEN, itemCN in pairs(shopData.Items) do
-        local displayStr = string.format("[%s] %s", shopData.NameCN, itemCN)
+    for itemEN, itemData in pairs(shopData.Items) do
+        local itemCN = itemData[1]
+        local price = itemData[2]
+        local displayStr = string.format("[%s] %s (%d$)", shopData.NameCN, itemCN, price)
+        
         table.insert(itemCNToEN, displayStr) 
         itemCNToEN[displayStr] = itemEN 
         itemToShop[displayStr] = shopEN 
+        itemPrices[displayStr] = price
     end
 end
-table.sort(shopListCN)
 table.sort(itemCNToEN)
 
 local PriceLabel = TabBuy:Paragraph({
@@ -125,39 +129,16 @@ local PriceLabel = TabBuy:Paragraph({
 })
 
 local BuyDropdown = TabBuy:Dropdown({
-    Title = "选择要购买的物品 (已分类)",
+    Title = "选择要购买的物品",
     Values = itemCNToEN,
     Value = itemCNToEN[1] or "无商品",
     Callback = function(opt) 
         selectedItemEN = itemCNToEN[opt]
-        local shopEN = itemToShop[opt]
-        selectedShopEN = shopEN
+        selectedShopEN = itemToShop[opt]
+        currentPrice = itemPrices[opt]
         
-        local price = 0
-        local storeFolder = Workspace:FindFirstChild("Stores") and Workspace.Stores:FindFirstChild(shopEN)
-        if storeFolder then
-            for _, v in next, storeFolder:GetDescendants() do
-                if v.Name == "ShopItems" then
-                    for _, box in next, v:GetChildren() do
-                        if box:FindFirstChild("BoxItemName") and box.BoxItemName.Value == selectedItemEN then
-                            for _, val in pairs(box:GetChildren()) do
-                                if val.Name == "Price" or val.Name == "BoxItemPrice" then
-                                    price = tonumber(val.Value) or 0
-                                    break
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        if price > 0 then
-            local total = price * buyAmount
-            PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", price, buyAmount, total, GetMoney()))
-        else
-            PriceLabel:SetDesc(string.format("距离过远未加载价格 | 数量: %d | 当前余额: %d", buyAmount, GetMoney()))
-        end
+        local total = currentPrice * buyAmount
+        PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", currentPrice, buyAmount, total, GetMoney()))
     end
 })
 
@@ -166,14 +147,26 @@ TabBuy:Slider({
     Value = { Min = 1, Max = 30, Default = 1 },
     Callback = function(val)
         buyAmount = val
+        if currentPrice then
+            local total = currentPrice * buyAmount
+            PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", currentPrice, buyAmount, total, GetMoney()))
+        end
     end
 })
 
 TabBuy:Button({
-    Title = "开始购买",
-    Desc = "自动带你过去加载商店并购买",
+    Title = "开始购买 (慢速防延迟)",
+    Desc = "本地计算价格，慢速发包防灵魂体",
     Callback = function()
         if not selectedShopEN or not selectedItemEN then return end
+        
+        local totalPrice = currentPrice * buyAmount
+        local currentMoney = GetMoney()
+        
+        if currentMoney < totalPrice then
+            WindUI:Notify({ Title = "余额不足", Content = "你的钱不够！需要 " .. totalPrice .. "，你只有 " .. currentMoney, Duration = 5 })
+            return
+        end
         
         local oldpos = player.Character.HumanoidRootPart.CFrame
         
@@ -188,7 +181,7 @@ TabBuy:Button({
                 end
             end
             
-            WindUI:Notify({ Title = "加载中", Content = "正在传送至商店加载模型...", Duration = 3 })
+            WindUI:Notify({ Title = "加载中", Content = "正在传送至商店，等待模型加载...", Duration = 3 })
             
             if not npcModel and storeFolder then
                 npcModel = storeFolder:FindFirstChild(ShopDB[selectedShopEN].NPC)
@@ -198,7 +191,8 @@ TabBuy:Button({
                 player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 3, 5)
             end
             
-            task.wait(1.5)
+            -- 强制等待游戏加载出模型
+            task.wait(2.0)
             
             local targetBox = nil
             local targetCounter = nil
@@ -222,42 +216,29 @@ TabBuy:Button({
                 return
             end
             
-            local price = 0
-            for _, val in pairs(targetBox:GetChildren()) do
-                if val.Name == "Price" or val.Name == "BoxItemPrice" then
-                    price = tonumber(val.Value) or 0
-                    break
-                end
-            end
-            
-            local currentMoney = GetMoney()
-            if price > 0 and currentMoney < (price * buyAmount) then
-                WindUI:Notify({ Title = "余额不足", Content = "你的钱不够！需要 " .. (price*buyAmount) .. "，你只有 " .. currentMoney, Duration = 5 })
-                player.Character.HumanoidRootPart.CFrame = oldpos
-                return
-            end
-            
             local npcID = ShopDB[selectedShopEN].ID
             local npcName = npcModel.Name
             local successCount = 0
             
             for i = 1, buyAmount do
-                WindUI:Notify({ Title = "搬运中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
+                WindUI:Notify({ Title = "购买中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
                 
                 local t = 0
+                -- 拖拽物品到柜台，放慢速度
                 repeat
                     DragModel(targetBox, targetCounter.CFrame + Vector3.new(0, 1, 0))
                     if targetBox:FindFirstChild("Main") then
-                        player.Character.HumanoidRootPart.CFrame = targetBox.Main.CFrame + Vector3.new(0, 1, 5)
+                        player.Character.HumanoidRootPart.CFrame = targetBox.Main.CFrame + Vector3.new(0, 1, 3)
                     end
-                    task.wait(0.05)
-                    t = t + 0.05
-                until (targetBox:FindFirstChild("Main") and (targetBox.Main.Position - targetCounter.Position).Magnitude < 6) or t > 3
+                    task.wait(0.1)
+                    t = t + 0.1
+                until (targetBox:FindFirstChild("Main") and (targetBox.Main.Position - targetCounter.Position).Magnitude < 6) or t > 4
                 
+                -- 贴脸 NPC，给服务器反应时间
                 if npcModel:FindFirstChild("HumanoidRootPart") then
-                    player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 1, 5)
+                    player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 0, 2)
                 end
-                task.wait(0.2)
+                task.wait(1.0) -- 延迟 1 秒
                 
                 local args = {
                     {
@@ -268,16 +249,33 @@ TabBuy:Button({
                     },
                     "ConfirmPurchase"
                 }
-                pcall(function()
-                    RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
-                end)
-                task.wait(0.5)
                 
-                for j = 1, 15 do
-                    DragModel(targetBox, oldpos)
-                    task.wait(0.02)
+                local buySuccess = false
+                local buyTimeout = 0
+                
+                -- 发包后死等所有权，放慢速度
+                while not buySuccess and buyTimeout < 6 do
+                    pcall(function()
+                        RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
+                    end)
+                    task.wait(1.5) -- 发包后等 1.5 秒验证
+                    buyTimeout = buyTimeout + 1.5
+                    
+                    if targetBox:FindFirstChild("Owner") and targetBox.Owner.Value == player then
+                        buySuccess = true
+                    end
                 end
-                successCount = successCount + 1
+                
+                if buySuccess then
+                    for j = 1, 15 do
+                        DragModel(targetBox, oldpos)
+                        task.wait(0.05)
+                    end
+                    successCount = successCount + 1
+                else
+                    WindUI:Notify({ Title = "购买失败", Content = "服务器延迟或ID错误，未确认所有权", Duration = 4 })
+                    break
+                end
             end
             
             WindUI:Notify({ Title = "完成", Content = "成功购买并拉回 " .. successCount .. " 个物品", Duration = 4 })
