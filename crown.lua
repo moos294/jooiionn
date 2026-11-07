@@ -22,9 +22,6 @@ end
 
 game:GetService("StarterGui"):SetCore("SendNotification", {Title = "验证成功", Text = "欢迎尊贵的白名单使用此脚本", Duration = 5})
 
-local isDragEnabled = false
-local dragConn = nil
-
 local function CleanupAll()
     isDragEnabled = false
     if dragConn then
@@ -57,17 +54,11 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "作者封存NB 0.1",
+    Author = "作者:封存NB 0.2",
     Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark"
 })
-
-pcall(function()
-    Window:OnClose(function()
-        CleanupAll()
-    end)
-end)
 
 local function DragModel(m, cf)
 	pcall(function() 
@@ -232,9 +223,7 @@ TabServer:Input({
 local function getServerList(pid)
 	local candidates = {}
 	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(pid)
-	local ok, res = pcall(function()
-		return HttpService:JSONDecode(game:HttpGet(url))
-	end)
+	local ok, res = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
 	if ok and res and res.data then
 		for _, s in ipairs(res.data) do
 			if s.id ~= game.JobId and s.playing >= 2 and s.playing <= s.maxPlayers - 2 then
@@ -264,13 +253,9 @@ TabServer:Button({
             local servers = getServerList(id)
             if #servers > 0 then
                 local randomJobId = servers[math.random(1, #servers)]
-                pcall(function()
-                    TS:TeleportToPlaceInstance(id, randomJobId, player)
-                end)
+                pcall(function() TS:TeleportToPlaceInstance(id, randomJobId, player) end)
             else
-                pcall(function()
-                    TS:Teleport(id, player)
-                end)
+                pcall(function() TS:Teleport(id, player) end)
             end
         else
             WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
@@ -285,18 +270,16 @@ TabServer:Button({
         local servers = getServerList(game.PlaceId)
         if #servers > 0 then
             local randomJobId = servers[math.random(1, #servers)]
-            pcall(function()
-                TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player)
-            end)
+            pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player) end)
         else
-            pcall(function()
-                TS:Teleport(game.PlaceId, player)
-            end)
+            pcall(function() TS:Teleport(game.PlaceId, player) end)
         end
     end
 })
 
 local TabExtra = Window:Tab({ Title = "其他功能", Icon = "rbxassetid://10882439086" })
+local isDragEnabled = false
+local dragConn = nil
 
 local function stopDrag()
     isDragEnabled = false
@@ -312,16 +295,31 @@ local function startDrag()
     dragConn = Workspace.ChildAdded:Connect(function(obj)
         if obj.Name == "Dragger" and isDragEnabled then
             obj.BrickColor = BrickColor.new("Bright green")
+            
             task.spawn(function()
                 local b = obj:WaitForChild("BodyGyro", 2)
                 local c = obj:WaitForChild("BodyPosition", 2)
                 if not b or not c then return end
+                
                 task.wait(0.1)
+                
                 obj.CanCollide = false
                 obj.CanTouch = false
+                
                 while obj.Parent == Workspace and isDragEnabled do
-                    c.P = 120000; c.D = 1000; c.maxForce = Vector3.new(1, 1, 1) * 1000000
-                    b.MaxTorque = Vector3.new(1, 1, 1) * 200; b.P = 1200; b.D = 140
+                    c.P = 120000
+                    c.D = 1000
+                    c.maxForce = Vector3.new(1, 1, 1) * 1000000
+                    
+                    b.MaxTorque = Vector3.new(1, 1, 1) * 200
+                    b.P = 1200
+                    b.D = 140
+                    
+                    local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
+                    if dragEvent then
+                        pcall(function() dragEvent:FireServer() end)
+                    end
+                    
                     task.wait()
                 end
             end)
@@ -345,7 +343,8 @@ TabExtra:Toggle({
 })
 
 TabExtra:Button({
-    Title = "强制关闭拖拽",
+    Title = "强制关闭并释放物品",
+    Desc = "如果遇到卡顿，点此强行断开",
     Callback = function()
         stopDrag()
         local toggleObj = Window:GetToggle("开启拖拽器")
@@ -365,6 +364,7 @@ TabExtra:Button({
 
 TabExtra:Button({
     Title = "彻底关闭并清理缓存",
+    Desc = "关闭UI并清除所有残留工具与点位",
     Callback = function()
         CleanupAll()
     end
