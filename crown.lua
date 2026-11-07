@@ -27,12 +27,18 @@ if not isWhitelisted then
     return 
 end
 
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "验证成功",
+    Text = "欢迎尊贵的白名单使用此脚本",
+    Duration = 5
+})
+
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "Bypass",
+    Author = "封存NB",
     Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark"
@@ -115,12 +121,12 @@ TabTP:Button({
             if baseWood then
                 local safePos = baseWood.CFrame + Vector3.new(0, 2.5, 3.5)
                 player.Character.HumanoidRootPart.CFrame = safePos
-                WindUI:Notify({ Title = "传送成功", Content = "已传送完成", Duration = 3 })
+                WindUI:Notify({ Title = "传送成功", Content = "传送成功", Duration = 3 })
             else
                 WindUI:Notify({ Title = "提示", Content = "找不到树干部分", Duration = 3 })
             end
         else
-            WindUI:Notify({ Title = "错误", Content = "并没有这种树", Duration = 3 })
+            WindUI:Notify({ Title = "错误", Content = "没找到", Duration = 3 })
         end
     end
 })
@@ -132,7 +138,7 @@ TabTP:Button({
             player.Character.HumanoidRootPart.CFrame = oldPos
             WindUI:Notify({ Title = "成功", Content = "已回到原点", Duration = 3 })
         else
-            WindUI:Notify({ Title = "错误", Content = "你还没有保存位置", Duration = 3 })
+            WindUI:Notify({ Title = "错误", Content = "你没TM保存位置", Duration = 3 })
         end
     end
 })
@@ -182,7 +188,7 @@ TabItem:Button({
                         DragModel(targetModel, targetCFrame)
                         task.wait(0.02)
                     end
-                    WindUI:Notify({ Title = "传送成功", Content = "传送成功", Duration = 3 })
+                    WindUI:Notify({ Title = "传送成功", Content = "物品传送成功", Duration = 3 })
                 end
             else
                 WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位！", Duration = 3 })
@@ -247,7 +253,7 @@ TabDrag:Button({
     Desc = "如果遇到卡顿，点此强行断开",
     Callback = function()
         stopDrag()
-        local toggleObj = Window:GetToggle("开启完美拖拽")
+        local toggleObj = Window:GetToggle("开启拖拽器")
         if toggleObj then toggleObj:Set(false) end
     end
 })
