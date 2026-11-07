@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v5.1",
+    Title = "封存木材 v5.4",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -73,6 +73,23 @@ local function GetMoney()
         end
     end
     return 0 
+end
+
+local function FormatPrice(price)
+    local p = tonumber(price) or 0
+    if p >= 1e12 then
+        return string.format("%.1fT", p / 1e12):gsub("%.0T", "T")
+    elseif p >= 1e8 then
+        return string.format("%.1f亿", p / 1e8):gsub("%.0亿", "亿")
+    elseif p >= 1e7 then
+        return string.format("%.1f千万", p / 1e7):gsub("%.0千万", "千万")
+    elseif p >= 1e6 then
+        return string.format("%.1f百万", p / 1e6):gsub("%.0百万", "百万")
+    elseif p >= 1e4 then
+        return string.format("%.1f万", p / 1e4):gsub("%.0万", "万")
+    else
+        return tostring(p)
+    end
 end
 
 local TabBuy = Window:Tab({ Title = "万能购买", Icon = "rbxassetid://10734945123" })
@@ -114,7 +131,7 @@ local PriceLabel = TabBuy:Paragraph({
 local function UpdatePriceUI()
     if currentPrice > 0 then
         local total = currentPrice * buyAmount
-        PriceLabel:SetDesc(string.format("单价: %d | 数量: %d | 总价: %d | 当前余额: %d", currentPrice, buyAmount, total, GetMoney()))
+        PriceLabel:SetDesc(string.format("单价: %s | 数量: %d | 总价: %s | 当前余额: %s", FormatPrice(currentPrice), buyAmount, FormatPrice(total), FormatPrice(GetMoney())))
     else
         PriceLabel:SetDesc("未获取到价格")
     end
@@ -136,7 +153,7 @@ StoreDropdown = TabBuy:Dropdown({
             for itemEN, itemData in pairs(shopData.Items) do
                 local itemCN = itemData[1]
                 local price = itemData[2]
-                local displayStr = string.format("%s (%d$)", itemCN, price)
+                local displayStr = string.format("%s (%s)", itemCN, FormatPrice(price))
                 table.insert(itemListCN, displayStr)
             end
             table.sort(itemListCN)
@@ -216,7 +233,7 @@ end)
 
 TabBuy:Button({
     Title = "开始购买",
-    Desc = "绝对匹配商人ID，完美发包",
+    Desc = "真实ID + 强制对话状态 + 购买",
     Callback = function()
         if not selectedShopEN or not selectedItemEN then 
             WindUI:Notify({ Title = "错误", Content = "请先选择商店和物品！", Duration = 3 })
@@ -227,7 +244,7 @@ TabBuy:Button({
         local currentMoney = GetMoney()
         
         if currentMoney < totalPrice then
-            WindUI:Notify({ Title = "余额不足", Content = "你的钱不够！需要 " .. totalPrice .. "，你只有 " .. currentMoney, Duration = 5 })
+            WindUI:Notify({ Title = "余额不足", Content = "你的钱不够！需要 " .. FormatPrice(totalPrice) .. "，你只有 " .. FormatPrice(currentMoney), Duration = 5 })
             return
         end
         
@@ -286,6 +303,20 @@ TabBuy:Button({
                     player.Character.HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame + Vector3.new(0, 0, 2)
                 end
                 task.wait(0.3)
+                
+                local chatArgs = {
+                    {
+                        ID = currentNpcID,
+                        Character = npcModel,
+                        Name = currentNpcName,
+                        Dialog = npcDialog
+                    },
+                    "StartChat"
+                }
+                pcall(function()
+                    RS.NPCDialog.PlayerChatted:InvokeServer(unpack(chatArgs))
+                end)
+                task.wait(0.5)
                 
                 local args = {
                     {
