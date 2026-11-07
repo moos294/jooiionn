@@ -43,7 +43,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 v10.3",
+    Title = "封存木材 v0.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 420),
@@ -108,7 +108,7 @@ TabBuy:Slider({
 
 TabBuy:Button({
     Title = "开始购买神秘箱子",
-    Desc = "检测余额，并发防卡死",
+    Desc = "死磕柜台判定，自动获取动态ID",
     Callback = function()
         local startMoney = GetMoney()
         local totalPrice = cratePrice * buyAmount
@@ -169,45 +169,53 @@ TabBuy:Button({
             for i = 1, buyAmount do
                 WindUI:Notify({ Title = "购买中", Content = "正在购买第 " .. i .. "/" .. buyAmount .. " 个", Duration = 2 })
                 
-                for j = 1, 10 do
+                for j = 1, 15 do
                     pcall(function() RS.Interaction.ClientIsDragging:FireServer("Refresh", targetBox, 2) end)
                     if targetBox.PrimaryPart then
-                        targetBox:SetPrimaryPartCFrame(targetCounter.CFrame + Vector3.new(0, 0.6, 0))
+                        targetBox:SetPrimaryPartCFrame(targetCounter.CFrame)
                     end
                     task.wait(0.05)
                 end
                 
-                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 3, 3)
-                task.wait(0.3)
+                player.Character.HumanoidRootPart.CFrame = targetCounter.CFrame + Vector3.new(0, 5, 0)
+                task.wait(0.5)
                 
                 local expectedMoney = GetMoney()
                 local buySuccess = false
                 
-                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
-                task.wait(0.05)
-                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
-                task.wait(0.05)
-                
-                for tryID = 1, 30 do
-                    task.spawn(function()
-                        pcall(function()
-                            local args = {
-                                {
-                                    ID = tryID,
-                                    Character = npcModel,
-                                    Name = "Manachron",
-                                    Dialog = npcDialog
-                                },
-                                "ConfirmPurchase"
-                            }
-                            RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
-                        end)
-                    end)
-                    task.wait(0.08)
-                    if GetMoney() < expectedMoney then
-                        buySuccess = true
-                        break
+                local dynamicID = 18
+                pcall(function()
+                    local ret = RS.NPCDialog.SetChattingValue:InvokeServer(1)
+                    if typeof(ret) == "number" then
+                        dynamicID = ret
                     end
+                end)
+                
+                WindUI:Notify({ Title = "系统ID", Content = "当前获取到的 ID: " .. tostring(dynamicID), Duration = 3 })
+                
+                task.wait(0.1)
+                pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(2) end)
+                task.wait(0.1)
+                
+                task.spawn(function()
+                    pcall(function()
+                        local args = {
+                            {
+                                ID = dynamicID,
+                                Character = npcModel,
+                                Name = "Manachron",
+                                Dialog = npcDialog
+                            },
+                            "ConfirmPurchase"
+                        }
+                        RS.NPCDialog.PlayerChatted:InvokeServer(unpack(args))
+                    end)
+                end)
+                
+                task.wait(1.5)
+                
+                if GetMoney() < expectedMoney then
+                    buySuccess = true
                 end
                 
                 pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
@@ -237,7 +245,7 @@ TabBuy:Button({
                         end
                     end
                 else
-                    WindUI:Notify({ Title = "购买失败", Content = "未能扣除金钱，请重试", Duration = 4 })
+                    WindUI:Notify({ Title = "购买失败", Content = "未能扣除金钱，请再次点击测试", Duration = 4 })
                     break
                 end
             end
@@ -441,7 +449,7 @@ TabExtra:Button({
     Callback = function()
         WindUI:Notify({ Title = "加载中", Content = "正在注入飞行脚本...", Duration = 3 })
         pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/385j8888/ZOUMAGUIX/refs/heads/main/%E9%A3%9E%E8%A1%8C%E8%84%9A%E6%9C%ACV3(%E5%85%A8%E6%B8%B8%E6%88%8F%E9%80%9A%E7%94%A8).txt"))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/385j8888/ZOOMAGUIX/refs/heads/main/%E9%A3%9E%E8%A1%8C%E8%84%9A%E6%9C%ACV3(%E5%85%A8%E6%B8%B8%E6%88%8F%E9%80%9A%E7%94%A8).txt"))()
         end)
     end
 })
