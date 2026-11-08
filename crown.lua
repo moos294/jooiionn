@@ -88,7 +88,6 @@
 	local Mouse = HONG.LP:GetMouse()
 	
 	function HONG:printf(...) print(string.format(...)); end
-	
 	function HONG:SelectNotify(...)
 		local Args = {...}
 		local NotificationBindable = Instance.new("BindableFunction")
@@ -96,7 +95,6 @@
 		game.StarterGui:SetCore("SendNotification", {Title = Args[1], Text = Args[2], Icon = nil, Duration = Args[5], Button1 = Args[3], Button2 = Args[4], Callback = NotificationBindable})
 		return Args
 	end
-	
 	function HONG:DragModel(...)  
 		local Args = {...};
 		assert(Args[1]:IsA("Model") == true, "参数1必须是模型!");
@@ -109,7 +107,6 @@
 			Args[1]:SetPrimaryPartCFrame(Args[2])
 		end
 	end
-	
 	function HONG:Teleport(...)  
 		local Args = {...};
 		if self.LP.Character.Humanoid.SeatPart then
@@ -118,14 +115,12 @@
 		end
 		for i = 1, 3 do self:DragModel(self.LP.Character, Args[1]); task.wait(); end
 	end
-	
 	function HONG:TP(x, y, z) self:Teleport(CFrame.new(x, y, z)); end
 	function HONG:ServiceTP(ID) HONG.TPS:Teleport(ID, HONG.LP) end
     
 	local aaa = "bbb"
 	if aaa == "bbb" then
 		local plr = game:GetService("Players").LocalPlayer;
-		local _warn = warn;
 		task.wait(0.5)
     
 		local b = setmetatable({}, {
@@ -141,13 +136,10 @@
 		local ds = b.Players.LocalPlayer:GetMouse()
 		
 		getgenv().library = {
-			flags = {
-				GetState = function(dt, du) return library.flags[du].State end
-			},
+			flags = { GetState = function(dt, du) return library.flags[du].State end },
 			modules = {},
 			currentTab = nil
 		}
-		
 		function library:UpdateToggle(du, be)
 			local be = be or library.flags:GetState(du)
 			if be == library.flags:GetState(du) then return end
@@ -1140,18 +1132,6 @@
 		HONG.LP.Character.Head:Destroy()
 		_CONFIGS["isBuying"] = false; 
 	end)
-	Page2:NewButton("点击传送 [工具]", function()
-	    if HONG.LP.Backpack:FindFirstChild"点击传送" or HONG.LP.Character:FindFirstChild"点击传送" then HONG.LP.Backpack["点击传送"]:Destroy() end
-		local ClickToTeleport = Instance.new("Tool", HONG.LP.Backpack)
-		ClickToTeleport.Name = "点击传送"
-		ClickToTeleport.RequiresHandle = false
-		ClickToTeleport.Activated:Connect(function()
-			local x = Mouse.hit.x
-			local y = Mouse.hit.y
-			local z = Mouse.hit.z
-			HONG:Teleport(CFrame.new(x, y, z) + Vector3.new(0, 3, 0))
-		end)
-	end)
 	
 	getgenv()["物品总数"] = 1;
 	Page3:NewSlider("物品数量", "buycountslider", 1, 1, 25, false, function(v) getgenv()["物品总数"] = v; end)
@@ -1170,7 +1150,7 @@
 		return {["Character"] = c, ["Name"] = n, ["ID"] = tonumber(i)}
 	end
 	
-	-- 这里把你要求的商店名字和商人 ID 全部改成了木材大亨的
+	-- 【只改了这里】：只保留 FineFinds，ID 18
 	local Stores = {
 		["FineFinds"] = getShopId(HONG.WKSPC.Stores.FineFinds.Manachron, "Manachron", 18);
 	};
@@ -1215,19 +1195,17 @@
 		HONG:Teleport(oldpos)
 	end
 	
-	-- 这里我把下拉框的内容改成了神秘箱子，方便你直接测试
+	-- 【只改了这里】：UI选项改成了神秘箱子
 	local WoodRus_Store = {
-		"神秘宝箱 75000000$",
+		"神秘宝箱 Crate",
 		"基础斧头 12$",
 		"普通斧头 90$",
-		"钢斧 190$",
 	}
 	
 	Page3:NewDropdown("商品选择", "shop_woodrus", WoodRus_Store, function(WShop)
-	    if WShop == "神秘宝箱 75000000$" then WoodRus_Store = "Crate" end
+	    if WShop == "神秘宝箱 Crate" then WoodRus_Store = "Crate" end
 	    if WShop == "基础斧头 12$" then WoodRus_Store = "BasicHatchet" end
 		if WShop == "普通斧头 90$" then WoodRus_Store = "Axe1" end
-		if WShop == "钢斧 190$" then WoodRus_Store = "Axe2" end
 	end)
 	
 	Page3:NewButton("购买", function()
