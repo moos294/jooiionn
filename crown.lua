@@ -62,7 +62,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材0.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -1167,11 +1167,21 @@ end
 
 TabServer:Button({
     Title = "重进当前服务器",
-    Desc = "快速重连当前服务器",
+    Desc = "经典底层重连法 (支持公服/私人服)",
     Callback = function()
-        pcall(function()
-            TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+        local TS = game:GetService("TeleportService")
+        
+        local success, err = pcall(function()
+            if game.PrivateServerId and game.PrivateServerId ~= "" then
+                TS:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
+            else
+                TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+            end
         end)
+        
+        if not success then
+            WindUI:Notify({ Title = "传送失败", Content = "服务器可能已满或不可用，请重试", Duration = 5 })
+        end
     end
 })
 
@@ -1179,14 +1189,22 @@ TabServer:Button({
     Title = "指定服务器换服",
     Desc = "需在上方填写 PlaceId，精准抓取新服",
     Callback = function()
+        local TS = game:GetService("TeleportService")
         local id = tonumber(targetPlaceId)
+        
         if id then
             local servers = getServerList(id)
             if #servers > 0 then
                 local randomJobId = servers[math.random(1, #servers)]
-                pcall(function() TS:TeleportToPlaceInstance(id, randomJobId, player) end)
+                local success = pcall(function() TS:TeleportToPlaceInstance(id, randomJobId, player) end)
+                if not success then
+                    WindUI:Notify({ Title = "换服失败", Content = "目标服不可用", Duration = 4 })
+                end
             else
-                pcall(function() TS:Teleport(id, player) end)
+                local success = pcall(function() TS:Teleport(id, player) end)
+                if not success then
+                    WindUI:Notify({ Title = "换服失败", Content = "无法拉取列表，直接随机跳服", Duration = 4 })
+                end
             end
         else
             WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
@@ -1198,12 +1216,20 @@ TabServer:Button({
     Title = "随机换服",
     Desc = "使用官方API获取真实JobId，秒进",
     Callback = function()
+        local TS = game:GetService("TeleportService")
         local servers = getServerList(game.PlaceId)
+        
         if #servers > 0 then
             local randomJobId = servers[math.random(1, #servers)]
-            pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player) end)
+            local success = pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player) end)
+            if not success then
+                WindUI:Notify({ Title = "换服失败", Content = "尝试直接呼叫服务器", Duration = 4 })
+            end
         else
-            pcall(function() TS:Teleport(game.PlaceId, player) end)
+            local success = pcall(function() TS:Teleport(game.PlaceId, player) end)
+            if not success then
+                WindUI:Notify({ Title = "换服失败", Content = "传送被游戏阻止", Duration = 4 })
+            end
         end
     end
 })
