@@ -62,7 +62,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材0.1",
+    Title = "封存木材",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -1151,6 +1151,13 @@ TabServer:Input({
     Callback = function(text) targetPlaceId = text end
 })
 
+local searchName = "jovotsh3"
+TabServer:Input({
+    Title = "私人服服主用户名 (默认你自己)",
+    Value = "jovotsh3",
+    Callback = function(text) searchName = text end
+})
+
 local function getServerList(pid)
 	local candidates = {}
 	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(pid)
@@ -1166,11 +1173,57 @@ local function getServerList(pid)
 end
 
 TabServer:Button({
-    Title = "重进当前服务器",
-    Desc = "经典底层重连法 (支持公服/私人服)",
+    Title = "重进我的私人服务器",
+    Desc = "通过官方API精准抓取你名下的存活私服",
     Callback = function()
         local TS = game:GetService("TeleportService")
+        local Players = game:GetService("Players")
         
+        WindUI:Notify({ Title = "请求中", Content = "正在查询私人服务器列表...", Duration = 3 })
+        
+        task.spawn(function()
+            local success = pcall(function()
+                local targetUserId
+                if searchName == player.Name or searchName == tostring(player.UserId) then
+                    targetUserId = player.UserId
+                else
+                    targetUserId = Players:GetUserIdFromNameAsync(searchName)
+                end
+                
+                local url = string.format("https://games.roblox.com/v1/games/vip-servers/%d", targetUserId)
+                local response = game:HttpGet(url)
+                local data = HttpService:JSONDecode(response)
+                
+                if data and data.data and #data.data > 0 then
+                    local targetServer = data.data[1]
+                    local vipId = targetServer.id
+                    local accessCode = targetServer.accessCode or ""
+                    
+                    WindUI:Notify({ Title = "找到私服", Content = "正在传送至房间: "..vipId, Duration = 3 })
+                    
+                    task.wait(2)
+                    TS:TeleportToPrivateServer(game.PlaceId, vipId, {player}, accessCode)
+                else
+                    WindUI:Notify({ Title = "找不到私服", Content = "该用户名下没有存活的私人服务器，请去大厅手动开启。", Duration = 5 })
+                end
+            end)
+            
+            if not success then
+                WindUI:Notify({ Title = "API查询失败", Content = "正在尝试强制直连当前服务器...", Duration = 3 })
+                task.wait(1)
+                pcall(function()
+                    TS:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
+                end)
+            end
+        end)
+    end
+})
+
+TabServer:Button({
+    Title = "重进当前服务器 (公共/私人)",
+    Desc = "经典底层重连法",
+    Callback = function()
+        local TS = game:GetService("TeleportService")
         local success, err = pcall(function()
             if game.PrivateServerId and game.PrivateServerId ~= "" then
                 TS:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
@@ -1178,9 +1231,8 @@ TabServer:Button({
                 TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
             end
         end)
-        
         if not success then
-            WindUI:Notify({ Title = "传送失败", Content = "服务器可能已满或不可用，请重试", Duration = 5 })
+            WindUI:Notify({ Title = "传送失败", Content = "请稍等10秒后再试 (773防刷限制)", Duration = 5 })
         end
     end
 })
@@ -1191,20 +1243,13 @@ TabServer:Button({
     Callback = function()
         local TS = game:GetService("TeleportService")
         local id = tonumber(targetPlaceId)
-        
         if id then
             local servers = getServerList(id)
             if #servers > 0 then
                 local randomJobId = servers[math.random(1, #servers)]
-                local success = pcall(function() TS:TeleportToPlaceInstance(id, randomJobId, player) end)
-                if not success then
-                    WindUI:Notify({ Title = "换服失败", Content = "目标服不可用", Duration = 4 })
-                end
+                pcall(function() TS:TeleportToPlaceInstance(id, randomJobId, player) end)
             else
-                local success = pcall(function() TS:Teleport(id, player) end)
-                if not success then
-                    WindUI:Notify({ Title = "换服失败", Content = "无法拉取列表，直接随机跳服", Duration = 4 })
-                end
+                pcall(function() TS:Teleport(id, player) end)
             end
         else
             WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
@@ -1213,23 +1258,16 @@ TabServer:Button({
 })
 
 TabServer:Button({
-    Title = "随机换服",
+    Title = "随机换服 (公共服)",
     Desc = "使用官方API获取真实JobId，秒进",
     Callback = function()
         local TS = game:GetService("TeleportService")
         local servers = getServerList(game.PlaceId)
-        
         if #servers > 0 then
             local randomJobId = servers[math.random(1, #servers)]
-            local success = pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player) end)
-            if not success then
-                WindUI:Notify({ Title = "换服失败", Content = "尝试直接呼叫服务器", Duration = 4 })
-            end
+            pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player) end)
         else
-            local success = pcall(function() TS:Teleport(game.PlaceId, player) end)
-            if not success then
-                WindUI:Notify({ Title = "换服失败", Content = "传送被游戏阻止", Duration = 4 })
-            end
+            pcall(function() TS:Teleport(game.PlaceId, player) end)
         end
     end
 })
