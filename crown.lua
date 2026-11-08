@@ -62,7 +62,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材0.1",
+    Title = "封存木材",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -169,7 +169,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_Trident)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入三叉戟祭坛", Duration = 2 })
             end
@@ -199,9 +199,9 @@ TabCraft:Button({
         
         if #nearbyItems >= 3 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Heaven) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Star) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[3], Pos_Demon) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Heaven) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Star) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[3], Pos_Demon) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 3 个！", Duration = 4 })
@@ -264,7 +264,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_Eternal)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入永恒剑祭坛", Duration = 2 })
             end
@@ -294,9 +294,9 @@ TabCraft:Button({
         
         if #nearbyItems >= 3 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Eternal_Trident) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Eternal_Revenge) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[3], Pos_Eternal_Demon) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Eternal_Trident) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Eternal_Revenge) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[3], Pos_Eternal_Demon) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 3 个！", Duration = 4 })
@@ -357,7 +357,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_Revenge)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入复仇剑祭坛", Duration = 2 })
             end
@@ -387,8 +387,8 @@ TabCraft:Button({
         
         if #nearbyItems >= 2 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Revenge_Demon) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Revenge_Heaven) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Revenge_Demon) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Revenge_Heaven) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 2 个！", Duration = 4 })
@@ -451,7 +451,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_StarDuck)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入星星鸭子祭坛", Duration = 2 })
             end
@@ -481,9 +481,9 @@ TabCraft:Button({
         
         if #nearbyItems >= 3 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_StarDuck_Heaven) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[2], Pos_StarDuck_Normal) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[3], Pos_StarDuck_Demon) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_StarDuck_Heaven) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_StarDuck_Normal) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[3], Pos_StarDuck_Demon) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 3 个！", Duration = 4 })
@@ -544,7 +544,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_Hellfire)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入地狱火祭坛", Duration = 2 })
             end
@@ -574,8 +574,8 @@ TabCraft:Button({
         
         if #nearbyItems >= 2 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Hellfire_Trident) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Hellfire_Demon) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Hellfire_Trident) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Hellfire_Demon) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 2 个！", Duration = 4 })
@@ -642,7 +642,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_Halo)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入天堂光环祭坛", Duration = 2 })
             end
@@ -672,8 +672,8 @@ TabCraft:Button({
         
         if #nearbyItems >= 2 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Halo_HeavenDuck) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Halo_EternalSword) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Halo_HeavenDuck) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Halo_EternalSword) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 2 个！", Duration = 4 })
@@ -732,7 +732,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_HeavenSword)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入天堂剑祭坛", Duration = 2 })
             end
@@ -762,7 +762,7 @@ TabCraft:Button({
         
         if #nearbyItems >= 1 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_HeavenSword_Halo) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_HeavenSword_Halo) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 1 个！", Duration = 4 })
@@ -870,7 +870,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_Moon)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入月牙祭坛", Duration = 2 })
             end
@@ -905,8 +905,8 @@ TabCraft:Button({
         
         if #nearbyItems >= 2 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Moon_HeavenSword) task.wait(0.2) end
-            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Moon_Hellfire) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Moon_HeavenSword) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Moon_Hellfire) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 2 个！", Duration = 4 })
@@ -965,7 +965,7 @@ TabCraft:Button({
             if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
                 for i = 1, 30 do
                     DragModel(targetModel, dropTarget_MoonSword)
-                    task.wait(0.2)
+                    task.wait(0.01)
                 end
                 WindUI:Notify({ Title = "空投成功", Content = "已放入月神剑祭坛", Duration = 2 })
             end
@@ -995,7 +995,7 @@ TabCraft:Button({
         
         if #nearbyItems >= 1 then
             WindUI:Notify({ Title = "扫描成功", Content = "正在强制吸附...", Duration = 3 })
-            for i = 1, 15 do DragModel(nearbyItems[1], Pos_MoonSword_Crescent) task.wait(0.2) end
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_MoonSword_Crescent) task.wait(0.01) end
             WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
         else
             WindUI:Notify({ Title = "失败", Content = "附近物品不足 1 个！", Duration = 4 })
@@ -1097,320 +1097,4 @@ for i = 1, 3 do
         Callback = function()
             if Workspace:FindFirstChild("BRING"..i) then Workspace:FindFirstChild("BRING"..i):Destroy() end
             local p = Instance.new("Part", Workspace)
-            p.Name = "BRING"..i
-            p.Transparency = 1
-            p.Anchored = true
-            p.CFrame = player.Character.HumanoidRootPart.CFrame
-            p.CanCollide = false
-            p.Size = player.Character.HumanoidRootPart.Size
-            
-            local posBox = Instance.new("SelectionBox", p)
-            posBox.Color3 = Color3.new(0, 255, 0)
-            posBox.Adornee = p
-            WindUI:Notify({ Title = "成功", Content = "物品点位"..i.."已设置", Duration = 3 })
-        end
-    })
-end
-
-TabItem:Button({
-    Title = "获取点击传送工具",
-    Desc = "拿在手上点击木头，直接拉回选中的点位",
-    Callback = function()
-        if player.Backpack:FindFirstChild("点击传送") or player.Character:FindFirstChild("点击传送") then
-            player.Backpack["点击传送"]:Destroy()
-        end
-        local a = Instance.new("Tool", player.Backpack)
-        a.Name = "点击传送"
-        a.RequiresHandle = false
-        a.Activated:Connect(function()
-            if Workspace:FindFirstChild(selectedBringTarget) then
-                local targetCFrame = Workspace[selectedBringTarget].CFrame
-                local targetPart = Mouse.Target
-                if not targetPart then return end
-                local targetModel = targetPart.Parent
-                if targetModel and (targetModel.Name == "Plank" or targetModel:FindFirstChild("WoodSection") or targetModel:FindFirstChild("Owner")) then
-                    for i = 1, 40 do
-                        DragModel(targetModel, targetCFrame)
-                        task.wait(0.2)
-                    end
-                    WindUI:Notify({ Title = "传送成功", Content = "物品已拉回", Duration = 3 })
-                end
-            else
-                WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位", Duration = 3 })
-            end
-        end)
-        WindUI:Notify({ Title = "成功", Content = "工具已放入背包", Duration = 3 })
-    end
-})
-
-TabItem:Paragraph({
-    Title = "【 多选批量传送 】",
-    Desc = "使用工具点击物品进行多选，然后一键传送",
-    Color = Color3.fromRGB(0, 150, 255)
-})
-
-TabItem:Button({
-    Title = "获取【多选框选工具】",
-    Desc = "点击物品添加蓝框，再次点击取消",
-    Callback = function()
-        if player.Backpack:FindFirstChild("多选框选工具") or player.Character:FindFirstChild("多选框选工具") then
-            player.Backpack["多选框选工具"]:Destroy()
-        end
-        local tool = Instance.new("Tool", player.Backpack)
-        tool.Name = "多选框选工具"
-        tool.RequiresHandle = false
-        
-        tool.Activated:Connect(function()
-            local targetPart = Mouse.Target
-            if not targetPart then return end
-            local targetModel = targetPart.Parent
-            
-            if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
-                local isSelected = false
-                for i, obj in pairs(selectedObjects) do
-                    if obj == targetModel then
-                        table.remove(selectedObjects, i)
-                        isSelected = true
-                        if targetPart:FindFirstChild("BlueSelectBox") then
-                            targetPart.BlueSelectBox:Destroy()
-                        elseif targetModel:FindFirstChild("BlueSelectBox") then
-                            targetModel.BlueSelectBox:Destroy()
-                        end
-                        WindUI:Notify({ Title = "取消选中", Content = targetModel.Name, Duration = 2 })
-                        break
-                    end
-                end
-                
-                if not isSelected then
-                    table.insert(selectedObjects, targetModel)
-                    local box = Instance.new("SelectionBox")
-                    box.Name = "BlueSelectBox"
-                    box.Adornee = targetModel
-                    box.Color3 = Color3.fromRGB(0, 150, 255)
-                    box.LineThickness = 0.05
-                    box.Parent = targetModel
-                    WindUI:Notify({ Title = "已选中", Content = targetModel.Name, Duration = 2 })
-                end
-            end
-        end)
-        WindUI:Notify({ Title = "成功", Content = "多选框选工具已放入背包", Duration = 3 })
-    end
-})
-
-TabItem:Button({
-    Title = "清除所有选中(蓝框)",
-    Callback = function()
-        for i = #selectedObjects, 1, -1 do
-            local obj = selectedObjects[i]
-            if obj then
-                if obj:FindFirstChild("BlueSelectBox") then
-                    obj.BlueSelectBox:Destroy()
-                end
-                table.remove(selectedObjects, i)
-            end
-        end
-        WindUI:Notify({ Title = "已清空", Content = "所有选中的物品已取消", Duration = 3 })
-    end
-})
-
-TabItem:Button({
-    Title = "【一键传送所有选中物品】",
-    Desc = "将所有蓝框物品拉到选定的拉回点位",
-    Callback = function()
-        if not Workspace:FindFirstChild(selectedBringTarget) then
-            WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位", Duration = 3 })
-            return
-        end
-        
-        local targetCFrame = Workspace[selectedBringTarget].CFrame
-        local count = 0
-        
-        for i = #selectedObjects, 1, -1 do
-            local obj = selectedObjects[i]
-            if obj and obj.Parent then
-                for j = 1, 40 do
-                    DragModel(obj, targetCFrame)
-                    task.wait(0.2)
-                end
-                if obj:FindFirstChild("BlueSelectBox") then
-                    obj.BlueSelectBox:Destroy()
-                end
-                table.remove(selectedObjects, i)
-                count = count + 1
-            else
-                table.remove(selectedObjects, i)
-            end
-        end
-        
-        WindUI:Notify({ Title = "传送完毕", Content = "成功传送了 "..count.." 个物品", Duration = 3 })
-    end
-})
-
-local TabServer = Window:Tab({ Title = "服务器", Icon = "rbxassetid://10882439086" })
-local targetPlaceId = tostring(game.PlaceId)
-
-TabServer:Input({
-    Title = "指定服务器 ID",
-    Value = tostring(game.PlaceId),
-    Callback = function(text) targetPlaceId = text end
-})
-
-local function getServerList(pid)
-	local candidates = {}
-	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(pid)
-	local ok, res = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
-	if ok and res and res.data then
-		for _, s in ipairs(res.data) do
-			if s.id ~= game.JobId and s.playing >= 2 and s.playing <= s.maxPlayers - 2 then
-				table.insert(candidates, s.id)
-			end
-		end
-	end
-	return candidates
-end
-
-TabServer:Button({
-    Title = "重进当前服务器",
-    Desc = "经典底层重连法",
-    Callback = function()
-        local TS = game:GetService("TeleportService")
-        local success, err = pcall(function()
-            if game.PrivateServerId and game.PrivateServerId ~= "" then
-                TS:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
-            else
-                TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-            end
-        end)
-        if not success then
-            WindUI:Notify({ Title = "传送失败", Content = "请稍等10秒后再试 (773防刷限制)", Duration = 5 })
-        end
-    end
-})
-
-TabServer:Button({
-    Title = "指定服务器换服",
-    Desc = "需在上方填写 PlaceId，精准抓取新服",
-    Callback = function()
-        local TS = game:GetService("TeleportService")
-        local id = tonumber(targetPlaceId)
-        if id then
-            local servers = getServerList(id)
-            if #servers > 0 then
-                local randomJobId = servers[math.random(1, #servers)]
-                pcall(function() TS:TeleportToPlaceInstance(id, randomJobId, player) end)
-            else
-                pcall(function() TS:Teleport(id, player) end)
-            end
-        else
-            WindUI:Notify({ Title = "错误", Content = "服务器 ID 格式不正确", Duration = 3 })
-        end
-    end
-})
-
-TabServer:Button({
-    Title = "随机换服",
-    Desc = "使用官方API获取真实JobId，秒进",
-    Callback = function()
-        local TS = game:GetService("TeleportService")
-        local servers = getServerList(game.PlaceId)
-        if #servers > 0 then
-            local randomJobId = servers[math.random(1, #servers)]
-            pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, randomJobId, player) end)
-        else
-            pcall(function() TS:Teleport(game.PlaceId, player) end)
-        end
-    end
-})
-
-local TabExtra = Window:Tab({ Title = "其他功能", Icon = "rbxassetid://10882439086" })
-local isDragEnabled = false
-local dragConn = nil
-
-local function stopDrag()
-    isDragEnabled = false
-    if dragConn then
-        dragConn:Disconnect()
-        dragConn = nil
-    end
-    WindUI:Notify({ Title = "已停止", Content = "拖拽功能已关闭", Duration = 3 })
-end
-
-local function startDrag()
-    if dragConn then dragConn:Disconnect() end
-    dragConn = Workspace.ChildAdded:Connect(function(obj)
-        if obj.Name == "Dragger" and isDragEnabled then
-            obj.BrickColor = BrickColor.new("Bright green")
-            
-            task.spawn(function()
-                local b = obj:WaitForChild("BodyGyro", 2)
-                local c = obj:WaitForChild("BodyPosition", 2)
-                if not b or not c then return end
-                
-                task.wait(0.1)
-                
-                obj.CanCollide = false
-                obj.CanTouch = false
-                
-                while obj.Parent == Workspace and isDragEnabled do
-                    c.P = 120000
-                    c.D = 1000
-                    c.maxForce = Vector3.new(1, 1, 1) * 1000000
-                    
-                    b.MaxTorque = Vector3.new(1, 1, 1) * 200
-                    b.P = 1200
-                    b.D = 140
-                    
-                    local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-                    if dragEvent then
-                        pcall(function() dragEvent:FireServer() end)
-                    end
-                    
-                    task.wait()
-                end
-            end)
-        end
-    end)
-end
-
-TabExtra:Toggle({
-    Title = "开启拖拽器",
-    Desc = "锁定物理拉力，随便飞绝对不掉",
-    Default = false,
-    Callback = function(state)
-        isDragEnabled = state
-        if isDragEnabled then
-            startDrag()
-            WindUI:Notify({ Title = "开启成功", Content = "直接用手抓取物品起飞！", Duration = 3 })
-        else
-            stopDrag()
-        end
-    end
-})
-
-TabExtra:Button({
-    Title = "强制关闭并释放物品",
-    Desc = "如果遇到卡顿，点此强行断开",
-    Callback = function()
-        stopDrag()
-        local toggleObj = Window:GetToggle("开启拖拽器")
-        if toggleObj then toggleObj:Set(false) end
-    end
-})
-
-TabExtra:Button({
-    Title = "开启飞行",
-    Callback = function()
-        WindUI:Notify({ Title = "加载中", Content = "正在注入飞行脚本...", Duration = 3 })
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/385j8888/ZOUMAGUIX/refs/heads/main/%E9%A3%9E%E8%A1%8C%E8%84%9A%E6%9C%ACV3(%E5%85%A8%E6%B8%B8%E6%88%8F%E9%80%9A%E7%94%A8).txt"))()
-        end)
-    end
-})
-
-TabExtra:Button({
-    Title = "彻底关闭并清理缓存",
-    Desc = "关闭UI并清除所有残留工具与点位",
-    Callback = function()
-        CleanupAll()
-    end
-})
+            p.Name = "BRING
