@@ -1146,17 +1146,16 @@
 	    model:PivotTo(cframe)
 	end
 	
-	local function getShopId(c, n, i)
-		return {["Character"] = c, ["Name"] = n, ["ID"] = tonumber(i)}
-	end
-	
-	-- 【只改了这里】：只保留 FineFinds，ID 18
-	local Stores = {
-		["FineFinds"] = getShopId(HONG.WKSPC.Stores.FineFinds.Manachron, "Manachron", 18);
-	};
-	
-	local function buyItem(count, store, item, name)
+	local function buyItem(count, item, name)
 		if type(item) == "table" then return HONG:NOTIFY("错误", "请先选择商品!", 4) end
+		
+		-- 安全获取商店和NPC，防止UI加载时卡死
+		local shopModel = HONG.WKSPC:FindFirstChild("Stores") and HONG.WKSPC.Stores:FindFirstChild(name)
+		if not shopModel then return HONG:NOTIFY("错误", "找不到商店: " .. name, 4) end
+		local npcModel = shopModel:FindFirstChild("Manachron")
+		if not npcModel then return HONG:NOTIFY("错误", "找不到商人: Manachron", 4) end
+		local store = { ["Character"] = npcModel, ["Name"] = "Manachron", ["ID"] = 18 }
+		
 		count = count or 1
 		local oldpos = HONG.LP.Character.HumanoidRootPart.CFrame;
 		local sum = 0;
@@ -1175,12 +1174,12 @@
 			task.wait(0.5)
 			repeat
 			    if getgenv()["不想购买"] == true then HONG:Teleport(oldpos) return end
-				newDragModel(ltem, HONG.WKSPC.Stores[name].Counter.CFrame + Vector3.new(0, .6, 0))
+				newDragModel(ltem, shopModel.Counter.CFrame + Vector3.new(0, .6, 0))
 				HONG:Teleport(ltem.Main.CFrame + Vector3.new(0, 1, 5))
 				task.wait(0.2)
-			until (ltem.Main.Position - HONG.WKSPC.Stores[name].Counter.Position).Magnitude < 5;
+			until (ltem.Main.Position - shopModel.Counter.Position).Magnitude < 5;
 			task.wait(0.4)
-			HONG:Teleport(HONG.WKSPC.Stores[name].Counter.CFrame + Vector3.new(0, 5, 5))
+			HONG:Teleport(shopModel.Counter.CFrame + Vector3.new(0, 5, 5))
 			HONG.RS.Heartbeat:wait()
 			repeat
 				HONG.RS.Heartbeat:wait()
@@ -1195,12 +1194,7 @@
 		HONG:Teleport(oldpos)
 	end
 	
-	-- 【只改了这里】：UI选项改成了神秘箱子
-	local WoodRus_Store = {
-		"神秘宝箱 Crate",
-		"基础斧头 12$",
-		"普通斧头 90$",
-	}
+	local WoodRus_Store = { "神秘宝箱 Crate", "基础斧头 12$", "普通斧头 90$" }
 	
 	Page3:NewDropdown("商品选择", "shop_woodrus", WoodRus_Store, function(WShop)
 	    if WShop == "神秘宝箱 Crate" then WoodRus_Store = "Crate" end
@@ -1210,7 +1204,7 @@
 	
 	Page3:NewButton("购买", function()
 		xpcall(function()
-		    buyItem(getgenv()["物品总数"], Stores["FineFinds"], WoodRus_Store, "FineFinds")
+		    buyItem(getgenv()["物品总数"], WoodRus_Store, "FineFinds")
 		end, function(err) print(err) end)
 	end)
 	
