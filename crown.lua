@@ -38,7 +38,7 @@ local function CleanupAll()
     local backpack = player:FindFirstChild("Backpack")
     if backpack then
         for _, v in pairs(backpack:GetChildren()) do
-            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送") then
+            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送" or v.Name == "多选框选工具") then
                 v:Destroy()
             end
         end
@@ -47,7 +47,7 @@ local function CleanupAll()
     local char = player.Character
     if char then
         for _, v in pairs(char:GetChildren()) do
-            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送") then
+            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送" or v.Name == "多选框选工具") then
                 v:Destroy()
             end
         end
@@ -1078,6 +1078,7 @@ end
 
 local TabItem = Window:Tab({ Title = "物品传送", Icon = "rbxassetid://10882439086" })
 local selectedBringTarget = "BRING1"
+local selectedObjects = {}
 
 TabItem:Dropdown({
     Title = "选择物品拉回的目标点",
@@ -1142,6 +1143,109 @@ TabItem:Button({
     end
 })
 
+TabItem:Paragraph({
+    Title = "【 多选批量传送 】",
+    Desc = "使用工具点击物品进行多选，然后一键传送",
+    Color = Color3.fromRGB(0, 150, 255)
+})
+
+TabItem:Button({
+    Title = "获取【多选框选工具】",
+    Desc = "点击物品添加蓝框，再次点击取消",
+    Callback = function()
+        if player.Backpack:FindFirstChild("多选框选工具") or player.Character:FindFirstChild("多选框选工具") then
+            player.Backpack["多选框选工具"]:Destroy()
+        end
+        local tool = Instance.new("Tool", player.Backpack)
+        tool.Name = "多选框选工具"
+        tool.RequiresHandle = false
+        
+        tool.Activated:Connect(function()
+            local targetPart = Mouse.Target
+            if not targetPart then return end
+            local targetModel = targetPart.Parent
+            
+            if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
+                local isSelected = false
+                for i, obj in pairs(selectedObjects) do
+                    if obj == targetModel then
+                        table.remove(selectedObjects, i)
+                        isSelected = true
+                        if targetPart:FindFirstChild("BlueSelectBox") then
+                            targetPart.BlueSelectBox:Destroy()
+                        elseif targetModel:FindFirstChild("BlueSelectBox") then
+                            targetModel.BlueSelectBox:Destroy()
+                        end
+                        WindUI:Notify({ Title = "取消选中", Content = targetModel.Name, Duration = 2 })
+                        break
+                    end
+                end
+                
+                if not isSelected then
+                    table.insert(selectedObjects, targetModel)
+                    local box = Instance.new("SelectionBox")
+                    box.Name = "BlueSelectBox"
+                    box.Adornee = targetModel
+                    box.Color3 = Color3.fromRGB(0, 150, 255)
+                    box.LineThickness = 0.05
+                    box.Parent = targetModel
+                    WindUI:Notify({ Title = "已选中", Content = targetModel.Name, Duration = 2 })
+                end
+            end
+        end)
+        WindUI:Notify({ Title = "成功", Content = "多选框选工具已放入背包", Duration = 3 })
+    end
+})
+
+TabItem:Button({
+    Title = "清除所有选中(蓝框)",
+    Callback = function()
+        for i = #selectedObjects, 1, -1 do
+            local obj = selectedObjects[i]
+            if obj then
+                if obj:FindFirstChild("BlueSelectBox") then
+                    obj.BlueSelectBox:Destroy()
+                end
+                table.remove(selectedObjects, i)
+            end
+        end
+        WindUI:Notify({ Title = "已清空", Content = "所有选中的物品已取消", Duration = 3 })
+    end
+})
+
+TabItem:Button({
+    Title = "【一键传送所有选中物品】",
+    Desc = "将所有蓝框物品拉到选定的拉回点位",
+    Callback = function()
+        if not Workspace:FindFirstChild(selectedBringTarget) then
+            WindUI:Notify({ Title = "错误", Content = "请先设置拉回点位", Duration = 3 })
+            return
+        end
+        
+        local targetCFrame = Workspace[selectedBringTarget].CFrame
+        local count = 0
+        
+        for i = #selectedObjects, 1, -1 do
+            local obj = selectedObjects[i]
+            if obj and obj.Parent then
+                for j = 1, 40 do
+                    DragModel(obj, targetCFrame)
+                    task.wait(0.02)
+                end
+                if obj:FindFirstChild("BlueSelectBox") then
+                    obj.BlueSelectBox:Destroy()
+                end
+                table.remove(selectedObjects, i)
+                count = count + 1
+            else
+                table.remove(selectedObjects, i)
+            end
+        end
+        
+        WindUI:Notify({ Title = "传送完毕", Content = "成功传送了 "..count.." 个物品", Duration = 3 })
+    end
+})
+
 local TabServer = Window:Tab({ Title = "服务器", Icon = "rbxassetid://10882439086" })
 local targetPlaceId = tostring(game.PlaceId)
 
@@ -1166,41 +1270,20 @@ local function getServerList(pid)
 end
 
 TabServer:Button({
-    Title = "重进当前服务器 (防773终极版)",
-    Desc = "强制重连防限制，私人服/公服通用",
+    Title = "重进当前服务器",
+    Desc = "经典底层重连法",
     Callback = function()
         local TS = game:GetService("TeleportService")
-        
-        WindUI:Notify({ Title = "准备重连", Content = "正在解除网络锁，请等待 3 秒...", Duration = 3 })
-        
-        task.spawn(function()
-            task.wait(3)
-            
-            local success = pcall(function()
-                if game.PrivateServerId and game.PrivateServerId ~= "" then
-                    local privateServerId = game.PrivateServerId
-                    local privateServerAccessCode = ""
-                    
-                    if game.PrivateServerOwnerId == player.UserId then
-                        privateServerAccessCode = game.JobId
-                    end
-                    
-                    TS:TeleportToPrivateServer(game.PlaceId, privateServerId, {player}, privateServerAccessCode)
-                else
-                    local servers = getServerList(game.PlaceId)
-                    if #servers > 0 then
-                        local newJobId = servers[math.random(1, #servers)]
-                        TS:TeleportToPlaceInstance(game.PlaceId, newJobId, player)
-                    else
-                        TS:Teleport(game.PlaceId, player)
-                    end
-                end
-            end)
-            
-            if not success then
-                WindUI:Notify({ Title = "重连被拦截", Content = "请退到游戏大厅重新加入，或尝试下方随机换服", Duration = 5 })
+        local success, err = pcall(function()
+            if game.PrivateServerId and game.PrivateServerId ~= "" then
+                TS:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
+            else
+                TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
             end
         end)
+        if not success then
+            WindUI:Notify({ Title = "传送失败", Content = "请稍等10秒后再试 (773防刷限制)", Duration = 5 })
+        end
     end
 })
 
@@ -1225,7 +1308,7 @@ TabServer:Button({
 })
 
 TabServer:Button({
-    Title = "随机换服 (公服)",
+    Title = "随机换服",
     Desc = "使用官方API获取真实JobId，秒进",
     Callback = function()
         local TS = game:GetService("TeleportService")
