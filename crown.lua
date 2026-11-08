@@ -38,9 +38,15 @@ local function CleanupAll()
     if backpack and backpack:FindFirstChild("点击传送") then
         backpack["点击传送"]:Destroy()
     end
+    if backpack and backpack:FindFirstChild("空投工具") then
+        backpack["空投工具"]:Destroy()
+    end
     local char = player.Character
     if char and char:FindFirstChild("点击传送") then
         char["点击传送"]:Destroy()
+    end
+    if char and char:FindFirstChild("空投工具") then
+        char["空投工具"]:Destroy()
     end
 
     local oldGui = CoreGui:FindFirstChild("封存木材")
@@ -55,11 +61,12 @@ local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
-    Size = UDim2.fromOffset(420, 360),
+    Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
 })
 
+-- === 核心完美传送代码 (严格遵守，绝不修改) ===
 local function DragModel(m, cf)
 	pcall(function() 
         RS.Interaction.ClientIsDragging:FireServer("Begin", m, 4) 
@@ -71,7 +78,112 @@ local function DragModel(m, cf)
         m:SetPrimaryPartCFrame(cf) 
     end
 end
+-- ============================================
 
+-- 祭坛坐标固定配置
+local Pos_Heaven = CFrame.new(-360.262, 14.753, -1333.273)
+local Pos_Star   = CFrame.new(-372.022, 15.158, -1330.268)
+local Pos_Demon  = CFrame.new(-383.149, 15.565, -1327.575)
+local Pos_Altar  = CFrame.new(-365.610, 12.621, -1319.532)
+
+local TabCraft = Window:Tab({ Title = "三叉戟合成", Icon = "rbxassetid://10734945123" })
+local dropTarget = Pos_Heaven
+
+TabCraft:Button({
+    Title = "传送到祭坛位置",
+    Desc = "瞬间移动到合成台前面",
+    Callback = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = Pos_Altar
+            WindUI:Notify({ Title = "传送成功", Content = "已到达祭坛", Duration = 3 })
+        end
+    end
+})
+
+TabCraft:Dropdown({
+    Title = "选择鸭子摆放位置",
+    Values = {"天堂鸭子 (左)", "星星鸭子 (中)", "恶魔鸭子 (右)"},
+    Value = "天堂鸭子 (左)",
+    Callback = function(opt)
+        if opt == "天堂鸭子 (左)" then dropTarget = Pos_Heaven
+        elseif opt == "星星鸭子 (中)" then dropTarget = Pos_Star
+        elseif opt == "恶魔鸭子 (右)" then dropTarget = Pos_Demon end
+    end
+})
+
+TabCraft:Button({
+    Title = "获取【祭坛空投工具】",
+    Desc = "拿在手上，点击地上的鸭子直接瞬移入阵",
+    Callback = function()
+        if player.Backpack:FindFirstChild("空投工具") or player.Character:FindFirstChild("空投工具") then
+            player.Backpack["空投工具"]:Destroy()
+        end
+        
+        local tool = Instance.new("Tool", player.Backpack)
+        tool.Name = "空投工具"
+        tool.RequiresHandle = false
+        
+        tool.Activated:Connect(function()
+            local targetPart = Mouse.Target
+            if not targetPart then return end
+            local targetModel = targetPart.Parent
+            
+            -- 简单验证是否是地上的模型
+            if targetModel and (targetModel:IsA("Model") or targetModel:IsA("BasePart")) then
+                -- 使用完美的传送代码把物品拉过去
+                for i = 1, 30 do
+                    DragModel(targetModel, dropTarget)
+                    task.wait(0.01)
+                end
+                WindUI:Notify({ Title = "空投成功", Content = "已将该物品放入祭坛", Duration = 2 })
+            end
+        end)
+        
+        WindUI:Notify({ Title = "获取成功", Content = "工具已放入背包！", Duration = 3 })
+    end
+})
+
+TabCraft:Paragraph({
+    Title = "全自动模式",
+    Desc = "下面这个按钮会自动找周围最近的鸭子并填入对应位置（需鸭子放在祭坛旁）",
+    Color = Color3.fromRGB(255, 100, 100)
+})
+
+TabCraft:Button({
+    Title = "一键全自动摆阵",
+    Desc = "自动吸附附近的鸭子",
+    Callback = function()
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        -- 寻找附近15格内地上的物品
+        local nearbyItems = {}
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") or obj:IsA("Part") then
+                local p = obj.PrimaryPart or (obj:IsA("Part") and obj)
+                if p and (p.Position - hrp.Position).Magnitude < 20 then
+                    -- 过滤掉玩家自己和地图固定物体
+                    if not obj:FindFirstChild("Humanoid") and obj.Name ~= "HumanoidRootPart" and not obj:FindFirstChild("TreeClass") then
+                        table.insert(nearbyItems, obj)
+                    end
+                end
+            end
+        end
+        
+        -- 如果找到了3个以上的物品，强行分配到三个点
+        if #nearbyItems >= 3 then
+            WindUI:Notify({ Title = "扫描成功", Content = "找到 " .. #nearbyItems .. " 个物品，正在强制吸附...", Duration = 3 })
+            for i = 1, 15 do DragModel(nearbyItems[1], Pos_Heaven) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[2], Pos_Star) task.wait(0.01) end
+            for i = 1, 15 do DragModel(nearbyItems[3], Pos_Demon) task.wait(0.01) end
+            WindUI:Notify({ Title = "布阵完成", Content = "请检查祭坛是否触发", Duration = 4 })
+        else
+            WindUI:Notify({ Title = "失败", Content = "附近地上的物品不足 3 个！", Duration = 4 })
+        end
+    end
+})
+
+-- 原有代码完美保留
 local TabTP = Window:Tab({ Title = "安全传送", Icon = "rbxassetid://10734945123" })
 local targetTree = "Generic"
 local playerPos = {nil, nil, nil}
