@@ -62,7 +62,7 @@ CleanupAll()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材0.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -1131,7 +1131,7 @@ TabItem:Button({
                 if targetModel and (targetModel.Name == "Plank" or targetModel:FindFirstChild("WoodSection") or targetModel:FindFirstChild("Owner")) then
                     for i = 1, 40 do
                         DragModel(targetModel, targetCFrame)
-                        task.wait(0.02)
+                        task.wait()
                     end
                     WindUI:Notify({ Title = "传送成功", Content = "物品已拉回", Duration = 3 })
                 end
@@ -1187,7 +1187,7 @@ TabItem:Button({
                     box.Name = "BlueSelectBox"
                     box.Adornee = targetModel
                     box.Color3 = Color3.fromRGB(0, 150, 255)
-                    box.LineThickness = 0.05
+                    box.LineThickness = 
                     box.Parent = targetModel
                     WindUI:Notify({ Title = "已选中", Content = targetModel.Name, Duration = 2 })
                 end
@@ -1230,7 +1230,7 @@ TabItem:Button({
             if obj and obj.Parent then
                 for j = 1, 40 do
                     DragModel(obj, targetCFrame)
-                    task.wait(0.02)
+                    task.wait(0.1)
                 end
                 if obj:FindFirstChild("BlueSelectBox") then
                     obj.BlueSelectBox:Destroy()
