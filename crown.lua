@@ -25,10 +25,7 @@ game:GetService("StarterGui"):SetCore("SendNotification", {Title = "验证成功
 
 local function CleanupAll()
     isDragEnabled = false
-    if dragConn then
-        dragConn:Disconnect()
-        dragConn = nil
-    end
+    if dragConn then dragConn:Disconnect() dragConn = nil end
     for i = 1, 3 do
         local bringPoint = Workspace:FindFirstChild("BRING"..i)
         if bringPoint then bringPoint:Destroy() end
@@ -36,17 +33,13 @@ local function CleanupAll()
     local backpack = player:FindFirstChild("Backpack")
     if backpack then
         for _, v in pairs(backpack:GetChildren()) do
-            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送" or v.Name == "多选框选工具") then
-                v:Destroy()
-            end
+            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送" or v.Name == "多选框选工具") then v:Destroy() end
         end
     end
     local char = player.Character
     if char then
         for _, v in pairs(char:GetChildren()) do
-            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送" or v.Name == "多选框选工具") then
-                v:Destroy()
-            end
+            if v:IsA("Tool") and (string.find(v.Name, "空投工具") or v.Name == "点击传送" or v.Name == "多选框选工具") then v:Destroy() end
         end
     end
     local oldGui = CoreGui:FindFirstChild("封存木材")
@@ -66,12 +59,12 @@ local Window = WindUI:CreateWindow({
 })
 
 local function DragModel(m, cf)
-	pcall(function() 
+    pcall(function() 
         RS.Interaction.ClientIsDragging:FireServer("Begin", m, 4) 
         RS.Interaction.ClientIsDragging:FireServer("Refresh", m, 5)
     end)
-	if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
-	if m.PrimaryPart then 
+    if not m.PrimaryPart then m.PrimaryPart = m:FindFirstChildOfClass("Part") end
+    if m.PrimaryPart then 
         m.PrimaryPart.Velocity = Vector3.zero
         m:SetPrimaryPartCFrame(cf) 
     end
@@ -81,35 +74,41 @@ local TabCraft = Window:Tab({ Title = "合成物品", Icon = "rbxassetid://10734
 
 TabCraft:Button({
     Title = "【一键清理】消除所有空投工具",
-    Desc = "清理背包里多余的合成工具",
     Callback = function()
         local count = 0
         local backpack = player:FindFirstChild("Backpack")
         local char = player.Character
-        if backpack then
-            for _, v in pairs(backpack:GetChildren()) do
-                if v:IsA("Tool") and string.find(v.Name, "空投工具") then
-                    v:Destroy()
-                    count = count + 1
-                end
-            end
-        end
-        if char then
-            for _, v in pairs(char:GetChildren()) do
-                if v:IsA("Tool") and string.find(v.Name, "空投工具") then
-                    v:Destroy()
-                    count = count + 1
-                end
-            end
-        end
+        if backpack then for _, v in pairs(backpack:GetChildren()) do if v:IsA("Tool") and string.find(v.Name, "空投工具") then v:Destroy() count = count + 1 end end end
+        if char then for _, v in pairs(char:GetChildren()) do if v:IsA("Tool") and string.find(v.Name, "空投工具") then v:Destroy() count = count + 1 end end end
         WindUI:Notify({ Title = "清理完毕", Content = "共消除了 "..count.." 个空投工具", Duration = 3 })
     end
 })
 
-TabCraft:Paragraph({ Title = "【 恶魔鸭材料破解 】", Desc = "自动解析商店的摩斯密码", Color = Color3.fromRGB(255, 105, 180) })
+TabCraft:Paragraph({ Title = "【 恶魔鸭材料破解 】", Color = Color3.fromRGB(255, 105, 180) })
 local resultLabel = TabCraft:Paragraph({ Title = "点击下方按钮获取今日材料", Desc = "请先确保自己在私服内加载完地图" })
-local evilNoteItemMap = { ["I CANT SEE"] = "Eye3", ["HATCHES INTO SOMETHING GREAT"] = "Egg", ["KEEP ME WARM"] = "Cocoa", ["GRANT ME LIGHT"] = "LightBulb", ["QUACK QUACK"] = "Duck", ["GRANT MY WISH"] = "MagicLamp", ["GREAT WITH COOKIES"] = "Milk", ["CHEAT CODE"] = "NESController", ["GIVE ME POWER"] = "Battery", ["IM THIRSTY"] = "BloxyCola", ["CLAIMS TO BE HAPPY"] = "HappyBall" }
-local morse = { [".-"]="A",["-..."]="B",["-.-."]="C",["-.."]="D",["."]="E",["..-."]="F",["--."]="G",["...."]="H",[".."]="I",[".---"]="J",["-.-"]="K",[".-.."]="L",["--"]="M",["-."]="N",["---"]="O",[".--."]="P",["--.-"]="Q",[".-."]="R",["..."]="S",["-"]="T",["..-"]="U",["...-"]="V",[".--"]="W",["-..-"]="X",["-.--"]="Y",["--.."]="Z",["-----"]="0",[".----"]="1",["..---"]="2",["...--"]="3",["....-"]="4",["....."]="5",["-...."]="6",["--..."]="7",["---.."]="8",["----."]="9" }
+
+local evilNoteItemMap = {
+    ["I CANT SEE"] = "老虎眼 (Eye3)",
+    ["HATCHES INTO SOMETHING GREAT"] = "蛋 (Egg)",
+    ["KEEP ME WARM"] = "热可可 (Cocoa)",
+    ["GRANT ME LIGHT"] = "灯泡 (LightBulb)",
+    ["QUACK QUACK"] = "鸭子 (Duck)",
+    ["GRANT MY WISH"] = "神灯 (MagicLamp)",
+    ["GREAT WITH COOKIES"] = "牛奶 (Milk)",
+    ["CHEAT CODE"] = "游戏机 (NESController)",
+    ["GIVE ME POWER"] = "电池 (Battery)",
+    ["IM THIRSTY"] = "可乐 (BloxyCola)",
+    ["CLAIMS TO BE HAPPY"] = "快乐球 (HappyBall)",
+    ["WIELDED BY SOMEONE POWERFUL"] = "未知新物品"
+}
+
+local morse = {
+    [".-"]="A",["-..."]="B",["-.-."]="C",["-.."]="D",["."]="E",["..-."]="F",["--."]="G",["...."]="H",
+    [".."]="I",[".---"]="J",["-.-"]="K",[".-.."]="L",["--"]="M",["-."]="N",["---"]="O",[".--."]="P",
+    ["--.-"]="Q",[".-."]="R",["..."]="S",["-"]="T",["..-"]="U",["...-"]="V",[".--"]="W",["-..-"]="X",
+    ["-.--"]="Y",["--.."]="Z",["-----"]="0",[".----"]="1",["..---"]="2",["...--"]="3",["....-"]="4",
+    ["....."]="5",["-...."]="6",["--..."]="7",["---.."]="8",["----."]="9"
+}
 
 TabCraft:Button({
     Title = "自动破解恶魔鸭合成材料",
@@ -215,7 +214,7 @@ TabCraft:Button({ Title = "获取【地狱火空投工具】", Callback = functi
     tool.Activated:Connect(function() local t = Mouse.Target if t then for i=1, 30 do DragModel(t.Parent, dropTarget_Hellfire) task.wait(0.01) end end end)
 end })
 
-TabCraft:Paragraph({ Title = "【 天堂光环合成 】", Desc = "天堂鸭 / 永恒剑 (需去辐射商店开444门)", Color = Color3.fromRGB(255, 255, 150) })
+TabCraft:Paragraph({ Title = "【 天堂光环合成 】", Desc = "天堂鸭 / 永恒剑", Color = Color3.fromRGB(255, 255, 150) })
 local Pos_Halo_HeavenDuck, Pos_Halo_EternalSword, Pos_Halo_Altar = CFrame.new(-678.179, 25.500, -404.403), CFrame.new(-680.807, 25.500, -413.101), CFrame.new(-670.157, 21.800, -412.872)
 local dropTarget_Halo = Pos_Halo_HeavenDuck
 TabCraft:Button({ Title = "传送到天堂光环祭坛", Callback = function() if player.Character then player.Character.HumanoidRootPart.CFrame = Pos_Halo_Altar end end })
