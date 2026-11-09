@@ -57,7 +57,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.2",
+    Title = "封存木材 V0.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -81,7 +81,6 @@ local TabCraft = Window:Tab({ Title = "合成物品", Icon = "rbxassetid://10734
 
 TabCraft:Button({
     Title = "【一键清理】消除所有空投工具",
-    Desc = "清理背包里多余的合成工具",
     Callback = function()
         local count = 0
         local backpack = player:FindFirstChild("Backpack")
@@ -633,7 +632,6 @@ TabCraft:Button({
         end)
     end
 })
-
 local TabTP = Window:Tab({ Title = "安全传送", Icon = "rbxassetid://10734945123" })
 local targetTree = "Generic"
 local playerPos = {nil, nil, nil}
@@ -965,6 +963,25 @@ TabServer:Button({
         end)
         if not success then
             WindUI:Notify({ Title = "传送失败", Content = "请稍等10秒后再试 (773防刷限制)", Duration = 5 })
+        end
+    end
+})
+
+TabServer:Button({
+    Title = "刷新当前服务器 (原地重连)",
+    Desc = "拿天堂鸭专用，不换服，刷新一次拿取状态",
+    Callback = function()
+        WindUI:Notify({Title="重连中",Content="3秒后断开重连...", Duration=3})
+        task.wait(3)
+        local success, err = pcall(function()
+            if game.PrivateServerId and game.PrivateServerId ~= "" then
+                TS:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
+            else
+                TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+            end
+        end)
+        if not success then
+            player:Kick("重连刷新中...")
         end
     end
 })
