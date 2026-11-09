@@ -6,6 +6,7 @@ local Lighting = game:GetService("Lighting")
 local Mouse = player:GetMouse()
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local WhitelistURL = "https://raw.githubusercontent.com/moos294/jooiionn/main/whitelist.txt"
 
@@ -24,11 +25,6 @@ end
 game:GetService("StarterGui"):SetCore("SendNotification", {Title = "验证成功", Text = "欢迎尊贵的白名单使用此脚本", Duration = 5})
 
 local function CleanupAll()
-    isDragEnabled = false
-    if dragConn then
-        dragConn:Disconnect()
-        dragConn = nil
-    end
     for i = 1, 3 do
         local bringPoint = Workspace:FindFirstChild("BRING"..i)
         if bringPoint then bringPoint:Destroy() end
@@ -57,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V0.1",
+    Title = "封存木材 V0.2",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -632,6 +628,7 @@ TabCraft:Button({
         end)
     end
 })
+
 local TabTP = Window:Tab({ Title = "安全传送", Icon = "rbxassetid://10734945123" })
 local targetTree = "Generic"
 local playerPos = {nil, nil, nil}
@@ -859,7 +856,8 @@ TabItem:Button({
     end
 })
 
-local TabNewItem = TabItem:Section({ Title = "新增：卖木头 & 鸭子拉回", TextXAlignment = Enum.TextXAlignment.Left })
+TabItem:Paragraph({ Title = "新增：卖木头 & 鸭子拉回", Color = Color3.fromRGB(0, 150, 255) })
+
 local function New_SellAllWood()
     local lm = Workspace:FindFirstChild("LogModels")
     if not lm then return end
@@ -888,12 +886,12 @@ local function New_SellAllWood()
     WindUI:Notify({Title="完成",Content="木头已卖完"})
 end
 
-TabNewItem:Button({ Title = "一键卖掉所有原木", Callback = function() task.spawn(New_SellAllWood) end })
+TabItem:Button({ Title = "一键卖掉所有原木", Callback = function() task.spawn(New_SellAllWood) end })
 
 local duckList = {"DuckAngel", "DuckEvil", "LunarDuck", "Duck", "2018CGift_Duck"}
 local selectedDuck = "DuckAngel"
 
-TabNewItem:Dropdown({
+TabItem:Dropdown({
     Title = "选择鸭子",
     Values = {"天堂鸭", "恶魔鸭", "月亮鸭", "普通鸭", "礼物鸭"},
     Value = "天堂鸭",
@@ -906,7 +904,7 @@ TabNewItem:Dropdown({
     end
 })
 
-TabNewItem:Button({
+TabItem:Button({
     Title = "拉回全图【自己的】鸭子",
     Callback = function()
         local start = player.Character.HumanoidRootPart.CFrame
@@ -1020,156 +1018,506 @@ TabServer:Button({
 })
 
 local TabExtra = Window:Tab({ Title = "其他功能", Icon = "rbxassetid://10882439086" })
-local isDragEnabled = false
-local dragConn = nil
 
-local function stopDrag()
-    isDragEnabled = false
-    if dragConn then
-        dragConn:Disconnect()
-        dragConn = nil
-    end
-    WindUI:Notify({ Title = "已停止", Content = "拖拽功能已关闭", Duration = 3 })
+TabExtra:Paragraph({ Title = "【 自动购买普通鸭子 】", Desc = "靠近 FineFinds 商店附近，点开始自动购买并拉回", Color = Color3.fromRGB(0, 180, 255) })
+
+local function notify(title, desc, duration)
+    WindUI:Notify({
+        Title = tostring(title or "通知"),
+        Content = tostring(desc or ""),
+        Duration = tonumber(duration) or 3,
+    })
 end
 
-local function startDrag()
-    if dragConn then dragConn:Disconnect() end
-    dragConn = Workspace.ChildAdded:Connect(function(obj)
-        if obj.Name == "Dragger" and isDragEnabled then
-            obj.BrickColor = BrickColor.new("Bright green")
-            task.spawn(function()
-                local b = obj:WaitForChild("BodyGyro", 2)
-                local c = obj:WaitForChild("BodyPosition", 2)
-                if not b or not c then return end
-                task.wait(0.1)
-                obj.CanCollide = false
-                obj.CanTouch = false
-                while obj.Parent == Workspace and isDragEnabled do
-                    c.P = 120000
-                    c.D = 1000
-                    c.maxForce = Vector3.new(1, 1, 1) * 1000000
-                    b.MaxTorque = Vector3.new(1, 1, 1) * 200
-                    b.P = 1200
-                    b.D = 140
-                    local dragEvent = RS:FindFirstChild("Interaction") and RS.Interaction:FindFirstChild("ClientIsDragging")
-                    if dragEvent then
-                        pcall(function() dragEvent:FireServer() end)
-                    end
-                    task.wait()
+local DUCK_DRAG_TOTAL = 60
+local DUCK_DRAG_SET_START = 28
+local DUCK_DRAG_SET_COUNT = 2
+local DUCK_DRAG_SET_INTERVAL = 0.01
+local DUCK_DRAG_REFRESH_INTERVAL = 0.01
+local DUCK_DRAG_AFTER_WAIT = 0.01
+local duckDragIDCounter = 0
+local duckLockConn = nil
+local duckNpcIdCache = nil
+
+local function duckGetNextDragID()
+    duckDragIDCounter = duckDragIDCounter + 1
+    return duckDragIDCounter
+end
+
+local function duckUprightCFrame(hrp, cf)
+    local pos = cf.Position
+    local yRot = hrp and hrp.Orientation.Y or 0
+    return CFrame.new(pos) * CFrame.Angles(0, math.rad(yRot), 0)
+end
+
+local function duckSafeTeleport(cf)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = duckUprightCFrame(hrp, cf)
+        task.wait(0.05)
+        if hrp.Position.Y < -100 then
+            hrp.CFrame = duckUprightCFrame(hrp, cf) + Vector3.new(0, 10, 0)
+        end
+    end
+end
+
+local function duckUnlockPlayer()
+    if duckLockConn then
+        duckLockConn:Disconnect()
+        duckLockConn = nil
+    end
+end
+
+local function duckLockPlayerAt(cf)
+    duckUnlockPlayer()
+    local function hold()
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = duckUprightCFrame(hrp, cf)
+            hrp.Velocity = Vector3.new(0, 0, 0)
+            hrp.RotVelocity = Vector3.new(0, 0, 0)
+        end
+    end
+    hold()
+    duckLockConn = RunService.Heartbeat:Connect(hold)
+end
+
+local function duckDragToPosition(model, targetCF, callback, waitFinish)
+    if not model or not model.Parent then
+        if callback then callback() end
+        return
+    end
+    local primary = model.PrimaryPart
+        or model:FindFirstChild("WoodSection")
+        or model:FindFirstChild("Main")
+        or model:FindFirstChildWhichIsA("BasePart")
+    if not primary then
+        if callback then callback() end
+        return
+    end
+    if not model.PrimaryPart then model.PrimaryPart = primary end
+
+    duckLockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
+
+    local dragID = duckGetNextDragID()
+    local remote = RS.Interaction.ClientIsDragging
+    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+    pcall(function() remote:FireServer("Begin", model, dragID) end)
+
+    local lastSet = DUCK_DRAG_SET_START + DUCK_DRAG_SET_COUNT - 1
+    for i = 1, lastSet do
+        if not model.Parent or not model.PrimaryPart then
+            pcall(function() remote:FireServer("End", model, dragID) end)
+            if callback then callback() end
+            return
+        end
+        local shouldSet = (i >= DUCK_DRAG_SET_START)
+        pcall(function()
+            remote:FireServer("Refresh", model, dragID)
+            if shouldSet then
+                RS.Interaction.ClientRequestOwnership:FireServer(primary)
+                model:SetPrimaryPartCFrame(targetCF)
+            end
+        end)
+        if i < lastSet then
+            if shouldSet then
+                task.wait(DUCK_DRAG_SET_INTERVAL)
+            else
+                task.wait(DUCK_DRAG_REFRESH_INTERVAL)
+            end
+        end
+    end
+
+    task.wait(DUCK_DRAG_AFTER_WAIT)
+
+    local dragEnded = false
+    task.spawn(function()
+        for i = lastSet + 1, DUCK_DRAG_TOTAL do
+            if not model.Parent or not model.PrimaryPart then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+            if i < DUCK_DRAG_TOTAL then
+                task.wait(DUCK_DRAG_REFRESH_INTERVAL)
+            end
+        end
+        pcall(function() remote:FireServer("End", model, dragID) end)
+        dragEnded = true
+    end)
+
+    if waitFinish then
+        local w = 0
+        while w < 1.5 and not dragEnded do
+            task.wait(0.05)
+            w = w + 0.05
+        end
+        for _ = 1, 3 do
+            if not model.Parent or not model.PrimaryPart then break end
+            local d = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+            if d <= 3 then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+        end
+    end
+
+    task.wait(0.4)
+
+    local verify = 0
+    while model.Parent and model.PrimaryPart and verify < 2 do
+        local dist = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+        if dist <= 3 then break end
+        verify = verify + 1
+        duckLockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.15)
+        local retryID = duckGetNextDragID()
+        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+        pcall(function() remote:FireServer("Begin", model, retryID) end)
+        for _ = 1, 10 do
+            if not model.Parent then break end
+            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+            pcall(function() remote:FireServer("Refresh", model, retryID) end)
+            pcall(function() model:SetPrimaryPartCFrame(targetCF) end)
+            task.wait(0.05)
+        end
+        pcall(function() remote:FireServer("End", model, retryID) end)
+        task.wait(0.15)
+    end
+
+    duckUnlockPlayer()
+    if callback then callback() end
+end
+
+local function duckGetAllCashierIds()
+    local cashierIds = {}
+    local conn = RS.NPCDialog.PromptChat.OnClientEvent:Connect(function(...)
+        local pack = { ... }
+        for _, v in ipairs(pack) do
+            if type(v) == "table" and v.Name ~= nil and v.ID ~= nil then
+                if not cashierIds[v.Name] then
+                    cashierIds[v.Name] = v.ID
                 end
-            end)
+            end
         end
     end)
+    pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
+    local startTime = tick()
+    while not cashierIds["Manachron"] and tick() - startTime < 15 do
+        task.wait(0.2)
+    end
+    conn:Disconnect()
+    pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
+    return cashierIds
 end
 
-TabExtra:Toggle({
-    Title = "开启拖拽器",
-    Desc = "锁定物理拉力，随便飞绝对不掉",
-    Default = false,
-    Callback = function(state)
-        isDragEnabled = state
-        if isDragEnabled then
-            startDrag()
-            WindUI:Notify({ Title = "开启成功", Content = "直接用手抓取物品起飞！", Duration = 3 })
-        else
-            stopDrag()
+local function duckGetNpcId()
+    if duckNpcIdCache then return duckNpcIdCache end
+    local ids = duckGetAllCashierIds()
+    duckNpcIdCache = ids["Manachron"]
+    return duckNpcIdCache
+end
+
+local function duckBuyCrate()
+    local fineFinds = Workspace.Stores:FindFirstChild("FineFinds")
+    if not fineFinds then return nil, "找不到商店" end
+    local npcChar = fineFinds:FindFirstChild("Manachron")
+    if not npcChar then return nil, "找不到NPC" end
+
+    local npcId = duckGetNpcId()
+    if not npcId then return nil, "无法获取NPC ID（可点重置缓存再试）" end
+
+    local counter = fineFinds:FindFirstChild("Counter")
+    if not counter or not counter:IsA("BasePart") then return nil, "找不到Counter" end
+
+    local shopItems = fineFinds:FindFirstChild("ShopItems")
+    if not shopItems then return nil, "无ShopItems" end
+
+    local crateItem = shopItems:FindFirstChild("Crate")
+    if not crateItem then
+        for _ = 1, 10 do
+            crateItem = shopItems:FindFirstChild("Crate")
+            if crateItem then break end
+            task.wait(0.15)
         end
+        if not crateItem then return nil, "Crate不在货架" end
     end
-})
 
-TabExtra:Button({
-    Title = "强制关闭并释放物品",
-    Desc = "如果遇到卡顿，点此强行断开",
-    Callback = function()
-        stopDrag()
-        local toggleObj = Window:GetToggle("开启拖拽器")
-        if toggleObj then toggleObj:Set(false) end
-    end
-})
+    local primary = crateItem.PrimaryPart
+        or crateItem:FindFirstChild("WoodSection")
+        or crateItem:FindFirstChild("Main")
+        or crateItem:FindFirstChildWhichIsA("BasePart")
+    if not primary then return nil, "无法定位商品" end
+    if not crateItem.PrimaryPart then crateItem.PrimaryPart = primary end
 
-local TabNewAuto = TabExtra:Section({ Title = "全自动获取普通鸭", TextXAlignment = Enum.TextXAlignment.Left })
+    duckLockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
+    task.wait(0.2)
+
+    local counterSurface = counter.CFrame + Vector3.new(0, 0.6, 0)
+    duckDragToPosition(crateItem, counterSurface, nil, true)
+
+    duckLockPlayerAt(counter.CFrame + Vector3.new(0, 3, 0))
+    task.wait(0.1)
+
+    local NPCDialog = RS:WaitForChild("NPCDialog")
+    local purchased = {}
+    local conn = Workspace.PlayerModels.ChildAdded:Connect(function(m)
+        if m:IsA("Model") and m:FindFirstChild("Owner") and m.Owner.Value == player then
+            table.insert(purchased, m)
+        end
+    end)
+    local args = { { ID = npcId, Character = npcChar, Name = "Manachron" }, "ConfirmPurchase" }
+    local ok, err = pcall(function()
+        NPCDialog.PlayerChatted:InvokeServer(table.unpack(args))
+    end)
+    task.wait(0.5)
+    conn:Disconnect()
+    duckUnlockPlayer()
+
+    if not ok then return nil, "购买请求失败: " .. tostring(err) end
+    return purchased[1], "成功"
+end
+
 local autoDuckTarget = 1
 local isAutoBuyingDuck = false
+local duckStopFlag = false
 
-TabNewAuto:Input({
-    Title = "目标数量",
-    Value = "1",
-    Callback = function(t)
-        local n = tonumber(t)
-        if n and n>0 then autoDuckTarget = math.floor(n) end
+local function autoGetGiftDuckDirect(targetCount)
+    targetCount = targetCount or 1
+    if isAutoBuyingDuck then
+        notify("自动购买普通鸭", "任务已在运行中", 2)
+        return
     end
-})
+    isAutoBuyingDuck = true
+    duckStopFlag = false
 
-TabNewAuto:Button({
-    Title = "开始自动获取",
-    Callback = function()
-        if isAutoBuyingDuck then return end
-        isAutoBuyingDuck = true
-        task.spawn(function()
-            local function getMyDucks()
-                local d = {}
-                for _, m in pairs(Workspace.PlayerModels:GetChildren()) do
-                    if m.Name == "2018CGift_Duck" and m:FindFirstChild("Owner") and m.Owner.Value == player then table.insert(d, m) end
+    local successCount = 0
+    local startPos = player.Character and player.Character.HumanoidRootPart.CFrame
+    if not startPos then
+        notify("自动购买普通鸭", "无法获取玩家起始位置", 3)
+        isAutoBuyingDuck = false
+        return
+    end
+
+    local function getPlayerPos()
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        return hrp and hrp.Position or nil
+    end
+
+    local function getMyDucks()
+        local ducks = {}
+        for _, m in pairs(Workspace.PlayerModels:GetChildren()) do
+            if m:IsA("Model") and m.Name == "2018CGift_Duck" then
+                local owner = m:FindFirstChild("Owner")
+                if owner and owner.Value == player then
+                    table.insert(ducks, m)
                 end
-                return d
             end
-            local startPos = player.Character.HumanoidRootPart.CFrame
-            local initialDucks = {}
-            local successCount = 0
-            for _, d in ipairs(getMyDucks()) do initialDucks[d] = true end
-            while isAutoBuyingDuck and successCount < autoDuckTarget do
-                local fineFinds = Workspace.Stores:FindFirstChild("FineFinds")
-                local npc = fineFinds and fineFinds:FindFirstChild("Manachron")
-                local counter = fineFinds and fineFinds:FindFirstChild("Counter")
-                local shopItems = fineFinds and fineFinds:FindFirstChild("ShopItems")
-                if not npc or not counter or not shopItems then break end
-                local crate = shopItems:FindFirstChild("Crate")
-                if crate then
-                    local p = crate.PrimaryPart or crate:FindFirstChild("Main") or crate:FindFirstChildWhichIsA("BasePart")
-                    if p then
-                        player.Character.HumanoidRootPart.CFrame = p.CFrame + Vector3.new(0,3,0)
-                        task.wait(0.1)
-                        for i=1, 40 do DragModel(crate, counter.CFrame + Vector3.new(0,0.6,0)) task.wait(0.01) end
-                        player.Character.HumanoidRootPart.CFrame = counter.CFrame + Vector3.new(0,3,0)
-                        task.wait(0.1)
-                        pcall(function() RS.NPCDialog.PlayerChatted:InvokeServer(table.unpack({{ID=0, Character=npc, Name="Manachron"}, "ConfirmPurchase"})) end)
-                        task.wait(0.4)
-                    end
-                end
-                for _, m in pairs(Workspace.PlayerModels:GetChildren()) do
-                    if m.Name == "Crate" or m.Name:find("Crate Purchased by") then
-                        pcall(function() RS.Interaction.ClientInteracted:FireServer(m, 'Open box') end)
-                        local btn = m:FindFirstChild("ButtonRemote_Main")
-                        if btn then pcall(function() RS.Interaction.RemoteProxy:FireServer(btn) end) end
-                    end
-                end
-                task.wait(0.4)
-                local current = getMyDucks()
-                for _, d in ipairs(current) do
+        end
+        return ducks
+    end
+
+    local initialDucks = {}
+    for _, d in ipairs(getMyDucks()) do initialDucks[d] = true end
+    local initialCount = #getMyDucks()
+    notify("自动购买普通鸭", "初始鸭子数: " .. initialCount, 2)
+
+    local function syncDragToPosition(model, targetCF, timeout)
+        timeout = timeout or 5
+        local done, success = false, false
+        duckDragToPosition(model, targetCF, function()
+            done = true
+            success = true
+        end)
+        local startTime = tick()
+        while not done and tick() - startTime < timeout do
+            task.wait(0.1)
+        end
+        return success
+    end
+
+    local attempt = 0
+    while isAutoBuyingDuck and not duckStopFlag and successCount < targetCount do
+        attempt = attempt + 1
+        notify("自动购买普通鸭", string.format("购买 #%d (已获得 %d/%d)", attempt, successCount, targetCount), 2)
+
+        local crate, msg = duckBuyCrate()
+        if not crate then
+            notify("自动购买普通鸭", "购买失败: " .. tostring(msg), 2)
+            task.wait(0.15)
+            if duckStopFlag then break end
+            local currentDucks = getMyDucks()
+            if #currentDucks > initialCount then
+                for _, d in ipairs(currentDucks) do
                     if not initialDucks[d] and d.Parent then
-                        local p = d.PrimaryPart or d:FindFirstChild("Main") or d:FindFirstChildWhichIsA("BasePart")
-                        if p then
-                            player.Character.HumanoidRootPart.CFrame = p.CFrame + Vector3.new(0,2,0)
+                        if not d.PrimaryPart then
+                            local prim = d:FindFirstChild("Main") or d:FindFirstChildWhichIsA("BasePart")
+                            if prim then d.PrimaryPart = prim end
+                        end
+                        if d.PrimaryPart then
+                            duckSafeTeleport(d.PrimaryPart.CFrame + Vector3.new(0, 2, 0))
                             task.wait(0.2)
-                            for i=1, 30 do DragModel(d, startPos) task.wait(0.01) end
-                            initialDucks[d] = true
-                            successCount = successCount + 1
-                            break
+                            if syncDragToPosition(d, startPos) then
+                                duckSafeTeleport(startPos)
+                                successCount = successCount + 1
+                                initialDucks[d] = true
+                                initialCount = initialCount + 1
+                                notify("自动购买普通鸭", string.format("鸭子已带回 (%d/%d)", successCount, targetCount), 3)
+                                break
+                            end
                         end
                     end
                 end
-                player.Character.HumanoidRootPart.CFrame = startPos
-                task.wait(0.2)
             end
-            isAutoBuyingDuck = false
-            WindUI:Notify({Title="完成",Content="成功获取 "..successCount.." 只"})
-        end)
+            if duckStopFlag then break end
+            continue
+        end
+
+        local playerPos = getPlayerPos()
+        if not playerPos then
+            notify("自动购买普通鸭", "位置丢失", 2)
+            continue
+        end
+
+        local candidates = {}
+        for _, m in pairs(Workspace.PlayerModels:GetChildren()) do
+            if m:IsA("Model") and m:FindFirstChild("Owner") and m.Owner.Value == player then
+                local name = m.Name
+                if name:find("Crate Purchased by") or name:find("crate purchased by") then
+                    local prim = m.PrimaryPart or m:FindFirstChild("Main") or m:FindFirstChildWhichIsA("BasePart")
+                    if prim then
+                        local d = (prim.Position - playerPos).Magnitude
+                        if d <= 50 then
+                            table.insert(candidates, { model = m, dist = d })
+                        end
+                    end
+                end
+            end
+        end
+
+        if #candidates == 0 then
+            notify("自动购买普通鸭", "未找到板条箱（50米）", 2)
+            continue
+        end
+
+        notify("自动购买普通鸭", string.format("找到 %d 个板条箱，全部打开", #candidates), 2)
+        table.sort(candidates, function(a, b) return a.dist < b.dist end)
+
+        for _, cand in ipairs(candidates) do
+            if duckStopFlag then break end
+            pcall(function()
+                RS.Interaction.ClientInteracted:FireServer(cand.model, "Open box")
+            end)
+            task.wait(0.1)
+        end
+
+        task.wait(0.2)
+
+        local buttonCrates = {}
+        for _, m in pairs(Workspace.PlayerModels:GetChildren()) do
+            if m:IsA("Model") and m.Name == "Crate" then
+                local owner = m:FindFirstChild("Owner")
+                if owner and owner.Value == player then
+                    local prim = m.PrimaryPart or m:FindFirstChild("Main") or m:FindFirstChildWhichIsA("BasePart")
+                    if prim and (prim.Position - playerPos).Magnitude <= 50 then
+                        table.insert(buttonCrates, m)
+                    end
+                end
+            end
+        end
+
+        if #buttonCrates > 0 then
+            notify("自动购买普通鸭", string.format("找到 %d 个可点击的 Crate", #buttonCrates), 2)
+            for _, crateModel in ipairs(buttonCrates) do
+                if duckStopFlag then break end
+                local btn = crateModel:FindFirstChild("ButtonRemote_Main")
+                if btn then
+                    pcall(function()
+                        RS.Interaction.RemoteProxy:FireServer(btn)
+                    end)
+                end
+                task.wait(0.04)
+            end
+        else
+            notify("自动购买普通鸭", "未找到可点击的 Crate", 2)
+        end
+
+        task.wait(0.5)
+
+        local currentDucks = getMyDucks()
+        if #currentDucks > initialCount then
+            for _, d in ipairs(currentDucks) do
+                if not initialDucks[d] and d.Parent then
+                    if not d.PrimaryPart then
+                        local prim = d:FindFirstChild("Main") or d:FindFirstChildWhichIsA("BasePart")
+                        if prim then d.PrimaryPart = prim end
+                    end
+                    if d.PrimaryPart then
+                        duckSafeTeleport(d.PrimaryPart.CFrame + Vector3.new(0, 2, 0))
+                        task.wait(0.2)
+                        if syncDragToPosition(d, startPos) then
+                            duckSafeTeleport(startPos)
+                            successCount = successCount + 1
+                            initialDucks[d] = true
+                            initialCount = initialCount + 1
+                            notify("自动购买普通鸭", string.format("鸭子已带回 (%d/%d)", successCount, targetCount), 3)
+                        end
+                    end
+                end
+            end
+        else
+            notify("自动购买普通鸭", "未出鸭", 2)
+        end
+
+        if successCount >= targetCount then break end
+        notify("自动购买普通鸭", "未达标，继续购买", 2)
+        task.wait(0.08)
     end
+
+    if duckStopFlag then
+        notify("自动购买普通鸭", "已停止", 2)
+    elseif successCount >= targetCount then
+        notify("自动购买普通鸭", string.format("成功获取 %d 只鸭子", successCount), 3)
+    else
+        notify("自动购买普通鸭", "任务结束，未达到目标", 3)
+    end
+
+    duckSafeTeleport(startPos)
+    isAutoBuyingDuck = false
+    duckStopFlag = false
+end
+
+TabExtra:Input({
+    Title = "目标获取数量",
+    Value = "1",
+    Callback = function(v)
+        local n = tonumber(v)
+        if n and n > 0 then autoDuckTarget = math.floor(n) end
+    end,
 })
 
-TabNewAuto:Button({
-    Title = "停止任务",
-    Callback = function() isAutoBuyingDuck = false end
+TabExtra:Button({
+    Title = "开始自动购买普通鸭",
+    Desc = "首次点会花 5~15 秒自动获取 NPC ID，请耐心等",
+    Callback = function()
+        task.spawn(function() autoGetGiftDuckDirect(autoDuckTarget) end)
+    end,
+})
+
+TabExtra:Button({
+    Title = "停止自动购买普通鸭",
+    Callback = function()
+        if isAutoBuyingDuck then
+            duckStopFlag = true
+            notify("自动购买普通鸭", "正在停止...", 2)
+        else
+            notify("自动购买普通鸭", "当前没有运行中的任务", 2)
+        end
+    end,
+})
+
+TabExtra:Button({
+    Title = "重置 NPC ID 缓存",
+    Desc = "如果首次获取 ID 失败，点此重置再试",
+    Callback = function()
+        duckNpcIdCache = nil
+        notify("自动购买普通鸭", "NPC ID 缓存已重置", 2)
+    end,
 })
 
 TabExtra:Button({
