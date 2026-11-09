@@ -4257,68 +4257,6 @@ end
 end
 if not found then notify("雪糕","没找到该种类的树",3)end
 end)
-paintToolInstance=nil
-function createPaintTool()
-if paintToolInstance and paintToolInstance.Parent then
-paintToolInstance:Destroy()
-paintToolInstance=nil
-end
-local tool=Instance.new("Tool")
-tool.RequiresHandle=false
-tool.Name="涂装工具"
-tool.Activated:Connect(function()
-local target=mouse.Target
-if not target then
-notify("雪糕","未点击任何物体",2)
-return
-end
-local model=target:FindFirstAncestorOfClass("Model")
-if not model then
-notify("雪糕","请点击一个模型",2)
-return
-end
-if not selectedPaintMaterial or selectedPaintMaterial==""then
-notify("雪糕","请先选择材质",2)
-return
-end
-local placeStructure=game:GetService("ReplicatedStorage"):FindFirstChild("PlaceStructure")
-if not placeStructure then
-notify("雪糕","PlaceStructure 不存在",3)
-return
-end
-local paintToolRemote=placeStructure:FindFirstChild("PaintTool")
-if not paintToolRemote then
-notify("雪糕","PaintTool 远程事件不存在",3)
-return
-end
-pcall(function()
-paintToolRemote:FireServer(model,selectedPaintMaterial)
-end)
-notify("雪糕","已发送涂装请求: "..selectedPaintMaterial,2)
-end)
-tool.Parent=lp.Backpack
-paintToolInstance=tool
-notify("雪糕","涂已添加到背包，点击任意模型即可填充",3)
-end
-Sectionqita:Dropdown("选择材质","PaintMaterialDropdown",{
-"RainbowFlame","BlueFlame","Flame","Ash","Aspen","Birch","Blah","Brick","BrickAlternative","BrickDark","Bush",
-"Candy","CandyAlternative","CandyNeon","CandycaneGreen","CandycaneRed",
-"Cartoony","CartoonyRainbow","CaveCrawler","Cavern","CavernCrawler","Celestial",
-"Cherry","CobbleStone","Cookie","Copper","Diamond","Dog","Dry","DryNeon",
-"Electric","Ember","Fir","Frost","Generic","GenericDead","GenericFall",
-"GenericGold","GenericPrime","GenericSpecial","Glass","GlowShroom","Gold",
-"GoldSwampy","Grass1","GreatOak","GreenSwampy","GrottoCrawler","Hell","Ice",
-"Koa","LoneCave","Magma","Maple","Marble","MuckySewer","NeonRainbow","Oak",
-"Palm","Pine","PotBush","Potato","REEE","Radioactive","Rainbow","Random",
-"Ruby","Sand","Scale","SewageTree","Shine","Sign","Silver","Skittles","Sky",
-"Snow","SnowGlow","Spirit","Spooky","SpookyGhoul","SpookyNeon","Star","Stone",
-"Taco","Thread","TunnelCrawler","Virtual","Void","Volcano","Waffer","Walnut"
-},function(v)
-selectedPaintMaterial=v
-end)
-Sectionqita:Button("获取填充工具（需要通行证）",function()
-createPaintTool()
-end)
 _G.qsMain=_G.qsMain or {}
 for k,v in pairs({selectionCountLabel=selectionCountLabel,treeNamesWithPlaceholder=treeNamesWithPlaceholder,ITEM_LIST_URL=ITEM_LIST_URL,TRANSLATE_URL=TRANSLATE_URL,loadTranslations=loadTranslations,getDisplayName=getDisplayName,loadSpawnItemList=loadSpawnItemList,spawnAdminItem=spawnAdminItem,startContinuousSpawn=startContinuousSpawn,stopContinuousSpawn=stopContinuousSpawn,createSpawnUI=createSpawnUI,isOwnedByPlayer=isOwnedByPlayer,hasBlueprintWoodClass=hasBlueprintWoodClass,getItemKey=getItemKey,openOneItem=openOneItem,onMouseClick=onMouseClick,duckTypeList=duckTypeList,duckDisplayOptions=duckDisplayOptions,countDucks=countDucks,bringDucksBatch=bringDucksBatch,autoGetGiftDuckDirect=autoGetGiftDuckDirect,dropdown_devil=dropdown_devil,createPaintTool=createPaintTool})do _G.qsMain[k]=v end
 ]====]
@@ -4541,18 +4479,6 @@ task.wait(0.05)
 end
 return false
 end
-local function waitForItemRefresh(itemName,timeout)
-timeout=timeout or 10
-local startTime=tick()
-while tick()-startTime<timeout do
-if stopPurchaseFlag then return false end
-if shopItems:FindFirstChild(itemName)then
-return true
-end
-task.wait(0.05)
-end
-return false
-end
 local successCycles=0
 for i=1,buyAmount do
 if stopPurchaseFlag then break end
@@ -4659,42 +4585,13 @@ npc.statusLabel.Text=text
 end)
 end
 end
-local initialIds=GetAllCashierIds()
+local initialIds = {}
 for storeName,info in pairs(storeInfoMapping)do
 local npc=npcMapping[storeName]
 if initialIds[info.name]then
 npc.id=initialIds[info.name]
 end
 end
-task.spawn(function()
-local noProgress=0
-while true do
-local missingCount=0
-for _,npc in pairs(npcMapping)do
-if npc.id==nil then missingCount=missingCount+1 end
-end
-if missingCount==0 then break end
-task.wait(2)
-local newIds=GetAllCashierIds()
-local gained=0
-for storeName,info in pairs(storeInfoMapping)do
-local npc=npcMapping[storeName]
-if npc and npc.id==nil and newIds[info.name]then
-npc.id=newIds[info.name]
-gained=gained+1
-if npc.statusLabel then
-updateNpcStatusLabel(npc,"NPC ID: "..tostring(npc.id).." ✅")
-end
-end
-end
-if gained==0 then
-noProgress=noProgress+1
-if noProgress>=3 then break end
-else
-noProgress=0
-end
-end
-end)
 local allStores={}
 for _,store in pairs(StoresFolder:GetChildren())do
 local shopItems=store:FindFirstChild("ShopItems")
@@ -4755,81 +4652,10 @@ REPLICATED_STORAGE.Interaction.ClientInteracted:FireServer(box,'Open box')
 end)
 end
 end
-local function buyAllBlueprints()
-stopPurchaseFlag=false
-_G.qSnowStopFlag=false
-local startHRP=lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-local startCF=startHRP and startHRP.CFrame
-local blueprintFolder=lp:FindFirstChild("PlayerBlueprints")
-and lp.PlayerBlueprints:FindFirstChild("Blueprints")
-local targets,seen={},{}
-for _,store in ipairs(allStores)do
-if store.shopItems then
-for _,item in pairs(store.shopItems:GetChildren())do
-local typeVal=item:FindFirstChild("Type")
-local tstr=(typeVal and typeVal.Value~=nil)and tostring(typeVal.Value)or""
-if tstr=="Blueprint"then
-local nm=tostring(item.Name)
-if nm~=""and not seen[nm]then
-seen[nm]=true
-if not(blueprintFolder and blueprintFolder:FindFirstChild(nm))then
-targets[#targets+1]=nm
-end
-end
-end
-end
-end
-end
-table.sort(targets)
-if#targets==0 then
-notify("雪糕","已拥有全部蓝图，或没找到可购买蓝图",3)
-return
-end
-notify("雪糕",string.format("还缺 %d 种蓝图，开始购买",#targets),4)
-local bought,stillMissing=0,{}
-for _,nm in ipairs(targets)do
-if stopPurchaseFlag then break end
-local box,err=_G.qSnowBuyBlueprintBox(nm)
-if not box then
-table.insert(stillMissing,nm)
-notify("雪糕","买不到 "..nm.."："..tostring(err),3)
-else
-openBlueprintBox(box)
-local waited=0
-while waited<5 and not(blueprintFolder and blueprintFolder:FindFirstChild(nm))do
-task.wait(0.3)
-waited=waited+0.3
-if stopPurchaseFlag then break end
-end
-if blueprintFolder and blueprintFolder:FindFirstChild(nm)then
-bought=bought+1
-notify("雪糕","已得到蓝图: "..nm,2)
-else
-table.insert(stillMissing,nm)
-end
-end
-task.wait(0.2)
-end
-if startCF then safeTeleport(startCF)end
-if stopPurchaseFlag then
-notify("雪糕","购买已停止，已返回原地",3)
-return
-end
-if#stillMissing>0 then
-local txt=table.concat(stillMissing,"\n")
-pcall(function()setclipboard(txt)end)
-notify("雪糕",string.format("本次新增 %d 种，仍缺 %d 种（已复制到剪贴板）",bought,#stillMissing),8)
-else
-notify("雪糕",string.format("购买完成，本次新增 %d 种蓝图",bought),5)
-end
-end
 if#allStores==0 then
 notify("错误","未找到任何可用的商店",5)
 else
 local SectionAllItems=Tab3:section("所有商品（搜索）",false)
-SectionAllItems:Button("一键购买所有蓝图",function()
-task.spawn(buyAllBlueprints)
-end)
 local allItemsList={}
 for _,store in ipairs(allStores)do
 if store.shopItems then
@@ -5007,7 +4833,19 @@ if not targetStore then
 return nil,"没有任何商店出售蓝图: "..tostring(blueprintName)
 end
 if not targetStore.npc or not targetStore.npc.id then
+local newIds=GetAllCashierIds()
+for storeName,info in pairs(storeInfoMapping)do
+local npc=npcMapping[storeName]
+if npc and npc.id==nil and newIds[info.name]then
+npc.id=newIds[info.name]
+if npc.statusLabel then
+updateNpcStatusLabel(npc,"NPC ID: "..tostring(npc.id).." ✅")
+end
+end
+end
+if not targetStore.npc.id then
 return nil,"商店 "..targetStore.name.." 的 NPC ID 未获取"
+end
 end
 local store=targetStore.object
 local npcInfo=targetStore.npc
