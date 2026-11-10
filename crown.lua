@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材 V",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBv0.1",
+    Author = "封存NBV0.2",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -1534,24 +1534,35 @@ TabExtra:Button({
     Desc = "关闭UI并清除所有残留工具与点位",
     Callback = function() CleanupAll() end
 })
-TabExtra:Paragraph({ Title = "【 恶魔鸭自动合成 】", Desc = "自动破译材料 + 自动购买(含等待刷新) + 自动合成", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭自动合成 】", Desc = "自动破译材料 + 自动购买 + 自动合成", Color = Color3.fromRGB(255, 105, 180) })
 
 local evilStopFlag = false
 local evilAutoRunning = false
 local evilCombineCount = 1
 local evilLockConn = nil
-local evilDragCounter = 0
-local evilCashierIds = {}
-local evilCashierFetched = false
+local cachedCashierIds = nil
 
 local evilShopNpcMap = {
-    AutumnCatalog="William", BlackMarket="sneakypotato7", CarStore="Jenny",
-    MusicStore="NazuReborn", FineArt="Timothy", FineFinds="Manachron",
-    FurnitureStore="Corey", HLStand="???", Igloo="Cold Guy",
-    LogicStore="Lincoln", MountainSide="Mr.Bacon", PlanterStore="OGxOutcast",
-    PlantomicsChoice="Null", SallysSeasonal="Sally", SaplingCart="Billy",
-    SeaSide="Guy", StoneRUs="Bloxyway", TravelingTrader="Trader",
-    VIPSHOP="Todd", WoodRUs="Thom",
+    AutumnCatalog={name="William", path="William"}, 
+    BlackMarket={name="sneakypotato7", path="sneakypotato7"}, 
+    CarStore={name="Jenny", path="Jenny"},
+    MusicStore={name="NazuReborn", path="NazuReborn"}, 
+    FineArt={name="Timothy", path="Timothy"}, 
+    FineFinds={name="Manachron", path="Manachron"},
+    FurnitureStore={name="Corey", path="Corey"}, 
+    HLStand={name="???", path="???"}, 
+    Igloo={name="Cold Guy", path="Cold Guy"},
+    LogicStore={name="Lincoln", path="Lincoln"}, 
+    MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, 
+    PlanterStore={name="OGxOutcast", path="OGxOutcast"},
+    PlantomicsChoice={name="Null", path="Null"}, 
+    SallysSeasonal={name="Sally", path="Sally"}, 
+    SaplingCart={name="Billy", path="Billy"},
+    SeaSide={name="Guy", path="Guy"}, 
+    StoneRUs={name="Bloxyway", path="Bloxyway"}, 
+    TravelingTrader={name="Trader", path="Trader"},
+    VIPSHOP={name="Todd", path="Todd"}, 
+    WoodRUs={name="Thom", path="Thom"},
 }
 
 local evilEnItemMap = {
@@ -1566,6 +1577,8 @@ local EVIL_POS = {
     CFrame.new(-232.92, 61.38, 933.02),
     CFrame.new(-241.81, 61.00, 925.51)
 }
+
+local evilDragIDCounter = 0
 
 local function evilNotify(t, c, d)
     WindUI:Notify({ Title = tostring(t or ""), Content = tostring(c or ""), Duration = d or 3 })
@@ -1597,111 +1610,186 @@ local function evilSafeTP(cf)
     end
 end
 
-local function evilDrag(model, targetCF, waitFinish)
-    if not model or not model.Parent then return false end
+local function evilDragToPosition(model, targetCF, callback, waitFinish)
+    if not model or not model.Parent then
+        if callback then callback() end
+        return
+    end
     local primary = model.PrimaryPart or model:FindFirstChild("WoodSection") or model:FindFirstChild("Main") or model:FindFirstChildWhichIsA("BasePart")
-    if not primary then return false end
+    if not primary then
+        if callback then callback() end
+        return
+    end
     if not model.PrimaryPart then model.PrimaryPart = primary end
 
     evilLock(primary.CFrame + Vector3.new(0, 3, 0))
-    evilDragCounter = evilDragCounter + 1
-    local id = evilDragCounter
+
+    evilDragIDCounter = evilDragIDCounter + 1
+    local dragID = evilDragIDCounter
     local remote = RS.Interaction.ClientIsDragging
     pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-    pcall(function() remote:FireServer("Begin", model, id) end)
+    pcall(function() remote:FireServer("Begin", model, dragID) end)
 
-    for i = 1, 30 do
-        if not model.Parent then break end
+    local lastSet = 28 + 2 - 1
+    for i = 1, lastSet do
+        if not model.Parent or not model.PrimaryPart then
+            pcall(function() remote:FireServer("End", model, dragID) end)
+            if callback then callback() end
+            return
+        end
+        local shouldSet = (i >= 28)
         pcall(function()
-            remote:FireServer("Refresh", model, id)
-            if i >= 28 then
+            remote:FireServer("Refresh", model, dragID)
+            if shouldSet then
                 RS.Interaction.ClientRequestOwnership:FireServer(primary)
                 model:SetPrimaryPartCFrame(targetCF)
             end
         end)
-        task.wait(0.01)
+        if i < lastSet then
+            if shouldSet then task.wait(0.01) else task.wait(0.01) end
+        end
     end
 
+    task.wait(0.01)
+
+    local dragEnded = false
     task.spawn(function()
-        for i = 31, 60 do
-            if not model.Parent then break end
-            pcall(function() remote:FireServer("Refresh", model, id) end)
-            task.wait(0.01)
+        for i = lastSet + 1, 60 do
+            if not model.Parent or not model.PrimaryPart then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+            if i < 60 then task.wait(0.01) end
         end
-        pcall(function() remote:FireServer("End", model, id) end)
+        pcall(function() remote:FireServer("End", model, dragID) end)
+        dragEnded = true
     end)
 
-    if waitFinish then task.wait(0.6) end
-    task.wait(0.3)
+    if waitFinish then
+        local w = 0
+        while w < 1.5 and not dragEnded do
+            task.wait(0.05)
+            w = w + 0.05
+        end
+        for retry = 1, 3 do
+            if not model.Parent or not model.PrimaryPart then break end
+            local d = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+            if d <= 3 then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+        end
+    end
+
+    task.wait(0.4)
+
+    local verify = 0
+    while model.Parent and model.PrimaryPart and verify < 2 do
+        local dist = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+        if dist <= 3 then break end
+        verify = verify + 1
+        evilLock(primary.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.15)
+        evilDragIDCounter = evilDragIDCounter + 1
+        local retryID = evilDragIDCounter
+        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+        pcall(function() remote:FireServer("Begin", model, retryID) end)
+        for _ = 1, 10 do
+            if not model.Parent then break end
+            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+            pcall(function() remote:FireServer("Refresh", model, retryID) end)
+            pcall(function() model:SetPrimaryPartCFrame(targetCF) end)
+            task.wait(0.05)
+        end
+        pcall(function() remote:FireServer("End", model, retryID) end)
+        task.wait(0.15)
+    end
+
     evilUnlock()
-    return true
+    if callback then callback() end
 end
 
-local function evilFetchIds()
-    if evilCashierFetched then return end
+local function evilGetAllCashierIds()
+    local cashierIds = {}
+    local receivedCount = 0
+    local totalExpected = 0
+    for _ in pairs(evilShopNpcMap) do totalExpected = totalExpected + 1 end
+
     local conn = RS.NPCDialog.PromptChat.OnClientEvent:Connect(function(...)
         local pack = {...}
         for _, v in ipairs(pack) do
-            if type(v) == "table" and v.Name and v.ID then
-                evilCashierIds[v.Name] = v.ID
+            if type(v) == "table" then
+                local nm = v.Name
+                local id = v.ID
+                if nm ~= nil and id ~= nil then
+                    if not cashierIds[nm] then
+                        cashierIds[nm] = id
+                        receivedCount = receivedCount + 1
+                    end
+                end
             end
         end
     end)
     pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
-    local t0 = tick()
-    while tick() - t0 < 20 do
-        local n = 0
-        for _ in pairs(evilCashierIds) do n = n + 1 end
-        if n >= 15 then break end
+    local startTime = tick()
+    while receivedCount < totalExpected and tick() - startTime < 20 do
         task.wait(0.2)
     end
     conn:Disconnect()
     pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
-    evilCashierFetched = true
+    return cashierIds
 end
 
-local function evilFindItem(name)
-    local lower = string.lower(name)
+local function evilBuyBlueprint(blueprintName)
+    local targetStore, targetItemName = nil, nil
+    local lower = string.lower(tostring(blueprintName))
+    
     local stores = Workspace:FindFirstChild("Stores")
-    if not stores then return nil, nil end
-    for _, store in stores:GetChildren() do
+    if not stores then return nil, "找不到Stores" end
+    
+    for _, store in pairs(stores:GetChildren()) do
         local shopItems = store:FindFirstChild("ShopItems")
         if shopItems then
-            for _, item in shopItems:GetChildren() do
-                if string.lower(item.Name) == lower then
-                    return store, item
+            for _, item in pairs(shopItems:GetChildren()) do
+                if string.lower(tostring(item.Name)) == lower then
+                    targetStore, targetItemName = store, item.Name
+                    break
                 end
             end
         end
-    end
-    return nil, nil
-end
-
-local function evilBuyBlueprint(name)
-    local targetStore, itemModel = evilFindItem(name)
-    local t0 = tick()
-    while not targetStore do
-        if tick() - t0 > 30 then return nil, "30秒内商店未刷新出: "..tostring(name) end
-        task.wait(0.5)
-        targetStore, itemModel = evilFindItem(name)
+        if targetStore then break end
     end
 
-    evilFetchIds()
-    local npcName = evilShopNpcMap[targetStore.Name]
-    local npcId = npcName and evilCashierIds[npcName]
-    if not npcId then return nil, "无法获取 "..targetStore.Name.." 的NPC ID" end
-    local npcChar = targetStore:FindFirstChild(npcName)
-    if not npcChar then return nil, "找不到NPC: "..tostring(npcName) end
+    if not targetStore then return nil, "没有任何商店出售: " .. tostring(blueprintName) end
+
+    local info = evilShopNpcMap[targetStore.Name]
+    if not info then return nil, "未收录商店: " .. targetStore.Name end
+    
+    if not cachedCashierIds then
+        cachedCashierIds = evilGetAllCashierIds()
+    end
+    
+    local npcId = cachedCashierIds[info.name]
+    if not npcId then
+        cachedCashierIds = evilGetAllCashierIds()
+        npcId = cachedCashierIds[info.name]
+        if not npcId then return nil, "无法获取 "..info.name.." 的ID" end
+    end
+
+    local npcChar = targetStore:FindFirstChild(info.path)
+    if not npcChar then return nil, "找不到NPC: "..info.path end
     local counter = targetStore:FindFirstChild("Counter")
     if not counter then return nil, "找不到Counter" end
+    local shopItems = targetStore:FindFirstChild("ShopItems")
+    local itemModel = shopItems:FindFirstChild(targetItemName)
 
-    local primary = itemModel.PrimaryPart or itemModel:FindFirstChildWhichIsA("BasePart")
+    if not itemModel then return nil, "商品不在货架: "..targetItemName end
+
+    local primary = itemModel.PrimaryPart or itemModel:FindFirstChild("WoodSection") or itemModel:FindFirstChild("Main") or itemModel:FindFirstChildWhichIsA("BasePart")
     if not primary then return nil, "无法定位商品" end
     if not itemModel.PrimaryPart then itemModel.PrimaryPart = primary end
 
     evilLock(primary.CFrame + Vector3.new(0, 3, 0))
-    task.wait(0.15)
-    evilDrag(itemModel, counter.CFrame + Vector3.new(0, 0.6, 0), true)
+    task.wait(0.3)
+    evilDragToPosition(itemModel, counter.CFrame + Vector3.new(0, 0.6, 0), nil, true)
+    
+    task.wait(0.09)
     evilLock(counter.CFrame + Vector3.new(0, 3, 0))
     task.wait(0.1)
 
@@ -1711,14 +1799,25 @@ local function evilBuyBlueprint(name)
             table.insert(purchased, m)
         end
     end)
-    local args = {{ID = npcId, Character = npcChar, Name = npcName}, "ConfirmPurchase"}
-    pcall(function() RS.NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
-    task.wait(0.5)
+
+    local NPCDialog = RS:WaitForChild("NPCDialog")
+    local args = {{ID=npcId, Character=npcChar, Name=info.name}, "ConfirmPurchase"}
+    
+    pcall(function() NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
+    task.wait(0.1)
+    pcall(function() NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
+    
+    task.wait(0.1)
     conn:Disconnect()
     evilUnlock()
 
-    if purchased[1] then return purchased[1], "成功" end
-    return nil, "购买后未找到盒子"
+    for i = #purchased, 1, -1 do
+        local m = purchased[i]
+        if m and m.Parent then
+            return m, "成功"
+        end
+    end
+    return nil, "购买后未找到新盒子"
 end
 
 local function evilGetMaterialNames()
@@ -1818,11 +1917,18 @@ local function evilCombineOnce(materialNames, basePos)
         if not name then evilNotify("恶魔鸭", "第"..i.."个材料未识别", 3); return false end
         local item = evilFindMyItem(name)
         if not item then
-            evilNotify("恶魔鸭", "自动购买 "..name, 2)
-            local box = evilBuyBlueprint(name)
-            if not box then evilNotify("恶魔鸭", "购买失败: "..name, 3); return false end
+            evilNotify("恶魔鸭", "购买 "..name, 2)
+            local box, err
+            for r = 1, 3 do
+                if evilStopFlag then break end
+                box, err = evilBuyBlueprint(name)
+                if box then break end
+                evilNotify("恶魔鸭", string.format("购买材料 %d 失败（第 %d 次重试）: %s", i, r, tostring(err or "未知")), 3)
+                task.wait(0.6)
+            end
+            if not box then return false end
             item = box
-            task.wait(0.3)
+            task.wait(0.6)
         end
         items[i] = item
     end
@@ -1835,7 +1941,7 @@ local function evilCombineOnce(materialNames, basePos)
             if p then
                 if not item.PrimaryPart then item.PrimaryPart = p end
                 evilLock(p.CFrame + Vector3.new(2, 0, 0))
-                evilDrag(item, EVIL_POS[i], true)
+                evilDragToPosition(item, EVIL_POS[i], nil, true)
                 evilUnlock()
                 evilNotify("恶魔鸭", "材料"..i.."已到祭坛", 2)
             end
@@ -1849,7 +1955,7 @@ local function evilCombineOnce(materialNames, basePos)
             local p = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
             if p then
                 evilLock(p.CFrame + Vector3.new(2, 0, 0))
-                task.wait(0.4)
+                task.wait(0.5)
                 evilOpen(item)
                 task.wait(0.4)
                 evilUnlock()
@@ -1868,7 +1974,7 @@ local function evilCombineOnce(materialNames, basePos)
     if dp and basePos then
         if not newDuck.PrimaryPart then newDuck.PrimaryPart = dp end
         evilSafeTP(dp.CFrame + Vector3.new(0, 2, 0))
-        evilDrag(newDuck, basePos, true)
+        evilDragToPosition(newDuck, basePos, nil, true)
     end
     return true
 end
@@ -1938,7 +2044,7 @@ TabExtra:Button({
 
 TabExtra:Button({
     Title = "开始自动合成恶魔鸭",
-    Desc = "首次会花 10~20 秒获取商店 NPC ID",
+    Desc = "纯原版逻辑，货架没有立刻报错",
     Callback = function()
         task.spawn(function() evilMain(evilCombineCount) end)
     end,
@@ -1959,8 +2065,7 @@ TabExtra:Button({
 TabExtra:Button({
     Title = "重置商店 NPC ID 缓存",
     Callback = function()
-        evilCashierIds = {}
-        evilCashierFetched = false
+        cachedCashierIds = nil
         evilNotify("恶魔鸭", "NPC ID 缓存已重置", 2)
     end,
 })
