@@ -55,7 +55,7 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local Window = WindUI:CreateWindow({
     Title = "封存木材 V",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.3",
+    Author = "封存NBV0.4",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -1602,6 +1602,21 @@ local function evilLock(cf)
     evilLockConn = RunService.Heartbeat:Connect(hold)
 end
 
+local function evilForceBring(model, targetCF)
+    if not model or not model.Parent then return end
+    local p = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+    if p then
+        if not model.PrimaryPart then model.PrimaryPart = p end
+        evilLock(p.CFrame + Vector3.new(0, 3, 0))
+        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(p) end)
+        for i = 1, 50 do
+            DragModel(model, targetCF)
+            task.wait(0.01)
+        end
+        evilUnlock()
+    end
+end
+
 local function evilGetAllCashierIds()
     local cashierIds = {}
     local receivedCount = 0
@@ -1648,20 +1663,21 @@ local function evilBuyBlueprint(blueprintName, baseCF)
                     targetStore, targetItemName = store, item.Name
                     break
                 end
+                local pbn = item:FindFirstChild("PurchasedBoxItemName")
+                if pbn and string.lower(tostring(pbn.Value)) == lower then
+                    targetStore, targetItemName = store, item.Name
+                    break
+                end
             end
         end
         if targetStore then break end
     end
 
     if not targetStore then return false, "没有任何商店出售: " .. getCN(blueprintName) end
-
     local info = evilShopNpcMap[targetStore.Name]
     if not info then return false, "未收录商店: " .. targetStore.Name end
     
-    if not cachedCashierIds then
-        cachedCashierIds = evilGetAllCashierIds()
-    end
-    
+    if not cachedCashierIds then cachedCashierIds = evilGetAllCashierIds() end
     local npcId = cachedCashierIds[info.name]
     if not npcId then
         cachedCashierIds = evilGetAllCashierIds()
@@ -1685,12 +1701,7 @@ local function evilBuyBlueprint(blueprintName, baseCF)
     evilLock(primary.CFrame + Vector3.new(0, 3, 0))
     task.wait(0.3)
     
-    local targetCF = counter.CFrame + Vector3.new(0, 0.6, 0)
-    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-    for i = 1, 40 do
-        DragModel(itemModel, targetCF)
-        task.wait(0.02)
-    end
+    evilForceBring(itemModel, counter.CFrame + Vector3.new(0, 0.6, 0))
     
     task.wait(0.15)
     evilLock(counter.CFrame + Vector3.new(0, 3, 0))
@@ -1709,7 +1720,6 @@ local function evilBuyBlueprint(blueprintName, baseCF)
     pcall(function() NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
     task.wait(0.1)
     pcall(function() NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
-    
     task.wait(0.1)
     conn:Disconnect()
     evilUnlock()
@@ -1724,21 +1734,12 @@ local function evilBuyBlueprint(blueprintName, baseCF)
     end
 
     if myBox then
-        evilNotify("恶魔鸭", "购买成功，正在拉回脚下: "..getCN(blueprintName), 2)
-        local p = myBox.PrimaryPart or myBox:FindFirstChildWhichIsA("BasePart")
-        if p then
-            if not myBox.PrimaryPart then myBox.PrimaryPart = p end
-            evilLock(p.CFrame + Vector3.new(0, 3, 0))
-            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(p) end)
-            for i = 1, 40 do
-                DragModel(myBox, baseCF)
-                task.wait(0.02)
-            end
-            evilUnlock()
-        end
+        evilNotify("恶魔鸭", "购买成功，强力拉回中: "..getCN(blueprintName), 2)
+        task.wait(0.2)
+        evilForceBring(myBox, baseCF)
         return true, "成功"
     end
-    return false, "购买后未找到新盒子"
+    return false, "购买后未找到新盒子(钱不够或卡了)"
 end
 
 local function evilGetMaterialNames()
@@ -1777,7 +1778,7 @@ end
 
 TabExtra:Button({
     Title = "一键购买恶魔鸭材料 (拉回脚下)",
-    Desc = "自动破解并买齐3个材料，摆放在你脚下供你手动合成",
+    Desc = "自动破解并买齐3个材料，摆放在你脚下",
     Callback = function()
         if evilAutoRunning then evilNotify("恶魔鸭", "正在购买中，请稍候...", 2); return end
         evilAutoRunning = true
@@ -1803,10 +1804,7 @@ TabExtra:Button({
             end
 
             local baseCF = player.Character and player.Character.HumanoidRootPart.CFrame
-            if not baseCF then
-                evilAutoRunning = false
-                return
-            end
+            if not baseCF then evilAutoRunning = false; return end
 
             for i = 1, 3 do
                 local success = false
@@ -1828,7 +1826,7 @@ TabExtra:Button({
                 task.wait(0.5)
             end
 
-            evilNotify("恶魔鸭", "3个材料已全部买齐并放在你脚下！请手动去祭坛合成。", 5)
+            evilNotify("恶魔鸭", "材料已买齐！请手动去祭坛合成。", 5)
             evilAutoRunning = false
         end)
     end,
@@ -1839,5 +1837,201 @@ TabExtra:Button({
     Callback = function()
         cachedCashierIds = nil
         evilNotify("恶魔鸭", "NPC ID 缓存已重置", 2)
+    end,
+})
+
+-- ==========================================
+-- 建筑工具（整理工具）区域
+-- ==========================================
+TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "点击物品，将全图同类的物品整齐叠放在脚下", Color = Color3.fromRGB(0, 255, 255) })
+
+local sortStartHeight = 1
+local sortGap = 0
+local sortCountX = 3
+local sortCountZ = 3
+local currentSortTool = nil
+
+local function getSortItemType(model)
+    if model:FindFirstChild("BlueprintWoodClass") or model:FindFirstChild("ButtonRemote_SpawnButton") then return nil end
+    if model:FindFirstChild("PurchasedBoxItemName") then
+        local itemName = model.PurchasedBoxItemName.Value
+        if itemName == nil or itemName == "" or itemName == " " then return nil end
+    end
+    if model:FindFirstChild("BoxItemName") then
+        local itemName = model.BoxItemName.Value
+        if itemName == nil or itemName == "" or itemName == " " then return nil end
+    end
+    if model:FindFirstChild("TreeClass") then return "TreeClass:"..model.TreeClass.Value end
+    if model:FindFirstChild("Type") then return "Type:"..model.Type.Value end
+    if model.Name and model.Name ~= "" then return "Name:"..model.Name end
+    return nil
+end
+
+local function getModelSize(model)
+    local primary = model.PrimaryPart or model:FindFirstChild("Main") or model:FindFirstChild("WoodSection") or model:FindFirstChildWhichIsA("BasePart")
+    if primary then return primary.Size end
+    return Vector3.new(2, 2, 2)
+end
+
+local function isSortable(model)
+    if model:FindFirstChild("BlueprintWoodClass") or model:FindFirstChild("ButtonRemote_SpawnButton") then return false end
+    if model:FindFirstChild("PurchasedBoxItemName") then
+        local itemName = model.PurchasedBoxItemName.Value
+        if itemName == nil or itemName == "" or itemName == " " then return false end
+    end
+    if model:FindFirstChild("BoxItemName") then
+        local itemName = model.BoxItemName.Value
+        if itemName == nil or itemName == "" or itemName == " " then return false end
+    end
+    if model:FindFirstChild("TreeClass") or model:FindFirstChild("Owner") then return true end
+    return false
+end
+
+local function giveSortTool()
+    if currentSortTool and currentSortTool.Parent then currentSortTool:Destroy() end
+    currentSortTool = Instance.new("Tool")
+    currentSortTool.RequiresHandle = false
+    currentSortTool.Name = "点击整理物品"
+    currentSortTool.Activated:Connect(function()
+        local target = Mouse.Target
+        if not target then return end
+        local model = target:FindFirstAncestorOfClass("Model")
+        if not model then return end
+        
+        local owner = model:FindFirstChild("Owner")
+        if not owner or owner.Value ~= player then
+            evilNotify("整理工具", "只能整理自己的物品", 2)
+            return
+        end
+        if not isSortable(model) then
+            evilNotify("整理工具", "该物品不可整理", 2)
+            return
+        end
+        
+        local itemName = model.Name
+        local items = {}
+        for _, v in pairs(Workspace.PlayerModels:GetChildren()) do
+            if v:IsA("Model") and v:FindFirstChild("Owner") and v.Owner.Value == player then
+                if v.Name == itemName and isSortable(v) then
+                    table.insert(items, v)
+                end
+            end
+        end
+        for _, log in pairs(Workspace.LogModels:GetChildren()) do
+            if log:FindFirstChild("Owner") and log.Owner.Value == player then
+                if log.Name == itemName and isSortable(log) then
+                    table.insert(items, log)
+                end
+            end
+        end
+        
+        if #items == 0 then
+            evilNotify("整理工具", "没有找到同类物品", 3)
+            return
+        end
+        
+        evilNotify("整理工具", "正在整理: "..itemName, 2)
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        local feetPos = hrp.Position - Vector3.new(0, 3.5, 0)
+        local startPos = feetPos + Vector3.new(0, sortStartHeight, 0)
+        
+        local maxSize = Vector3.new(0,0,0)
+        for _, item in ipairs(items) do
+            local sz = getModelSize(item)
+            if sz.X > maxSize.X then maxSize = Vector3.new(sz.X, maxSize.Y, maxSize.Z) end
+            if sz.Y > maxSize.Y then maxSize = Vector3.new(maxSize.X, sz.Y, maxSize.Z) end
+            if sz.Z > maxSize.Z then maxSize = Vector3.new(maxSize.X, maxSize.Y, sz.Z) end
+        end
+        
+        local layerHeight = maxSize.Y * 0.8
+        local sortedCount = 0
+        local colInRow = 0
+        local rowInLayer = 0
+        local layerCount = 0
+        
+        table.sort(items, function(a,b)
+            local szA = getModelSize(a)
+            local szB = getModelSize(b)
+            return szA.X*szA.Z < szB.X*szB.Z
+        end)
+        
+        for i, item in ipairs(items) do
+            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then break end
+            local size = getModelSize(item)
+            local itemWidth = size.X + sortGap
+            local itemDepth = size.Z + sortGap
+            local x = colInRow * itemWidth
+            local z = rowInLayer * itemDepth
+            local y = layerCount * layerHeight
+            
+            local targetPos = CFrame.new(startPos.X + x, startPos.Y + y, startPos.Z + z)
+            
+            colInRow = colInRow + 1
+            if colInRow >= sortCountX then
+                colInRow = 0
+                rowInLayer = rowInLayer + 1
+                if rowInLayer >= sortCountZ then
+                    rowInLayer = 0
+                    layerCount = layerCount + 1
+                end
+            end
+            
+            local primary = item.PrimaryPart or item:FindFirstChild("Main") or item:FindFirstChild("WoodSection") or item:FindFirstChildWhichIsA("BasePart")
+            if primary then
+                if not item.PrimaryPart then item.PrimaryPart = primary end
+                evilLock(primary.CFrame + Vector3.new(0,2,0))
+                task.wait(0.1)
+                evilForceBring(item, targetPos)
+                sortedCount = sortedCount + 1
+            end
+        end
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            evilLock(hrp.CFrame)
+            task.wait(0.1)
+            evilUnlock()
+        end
+        evilNotify("整理工具", string.format("整理完成 %d/%d", sortedCount, #items), 3)
+    end)
+    currentSortTool.Parent = player.Backpack
+    evilNotify("整理工具", "已放入背包，点击物品开始整理", 3)
+end
+
+TabExtra:Input({
+    Title = "每行/每列数量",
+    Value = "3",
+    Callback = function(v)
+        local n = tonumber(v)
+        if n and n > 0 then sortCountX = math.floor(n); sortCountZ = math.floor(n) end
+    end,
+})
+
+TabExtra:Input({
+    Title = "物品间隙",
+    Value = "0",
+    Callback = function(v)
+        local n = tonumber(v)
+        if n and n >= 0 then sortGap = n end
+    end,
+})
+
+TabExtra:Button({
+    Title = "获取建筑整理工具",
+    Callback = function()
+        giveSortTool()
+    end,
+})
+
+TabExtra:Button({
+    Title = "删除整理工具",
+    Callback = function()
+        if currentSortTool and currentSortTool.Parent then
+            currentSortTool:Destroy()
+            currentSortTool = nil
+            evilNotify("整理工具", "已删除", 2)
+        else
+            evilNotify("整理工具", "背包里没有工具", 2)
+        end
     end,
 })
