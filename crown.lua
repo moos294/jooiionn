@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.0",
+    Title = "封存木材 V1.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -1536,6 +1536,136 @@ TabExtra:Button({
 })
 local TabTree = Window:Tab({ Title = "自动砍树", Icon = "rbxassetid://10734945123" })
 
+local function evilNotify(t, c, d)
+    WindUI:Notify({ Title = tostring(t or ""), Content = tostring(c or ""), Duration = d or 3 })
+end
+
+local universalLockConn = nil
+local function unlockPlayer()
+    if universalLockConn then universalLockConn:Disconnect(); universalLockConn = nil end
+end
+
+local function lockPlayerAt(cf)
+    unlockPlayer()
+    local function hold()
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
+            hrp.Velocity = Vector3.zero
+            hrp.RotVelocity = Vector3.zero
+        end
+    end
+    hold()
+    universalLockConn = RunService.Heartbeat:Connect(hold)
+end
+
+local function safeTeleport(cf)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
+        task.wait(0.05)
+        if hrp.Position.Y < -100 then
+            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0) + Vector3.new(0, 10, 0)
+        end
+    end
+end
+
+local dragIDCounter = 0
+local function getNextDragID()
+    dragIDCounter = dragIDCounter + 1
+    return dragIDCounter
+end
+
+local function dragToPosition(model, targetCF, callback, waitFinish)
+    if not model or not model.Parent then
+        if callback then callback() end
+        return
+    end
+    local primary = model.PrimaryPart or model:FindFirstChild("WoodSection") or model:FindFirstChild("Main") or model:FindFirstChildWhichIsA("BasePart")
+    if not primary then
+        if callback then callback() end
+        return
+    end
+    if not model.PrimaryPart then model.PrimaryPart = primary end
+
+    lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
+    local dragID = getNextDragID()
+    local remote = RS.Interaction.ClientIsDragging
+    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+    pcall(function() remote:FireServer("Begin", model, dragID) end)
+
+    local lastSet = 28 + 2 - 1
+    for i = 1, lastSet do
+        if not model.Parent or not model.PrimaryPart then
+            pcall(function() remote:FireServer("End", model, dragID) end)
+            if callback then callback() end
+            return
+        end
+        local shouldSet = (i >= 28)
+        pcall(function()
+            remote:FireServer("Refresh", model, dragID)
+            if shouldSet then
+                RS.Interaction.ClientRequestOwnership:FireServer(primary)
+                model:SetPrimaryPartCFrame(targetCF)
+            end
+        end)
+        if i < lastSet then
+            if shouldSet then task.wait(0.01) else task.wait(0.01) end
+        end
+    end
+
+    task.wait(0.01)
+    local dragEnded = false
+    task.spawn(function()
+        for i = lastSet + 1, 60 do
+            if not model.Parent or not model.PrimaryPart then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+            if i < 60 then task.wait(0.01) end
+        end
+        pcall(function() remote:FireServer("End", model, dragID) end)
+        dragEnded = true
+    end)
+
+    if waitFinish then
+        local w = 0
+        while w < 1.5 and not dragEnded do
+            task.wait(0.05)
+            w = w + 0.05
+        end
+        for retry = 1, 3 do
+            if not model.Parent or not model.PrimaryPart then break end
+            local d = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+            if d <= 3 then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+        end
+    end
+
+    task.wait(0.4)
+    local verify = 0
+    while model.Parent and model.PrimaryPart and verify < 2 do
+        local dist = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+        if dist <= 3 then break end
+        verify = verify + 1
+        lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.15)
+        local retryID = getNextDragID()
+        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+        pcall(function() remote:FireServer("Begin", model, retryID) end)
+        for _ = 1, 10 do
+            if not model.Parent then break end
+            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+            pcall(function() remote:FireServer("Refresh", model, retryID) end)
+            pcall(function() model:SetPrimaryPartCFrame(targetCF) end)
+            task.wait(0.05)
+        end
+        pcall(function() remote:FireServer("End", model, retryID) end)
+        task.wait(0.15)
+    end
+
+    unlockPlayer()
+    if callback then callback() end
+end
+
 local TREE_CN = {
     Generic="普通树",GenericDead="枯木",GenericFall="落叶树",GenericGold="金树",GenericPrime="原始树",
     GenericSpecial="特殊树",GoldSwampy="沼泽黄金",GreenSwampy="沼泽青",Cherry="樱花树",
@@ -1883,7 +2013,6 @@ local function bringTreeRemote(treeClass)
         task.wait(60)
         if not stopCutting then timeoutReached=true stopCutting=true end
     end)
-    
     while not fallenLog and not stopCutting do
         for _,log in pairs(Workspace.LogModels:GetChildren())do
             if not existingLogs[log]and log:FindFirstChild("Owner")and log.Owner.Value==player and log:FindFirstChild("TreeClass")and log.TreeClass.Value==treeClass then
