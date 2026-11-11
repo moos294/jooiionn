@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材 V1.0",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.3",
+    Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "完全复原作者源码，异步拖拽，完美开盒", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "采用点击传送原理，绝不卡灵魂体", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2116,7 +2116,7 @@ local function waitItemReady(item,timeout)
     local waited=0
     while waited<timeout do
         if not item or not item.Parent then return false end
-        if item:FindFirstChild("ButtonRemote_Main")or item:FindFirstChild("BoxItemName")or item:FindFirstChild("PurchasedBoxItemName")or item:FindFirstChild("ItemName")or item:FindFirstChild("DraggableItem")then
+        if item:FindFirstChild("ButtonRemote_Main")or item:FindFirstChild("BoxItemName")or item:FindFirstChild("PurchasedBoxItemName")or item:FindFirstChild("ItemName")then
             return true
         end
         task.wait(0.2)
@@ -2201,8 +2201,13 @@ local function evilBuyBlueprint(blueprintName)
     if not itemModel.PrimaryPart then itemModel.PrimaryPart=primary end
     
     lockPlayerAt(primary.CFrame+Vector3.new(0,3,0))
-    task.wait(0.3)
-    dragToPosition(itemModel, counter.CFrame+Vector3.new(0,0.6,0))
+    task.wait(0.2)
+    
+    for j = 1, 40 do
+        DragModel(itemModel, counter.CFrame+Vector3.new(0,0.6,0))
+        task.wait(0.02)
+    end
+    
     task.wait(0.09)
     lockPlayerAt(counter.CFrame+Vector3.new(0,3,0))
     task.wait(0.1)
@@ -2314,23 +2319,26 @@ local function startEvilDuckCombine(basePos, materialNames)
                 items[i]=item
             end
             
-            -- 增加了原版的等待就绪逻辑
             if not waitItemReady(item,3)then
                 evilNotify("恶魔鸭", string.format("第 %d 个材料尚未就绪，拖拽可能失败",i),2)
             end
             
             local primary=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChildWhichIsA("BasePart")
             if not item.PrimaryPart then item.PrimaryPart=primary end
+            
             lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
             pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
-            dragToPosition(item,dragTargets[i],nil,true)
+            
+            for j = 1, 40 do
+                DragModel(item, dragTargets[i])
+                task.wait(0.02)
+            end
+            
             unlockPlayer()
         end
         for i=1,3 do
             local item=items[i]
             if not item or not item.Parent then item=evilFindMyItem(materialNames[i]); items[i]=item end
-            
-            -- 再次确认就绪，确保能打开
             waitItemReady(item, 2)
             
             local dp2=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChildWhichIsA("BasePart")
@@ -2355,7 +2363,10 @@ local function startEvilDuckCombine(basePos, materialNames)
                     if dp then
                         if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
                         safeTeleport(dp.CFrame+Vector3.new(0,0.5,0))
-                        dragToPosition(newDuck,originalPos,nil,true)
+                        for j = 1, 40 do
+                            DragModel(newDuck, originalPos)
+                            task.wait(0.02)
+                        end
                     end
                 end
                 break
@@ -2432,7 +2443,10 @@ local function giveSortTool()
             local primary = item.PrimaryPart or item:FindFirstChild("Main") or item:FindFirstChild("WoodSection") or item:FindFirstChildWhichIsA("BasePart")
             if primary then
                 if not item.PrimaryPart then item.PrimaryPart = primary end
-                dragToPosition(item, targetPos, nil, true)
+                for j = 1, 40 do
+                    DragModel(item, targetPos)
+                    task.wait(0.02)
+                end
             end
         end
     end)
