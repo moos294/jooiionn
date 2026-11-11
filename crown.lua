@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "自动生成隐形钢板，强抢物理所有权防掉落", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "悬空防碰撞，隐形防漏板，贴脸开盒", Color = Color3.fromRGB(255, 105, 180) })
 
 local REPLICATED_STORAGE = game:GetService("ReplicatedStorage")
 local StoresFolder = workspace:WaitForChild("Stores")
@@ -2383,16 +2383,15 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
     end
     local ok=false
     for attempt=1,4 do
-        if evilStopFlag then return false end
+        if evilStopFlag then break end
         evilNotify("🔄 流程提示", "开始第 "..attempt.." 次拖拽尝试", 2)
         
-        -- 【终极防漏】：生成隐形防漏钢板
         local pads = {}
         for i=1,3 do
             local pad = Instance.new("Part")
             pad.Name = "EvilAntiFallPad"
-            pad.Size = Vector3.new(4, 1, 4)
-            pad.CFrame = dragTargets[i] + Vector3.new(0, -0.4, 0)
+            pad.Size = Vector3.new(4, 0.2, 4)
+            pad.CFrame = dragTargets[i] + Vector3.new(0, 0.1, 0)
             pad.Transparency = 1
             pad.Anchored = true
             pad.CanCollide = true
@@ -2405,32 +2404,31 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
             if not item or not item.Parent then
                 local key=selectedMaterialKeys[i]
                 if key then item=findItemByKey(key,true) end
-                if not item then 
-                    for _, p in ipairs(pads) do if p then p:Destroy() end end
-                    return false 
-                end
+                if not item then break end
                 items[i]=item
             end
             if not waitItemReady(item,3)then end
             local primary=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChild("WoodSection")or item:FindFirstChildWhichIsA("BasePart")
-            if not primary then 
-                for _, p in ipairs(pads) do if p then p:Destroy() end end
-                return false 
-            end
+            if not primary then break end
             if not item.PrimaryPart then item.PrimaryPart=primary end
-            lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
-            pcall(function()REPLICATED_STORAGE.Interaction.ClientRequestOwnership:FireServer(primary)end)
+            
+            -- 锁定在物品上方 6 格高空，绝对碰不到
             local targetIdx = i
             if i == 1 then targetIdx = 3
             elseif i == 3 then targetIdx = 1 end
+            local hoverPos = dragTargets[targetIdx] + Vector3.new(0, 6, 0)
+            
+            lockPlayerAt(hoverPos)
+            pcall(function()REPLICATED_STORAGE.Interaction.ClientRequestOwnership:FireServer(primary)end)
             
             evilNotify("🚚 拖拽材料", "正在摆放第 "..i.." 个材料 (反放至"..targetIdx.."号位)", 2)
             for j = 1, 30 do
-                DragModel(item, dragTargets[targetIdx] + Vector3.new(0, 0.1, 0))
+                DragModel(item, dragTargets[targetIdx])
                 task.wait(0.02)
             end
             unlockPlayer()
         end
+        
         for i=1,3 do
             local item=items[i]
             if not item or not item.Parent then
@@ -2442,38 +2440,19 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
             local targetIdx = i
             if i == 1 then targetIdx = 3
             elseif i == 3 then targetIdx = 1 end
-            local dp2=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChild("WoodSection")or item:FindFirstChildWhichIsA("BasePart")
+            
+            -- 依然悬停在 6 格高空开盒，距离足够近！
+            local hoverPos = dragTargets[targetIdx] + Vector3.new(0, 6, 0)
+            lockPlayerAt(hoverPos)
+            task.wait(0.2)
             
             evilNotify("📦 开启盒子", "正在打开第 "..i.." 个材料", 2)
-            if dp2 then
-                if not item.PrimaryPart then item.PrimaryPart=dp2 end
-                local lockCF=dp2.CFrame+Vector3.new(2,0,0)
-                lockPlayerAt(lockCF)
-                task.wait(0.5)
-                pcall(function()REPLICATED_STORAGE.Interaction.ClientRequestOwnership:FireServer(dp2)end)
-                openItem(item)
-                
-                -- 【终极抢夺所有权】：开盒瞬间强行夺舍，物理归我们管
-                task.wait(0.05)
-                local newEnt = findItemByKey(selectedMaterialKeys[i], true)
-                if newEnt then
-                    local np = newEnt.PrimaryPart or newEnt:FindFirstChildWhichIsA("BasePart")
-                    if np then
-                        pcall(function() np:SetNetworkOwner(player) end)
-                        DragModel(newEnt, dragTargets[targetIdx] + Vector3.new(0, 0.1, 0))
-                    end
-                end
-                
-                task.wait(0.3)
-                unlockPlayer()
-            else
-                safeTeleport(openPositions[targetIdx])
-                lockPlayerAt(openPositions[targetIdx]+Vector3.new(2,0,0))
-                task.wait(0.5)
-                openItem(item)
-                task.wait(0.4)
-                unlockPlayer()
-            end
+            local dp2=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChild("WoodSection")or item:FindFirstChildWhichIsA("BasePart")
+            if dp2 then pcall(function()REPLICATED_STORAGE.Interaction.ClientRequestOwnership:FireServer(dp2)end) end
+            
+            openItem(item)
+            task.wait(0.2)
+            unlockPlayer()
         end
         
         evilNotify("⏳ 等待生成", "材料已开，在祭坛等待恶魔鸭出现...", 3)
