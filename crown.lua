@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.2",
+    Title = "封存木材 V1.9",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "出生秒拉回，死锁防穿模", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "彻底清理缓存，绝不卡失败状态", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2179,11 +2179,22 @@ local function evilBuyBlueprint(blueprintName)
     
     local npcInfo = evilShopNpcMap[targetStore.Name]
     if not npcInfo then return nil, "未收录NPC: "..targetStore.Name end
+    
     if not cachedCashierIds or not cachedCashierIds[npcInfo.name] then
         cachedCashierIds = evilGetAllCashierIds()
+        local r = 0
+        while (not cachedCashierIds[npcInfo.name]) and r < 3 do
+            task.wait(1)
+            cachedCashierIds = evilGetAllCashierIds()
+            r = r + 1
+        end
     end
+    
     local npcId = cachedCashierIds[npcInfo.name]
-    if not npcId then return nil, "无法获取 "..npcInfo.name.." 的ID" end
+    if not npcId then 
+        cachedCashierIds = nil
+        return nil, "无法获取 "..npcInfo.name.." 的ID(已清空缓存)" 
+    end
     
     local store=targetStore
     local npcChar=store:FindFirstChild(npcInfo.path)
@@ -2225,7 +2236,9 @@ local function evilBuyBlueprint(blueprintName)
         local m=purchased[i]
         if m and m.Parent then return m, "成功" end
     end
-    return nil,"购买后未找到新盒子"
+    
+    cachedCashierIds = nil 
+    return nil,"购买后未找到新盒子(已重置缓存)"
 end
 
 local function evilGetMaterialNames()
@@ -2417,6 +2430,8 @@ local function evilMain(count)
         evilNotify("恶魔鸭", "任务正在运行中，请先点停止", 3)
         return 
     end
+    
+    cachedCashierIds = nil
     evilAutoRunning, evilStopFlag = true, false
     
     task.spawn(function()
@@ -2456,10 +2471,10 @@ TabExtra:Button({ Title = "开始全自动合成恶魔鸭", Callback = function(
 TabExtra:Button({ Title = "停止自动合成恶魔鸭", Callback = function() 
     evilStopFlag = true 
     evilAutoRunning = false 
+    cachedCashierIds = nil
     unlockPlayer() 
     evilNotify("恶魔鸭", "已强制停止，可重新开始", 3) 
 end })
-
 TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "自动整理同类物品，叠放整齐", Color = Color3.fromRGB(0, 255, 255) })
 local sortStartHeight, sortGap, sortCountX, sortCountZ = 1, 0, 3, 3
 local currentSortTool = nil
