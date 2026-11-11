@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V",
+    Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.4",
+    Author = "封存NBV0.5",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -2034,4 +2034,529 @@ TabExtra:Button({
             evilNotify("整理工具", "背包里没有工具", 2)
         end
     end,
+})
+local TabTree = Window:Tab({ Title = "自动砍树", Icon = "rbxassetid://10734945123" })
+
+local treeMapping = {}
+local treeNames = {}
+local TREE_CN = {
+    Generic="普通树",GenericDead="枯木",GenericFall="落叶树",GenericGold="金树",GenericPrime="原始树",
+    GenericSpecial="特殊树",GoldSwampy="沼泽黄金",GreenSwampy="沼泽青",Cherry="樱花树",
+    CaveCrawler="蓝木",Cavern="洞窟紫木",CavernCrawler="洞窟爬虫",GrottoCrawler="洞穴爬虫",
+    TunnelCrawler="隧道爬虫",Frost="冰木",Volcano="火山木",Oak="橡木",Walnut="巧克力木",
+    Birch="白桦木",Aspen="白洋木",Koa="大巧克力树",Palm="椰子树",Pine="雪地松",Fir="冷杉木",
+    Maple="枫木",SnowGlow="黄金木",Snow="雪木",Ice="冰晶木",LoneCave="幻影木",
+    Spooky="幽灵木",SpookyNeon="南瓜木",SpookyGhoul="幽灵食尸者",CandycaneGhoul="拐杖糖幽灵木",
+    CandycaneHalloween="万圣节拐杖糖木",CandycaneNeonSpook="霓虹万圣节木",
+    Hell="地狱木",Infernal="炼狱木",Radioactive="辐射木",Magma="岩浆树",Skittles="糖果岩浆树",
+    Ember="余烬木",Celestial="裂纹木",Void="虚空木",Spirit="星空木",Star="星星木",Shine="红颜树",
+    Sky="天堂木",Rainbow="彩虹木",NeonRainbow="霓虹彩虹木",Electric="雷电木",Glass="玻璃木",
+    Taco="墨西哥木",Diamond="钻石木",Ruby="红宝石木",Copper="铜木",Silver="银木",Gold="金子木",
+    Stone="石头木",Marble="大理石木",Brick="砖头木",BrickDark="深色砖木",BrickAlternative="异形砖木",
+    CobbleStone="鹅卵石木",Cookie="曲奇木",Candy="糖果树",CandyNeon="霓虹糖果木",
+    CandycaneGreen="绿拐杖糖木",CandycaneRed="红拐杖糖木",CandyAlternitive="异界糖果木",
+    Cartoony="卡通木",CartoonyRainbow="彩虹卡通木",Dog="狗木",Lollipop="棒棒糖木",LollipopHead="棒棒糖头木",
+    Bush="灌木木",PotBush="花盆灌木",Potato="土豆木",Grass1="草木",Lavender="薰衣草木",
+    GlowShroom="发光蘑菇木",MuckySewer="下水道木",SewageTree="污水木",Blah="神秘木",Sign="告示牌木",
+    Thread="线轴木",Random="随机木",REEE="尖叫木",Test="测试木",Bone="骨头木",Crystal="水晶木",
+    Flame="火焰木",BlueFlame="蓝色火焰木",RainbowFlame="彩色火焰木",CrackedLava="裂隙岩浆木",
+    Ethereal="以太木",GreatOak="生命古橡",AppleWood="苹果木",Dry="干枯木",DryNeon="霓虹干枯木",
+    Sand="沙滩木",Virtual="虚拟木",Waffer="华夫木",PotBush2="花盆灌木2",
+}
+local TREE_FALLBACK = {
+    ["普通树"]="Generic",["沼泽黄金"]="GoldSwampy",["樱花"]="Cherry",["蓝木"]="CaveCrawler",
+    ["冰木"]="Frost",["火山木"]="Volcano",["橡木"]="Oak",["巧克力木"]="Walnut",["白桦木"]="Birch",
+    ["黄金木"]="SnowGlow",["雪地松"]="Pine",["僵尸木"]="GreenSwampy",["大巧克力树"]="Koa",
+    ["椰子树"]="Palm",["幽灵木"]="Spooky",["南瓜木"]="SpookyNeon",["大理石木"]="Marble",
+    ["天堂木"]="Sky",["虚拟木"]="Virtual",["玻璃木"]="Taco",["糖果树"]="CandycaneGreen",
+    ["积木树"]="CandycaneRed",["发光红色糖果木"]="CandyNeon",["彩虹树"]="Rainbow",["雷电木"]="Electric",
+    ["煤炭木"]="GenericDead",["岩浆树"]="Skittles",["紫木"]="Cavern",["下水道木"]="MuckySewer",
+    ["辐射木"]="Radioactive",["地狱木"]="Hell",["沙滩木"]="Sand",["白洋木"]="Aspen",
+    ["发光彩虹木"]="NeonRainbow",["狗木"]="Dog",["幻影木"]="LoneCave",["红颜树"]="Shine",
+    ["石头木"]="Magma",["玻璃冰木"]="Ice",["砖头木"]="Blah",["卡通树"]="CobbleStone",
+    ["曲奇树"]="Cookie",["生命树"]="GreatOak",["虚空木"]="Void",["裂纹木"]="Celestial",
+    ["幽灵食尸者"]="SpookyGhoul",["生锈木"]="SewageTree",["金子木"]="Gold",["星空木"]="Spirit",
+    ["火焰木"]="Flame",["蓝色火焰木"]="BlueFlame",["彩色火焰木"]="RainbowFlame",["星星木"]="Star",
+    ["雪木"]="Snow",["冷杉木"]="Fir",
+}
+
+local function readTreeClasses()
+    local list={}
+    local amounts=Workspace:FindFirstChild("Stores")
+        and Workspace.Stores:FindFirstChild("PlanterStore")
+        and Workspace.Stores.PlanterStore:FindFirstChild("Planter Spawner")
+        and Workspace.Stores.PlanterStore["Planter Spawner"]:FindFirstChild("Amounts")
+    if amounts then
+        for _,c in ipairs(amounts:GetChildren())do
+            if c:IsA("NumberValue")or c:IsA("IntValue")or c:IsA("StringValue")then
+                table.insert(list,tostring(c.Name))
+            end
+        end
+    end
+    if #list==0 then
+        local W=RS:FindFirstChild("Woods")
+        if W then for _,c in ipairs(W:GetChildren())do table.insert(list,tostring(c.Name)) end end
+    end
+    return list
+end
+
+for _,cls in ipairs(readTreeClasses())do
+    treeMapping[TREE_CN[cls]or cls]=cls
+end
+if next(treeMapping)==nil then
+    for cn,cls in pairs(TREE_FALLBACK)do treeMapping[cn]=cls end
+end
+treeMapping["普通树"]=treeMapping["普通树"]or"Generic"
+treeMapping["幻影木"]=treeMapping["幻影木"]or"LoneCave"
+
+local TREE_PRIORITY={"火焰木","石头木","蓝色火焰木","彩色火焰木"}
+local function sortTreeNames(list)
+    local prio={}
+    for i,n in ipairs(TREE_PRIORITY)do prio[n]=i end
+    table.sort(list,function(a,b)
+        local pa,pb=prio[a],prio[b]
+        if pa and pb then return pa<pb end
+        if pa then return true end
+        if pb then return false end
+        return a<b
+    end)
+end
+
+for name in pairs(treeMapping)do table.insert(treeNames,name)end
+sortTreeNames(treeNames)
+
+local treeLockConn = nil
+local function treeUnlock()
+    if treeLockConn then treeLockConn:Disconnect() treeLockConn = nil end
+end
+
+local function treeLock(cf)
+    treeUnlock()
+    local function hold()
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
+            hrp.Velocity = Vector3.zero
+            hrp.RotVelocity = Vector3.zero
+        end
+    end
+    hold()
+    treeLockConn = RunService.Heartbeat:Connect(hold)
+end
+
+local function safeTreeTP(cf)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
+        task.wait(0.05)
+        if hrp.Position.Y < -100 then
+            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0) + Vector3.new(0, 10, 0)
+        end
+    end
+end
+
+local function treeDragToPosition(model, targetCF, callback, waitFinish)
+    if not model or not model.Parent then
+        if callback then callback() end
+        return
+    end
+    local primary = model.PrimaryPart or model:FindFirstChild("WoodSection") or model:FindFirstChild("Main") or model:FindFirstChildWhichIsA("BasePart")
+    if not primary then
+        if callback then callback() end
+        return
+    end
+    if not model.PrimaryPart then model.PrimaryPart = primary end
+
+    treeLock(primary.CFrame + Vector3.new(0, 3, 0))
+    local dragID = math.random(100000, 999999)
+    local remote = RS.Interaction.ClientIsDragging
+    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+    pcall(function() remote:FireServer("Begin", model, dragID) end)
+
+    local lastSet = 28 + 2 - 1
+    for i = 1, lastSet do
+        if not model.Parent or not model.PrimaryPart then
+            pcall(function() remote:FireServer("End", model, dragID) end)
+            if callback then callback() end
+            return
+        end
+        local shouldSet = (i >= 28)
+        pcall(function()
+            remote:FireServer("Refresh", model, dragID)
+            if shouldSet then
+                RS.Interaction.ClientRequestOwnership:FireServer(primary)
+                model:SetPrimaryPartCFrame(targetCF)
+            end
+        end)
+        if i < lastSet then
+            if shouldSet then task.wait(0.01) else task.wait(0.01) end
+        end
+    end
+
+    task.wait(0.01)
+    local dragEnded = false
+    task.spawn(function()
+        for i = lastSet + 1, 60 do
+            if not model.Parent or not model.PrimaryPart then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+            if i < 60 then task.wait(0.01) end
+        end
+        pcall(function() remote:FireServer("End", model, dragID) end)
+        dragEnded = true
+    end)
+
+    if waitFinish then
+        local w = 0
+        while w < 1.5 and not dragEnded do
+            task.wait(0.05)
+            w = w + 0.05
+        end
+        for retry = 1, 3 do
+            if not model.Parent or not model.PrimaryPart then break end
+            local d = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+            if d <= 3 then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+        end
+    end
+
+    task.wait(0.4)
+    local verify = 0
+    while model.Parent and model.PrimaryPart and verify < 2 do
+        local dist = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+        if dist <= 3 then break end
+        verify = verify + 1
+        treeLock(primary.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.15)
+        local retryID = math.random(100000, 999999)
+        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+        pcall(function() remote:FireServer("Begin", model, retryID) end)
+        for _ = 1, 10 do
+            if not model.Parent then break end
+            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+            pcall(function() remote:FireServer("Refresh", model, retryID) end)
+            pcall(function() model:SetPrimaryPartCFrame(targetCF) end)
+            task.wait(0.05)
+        end
+        pcall(function() remote:FireServer("End", model, retryID) end)
+        task.wait(0.15)
+    end
+
+    treeUnlock()
+    if callback then callback() end
+end
+
+local function findUncutTree(treeClass)
+    local playerPos=player.Character and player.Character.HumanoidRootPart.Position
+    if not playerPos then return nil end
+    local nearestDist,nearestWood,nearestTree=math.huge,nil,nil
+    for _,region in pairs(Workspace:GetChildren())do
+        if region.Name=="TreeRegion"then
+            for _,tree in pairs(region:GetChildren())do
+                if tree:IsA("Model")and tree:FindFirstChild("TreeClass")and tree.TreeClass.Value==treeClass then
+                    local woodSections={}
+                    for _,child in pairs(tree:GetChildren())do
+                        if child.Name=="WoodSection"and child:IsA("BasePart")then table.insert(woodSections,child)end
+                    end
+                    if#woodSections>=2 then
+                        local dist=(woodSections[1].Position-playerPos).Magnitude
+                        if dist<nearestDist then nearestDist,nearestWood,nearestTree=dist,woodSections[1],tree end
+                    end
+                end
+            end
+        end
+    end
+    return nearestWood,nearestTree
+end
+
+local axeConfigCache={}
+local function loadWeaponConfig(weaponName)
+    if axeConfigCache[weaponName]~=nil then return axeConfigCache[weaponName] end
+    if weaponName=="OlReliable"or weaponName=="OIReliable"then
+        local playerName=player.Name
+        local override=nil
+        local wsTool=Workspace:FindFirstChild(playerName)
+        if wsTool then
+            wsTool=wsTool:FindFirstChild("Tool")
+            if wsTool then
+                local toolName=wsTool:FindFirstChild("ToolName")
+                if toolName then
+                    local val=tostring(toolName.Value)
+                    if val=="OlReliable"or val=="OIReliable"then
+                        override=wsTool:FindFirstChild("AxeClassDamageOverride")
+                    end
+                end
+            end
+        end
+        if not override then
+            local backpack=player:FindFirstChild("Backpack")
+            if backpack then
+                for _,tool in pairs(backpack:GetChildren())do
+                    if tool:IsA("Tool")then
+                        local toolName=tool:FindFirstChild("ToolName")
+                        if toolName then
+                            local val=tostring(toolName.Value)
+                            if val=="OlReliable"or val=="OIReliable"then
+                                override=tool:FindFirstChild("AxeClassDamageOverride")
+                                if override then break end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if override then
+            local config={Damage=nil,SwingCooldown=nil,Range=nil,SpecialTrees={}}
+            local attrs=override:GetAttributes()
+            for key,value in pairs(attrs)do
+                if key=="Damage"then config.Damage=value
+                elseif key=="SwingCooldown"then config.SwingCooldown=value
+                elseif key=="Range"then config.Range=value
+                else config.SpecialTrees[key]={Damage=value} end
+            end
+            for _,child in pairs(override:GetChildren())do
+                if child:IsA("NumberValue")or child:IsA("IntValue")then
+                    if child.Name=="Damage"then config.Damage=child.Value
+                    elseif child.Name=="SwingCooldown"then config.SwingCooldown=child.Value
+                    elseif child.Name=="Range"then config.Range=child.Value
+                    else config.SpecialTrees[child.Name]={Damage=child.Value} end
+                end
+            end
+            if config.Damage or config.SwingCooldown or next(config.SpecialTrees)then
+                axeConfigCache[weaponName]=config
+                return config
+            end
+        end
+    end
+    return nil
+end
+
+local function selectBestWeapon(treeClass)
+    local toolFolder=player:FindFirstChild("ToolFolder")
+    if not toolFolder then return nil,nil,"未找到 ToolFolder"end
+    local bestWeapon,bestDamage,bestConfig=nil,-1,nil
+    for _,child in pairs(toolFolder:GetChildren())do
+        local config=loadWeaponConfig(child.Name)
+        if config then
+            local damage=(config.SpecialTrees[treeClass]and config.SpecialTrees[treeClass].Damage)or config.Damage
+            if damage>bestDamage then bestWeapon,bestDamage,bestConfig=child.Name,damage,config end
+        end
+    end
+    return bestWeapon,bestConfig,bestDamage
+end
+
+local function getTreeTopCFrame(treeModel)
+    local topY=-math.huge
+    local topCF=nil
+    for _,child in pairs(treeModel:GetChildren())do
+        if child:IsA("BasePart")then
+            local top=child.Position.Y+child.Size.Y/2
+            if top>topY then
+                topY=top
+                topCF=CFrame.new(child.Position.X,top+2,child.Position.Z)
+            end
+        end
+    end
+    if not topCF then topCF=treeModel:GetPivot()+Vector3.new(0,2,0) end
+    return topCF
+end
+
+local function bringTreeRemote(treeClass)
+    local weaponName,weaponConfig,damage=selectBestWeapon(treeClass)
+    if not weaponName then evilNotify("自动砍树","自动选武器失败",3) return false end
+    local req={
+        Flame=200000,BlueFlame=200000,Celestial=200000,Void=200000,
+        Ice=200000,Magma=200000,RainbowFlame=200000,Radioactive=200000,
+        Shine=200000,LoneCave=200000,Spirit=200000,
+    }
+    if req[treeClass]and damage<req[treeClass]then
+        evilNotify("自动砍树",string.format("伤害不足！需要至少 %.0f",req[treeClass]),4)
+        return false
+    end
+    local cooldown=(weaponConfig.SpecialTrees[treeClass]and weaponConfig.SpecialTrees[treeClass].SwingCooldown)or weaponConfig.SwingCooldown
+    local woodSec,tree=findUncutTree(treeClass)
+    if not woodSec then evilNotify("自动砍树","附近没有可砍的树",3) return false end
+    local minX,maxX=-543,-27.8
+    local minY,maxY=-196.7,-148.2
+    local minZ,maxZ=-2961.7,-2668.7
+    local treePos=woodSec.Position
+    if treePos.X>=minX and treePos.X<=maxX and treePos.Y>=minY and treePos.Y<=maxY and treePos.Z>=minZ and treePos.Z<=maxZ then
+        evilNotify("自动砍树","树在危险区域内，已删除",5)
+        if tree and tree.Parent then tree:Destroy() end
+        return false
+    end
+    local tool=player.Character and player.Character:FindFirstChildOfClass("Tool")
+    if not tool then
+        local toolFolder=player:FindFirstChild("ToolFolder")
+        if toolFolder then
+            local weaponObj=toolFolder:FindFirstChild(weaponName)
+            tool=weaponObj and(weaponObj:IsA("Tool")and weaponObj or weaponObj.Value)or nil
+        end
+    end
+    if not tool then evilNotify("自动砍树","未找到工具: "..weaponName,3) return false end
+    local cutEvent=tree:FindFirstChild("CutEvent")
+    if not cutEvent then evilNotify("自动砍树","无法获取CutEvent",3) return false end
+    local remote=RS:WaitForChild("Interaction"):WaitForChild("RemoteProxy")
+    local playerOriginalCF=player.Character and player.Character.HumanoidRootPart.CFrame
+    if not playerOriginalCF then evilNotify("自动砍树","无法获取玩家位置",3) return false end
+    
+    local platformPos=woodSec.Position+Vector3.new(8,2.5,0)
+    local tempPart=Instance.new("Part")
+    tempPart.Name="TempMarker"
+    tempPart.Anchored=true
+    tempPart.CanCollide=true
+    tempPart.Shape=Enum.PartType.Block
+    tempPart.Size=Vector3.new(0.001,0.0001,0.0001)
+    tempPart.Color=Color3.fromRGB(255,0,0)
+    tempPart.Material=Enum.Material.Neon
+    tempPart.CFrame=CFrame.new(platformPos)
+    tempPart.Parent=Workspace
+    task.wait(0.02)
+    
+    treeLock(getTreeTopCFrame(tree))
+    local fallenLog,existingLogs=nil,{}
+    for _,log in pairs(Workspace.LogModels:GetChildren())do existingLogs[log]=true end
+    local treeCenter=woodSec.Position
+    local stopCutting,timeoutReached=false,false
+    local sendTask=task.spawn(function()
+        while not stopCutting do
+            pcall(remote.FireServer,remote,cutEvent,{
+                height=0.3,faceVector=Vector3.new(-1,0,0),cooldown=cooldown,
+                sectionId=1,hitPoints=damage,tool=tool,cuttingClass="Axe"
+            })
+            task.wait(0.0001)
+        end
+    end)
+    
+    local timeoutTask=task.spawn(function()
+        task.wait(15)
+        if not stopCutting then timeoutReached=true stopCutting=true end
+    end)
+    
+    while not fallenLog and not stopCutting do
+        for _,log in pairs(Workspace.LogModels:GetChildren())do
+            if not existingLogs[log]and log:FindFirstChild("Owner")and log.Owner.Value==player and log:FindFirstChild("TreeClass")and log.TreeClass.Value==treeClass then
+                if(log:GetPivot().Position-treeCenter).Magnitude<100 then
+                    fallenLog=log break
+                end
+            end
+        end
+        task.wait(0.01)
+    end
+    
+    stopCutting=true task.cancel(sendTask) task.cancel(timeoutTask)
+    if timeoutReached or not fallenLog then
+        treeUnlock()
+        evilNotify("自动砍树","砍树超时或木头未掉落",3)
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
+        safeTreeTP(playerOriginalCF)
+        return false
+    end
+    
+    local primary=fallenLog.PrimaryPart or fallenLog:FindFirstChild("WoodSection") or fallenLog:FindFirstChild("Main") or fallenLog:FindFirstChildWhichIsA("BasePart")
+    if not primary then
+        treeUnlock()
+        evilNotify("自动砍树","无法定位木头",3)
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
+        safeTreeTP(playerOriginalCF)
+        return false
+    end
+    
+    local logPos=primary.Position
+    if logPos.X>=minX and logPos.X<=maxX and logPos.Y>=minY and logPos.Y<=maxY and logPos.Z>=minZ and logPos.Z<=maxZ then
+        treeUnlock()
+        evilNotify("自动砍树","木头掉落在危险区域，已删除",5)
+        if fallenLog and fallenLog.Parent then fallenLog:Destroy() end
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
+        safeTreeTP(playerOriginalCF)
+        return false
+    end
+    
+    if not fallenLog.PrimaryPart then fallenLog.PrimaryPart=primary end
+    treeLock(primary.CFrame+Vector3.new(0,3,0))
+    
+    local done=false
+    treeDragToPosition(fallenLog,playerOriginalCF,function()
+        treeUnlock()
+        safeTreeTP(playerOriginalCF)
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
+        done=true
+    end,10,nil)
+    
+    while not done do task.wait(0.01) end
+    return true
+end
+
+local selectedTreeName = treeNames[1] or "普通树"
+local selectedTreeClass = treeMapping[selectedTreeName] or "Generic"
+local batchCount = 1
+local isTreeRunning = false
+
+TabTree:Dropdown({
+    Title = "选择树木种类",
+    Values = treeNames,
+    Value = selectedTreeName,
+    Callback = function(b)
+        selectedTreeName = b
+        selectedTreeClass = treeMapping[b]
+    end
+})
+
+TabTree:Input({
+    Title = "砍伐数量",
+    Value = "1",
+    Callback = function(v)
+        local num = tonumber(v)
+        if num and num > 0 then batchCount = math.floor(num) end
+    end
+})
+
+TabTree:Button({
+    Title = "开始自动砍树",
+    Callback = function()
+        if isTreeRunning then evilNotify("自动砍树", "任务正在运行中，请勿重复启动", 2); return end
+        if not selectedTreeClass then evilNotify("自动砍树", "请先选择一种树木", 3); return end
+        if batchCount < 1 then evilNotify("自动砍树", "请设置有效数量", 3); return end
+        
+        isTreeRunning = true
+        task.spawn(function()
+            local successCount = 0
+            local failCount = 0
+            for i = 1, batchCount do
+                if not isTreeRunning then
+                    evilNotify("自动砍树", "任务已被用户停止", 2)
+                    break
+                end
+                
+                if batchCount == 1 then evilNotify("自动砍树", "开始砍树...", 2)
+                else evilNotify("自动砍树", string.format("开始第 %d/%d 次...", i, batchCount), 2) end
+                
+                local ok = bringTreeRemote(selectedTreeClass)
+                if ok then
+                    successCount = successCount + 1
+                    if batchCount > 1 then evilNotify("自动砍树", string.format("第 %d 次成功 (成功:%d, 失败:%d)", i, successCount, failCount), 2) end
+                else
+                    failCount = failCount + 1
+                    evilNotify("自动砍树", string.format("第 %d 次失败，已停止", i), 3)
+                    break
+                end
+                task.wait(0.01)
+            end
+            
+            if batchCount > 1 then evilNotify("自动砍树", string.format("全部完成 — 成功 %d 次，失败 %d 次", successCount, failCount), 3)
+            elseif successCount == 1 then evilNotify("自动砍树", "砍树完成", 3) end
+            isTreeRunning = false
+        end)
+    end
+})
+
+TabTree:Button({
+    Title = "停止砍树",
+    Callback = function()
+        if isTreeRunning then
+            isTreeRunning = false
+            evilNotify("自动砍树", "正在停止任务...", 2)
+        else
+            evilNotify("自动砍树", "当前没有运行中的任务", 2)
+        end
+    end
 })
