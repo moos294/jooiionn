@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.2",
+    Title = "封存木材",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "坐标硬编码防崩溃，全屏报错提示", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "自动生成隐形钢板，强抢物理所有权防掉落", Color = Color3.fromRGB(255, 105, 180) })
 
 local REPLICATED_STORAGE = game:GetService("ReplicatedStorage")
 local StoresFolder = workspace:WaitForChild("Stores")
@@ -2323,7 +2323,7 @@ local function openItem(item)
 end
 
 local function waitEvilDuckAppear(timeout, preSet)
-    local deadline=os.clock()+(timeout or 5)
+    local deadline=os.clock()+(timeout or 15)
     while os.clock()<deadline do
         if evilStopFlag then return false end
         for _,m in pairs(workspace.PlayerModels:GetChildren())do
@@ -2352,7 +2352,6 @@ local function waitEvilDuckLightGone(timeout)
 end
 
 local function startEvilDuckCombine(basePos, selectedMaterialKeys)
-    -- 坐标彻底写死，防止外部被覆盖
     local dragTargets = {
         [1]=CFrame.new(-223.74,61.00,940.42),
         [2]=CFrame.new(-232.924927,61.3797455,933.015076),
@@ -2387,17 +2386,37 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
         if evilStopFlag then return false end
         evilNotify("🔄 流程提示", "开始第 "..attempt.." 次拖拽尝试", 2)
         
+        -- 【终极防漏】：生成隐形防漏钢板
+        local pads = {}
+        for i=1,3 do
+            local pad = Instance.new("Part")
+            pad.Name = "EvilAntiFallPad"
+            pad.Size = Vector3.new(4, 1, 4)
+            pad.CFrame = dragTargets[i] + Vector3.new(0, -0.4, 0)
+            pad.Transparency = 1
+            pad.Anchored = true
+            pad.CanCollide = true
+            pad.Parent = workspace
+            table.insert(pads, pad)
+        end
+
         for i=1,3 do
             local item=items[i]
             if not item or not item.Parent then
                 local key=selectedMaterialKeys[i]
                 if key then item=findItemByKey(key,true) end
-                if not item then return false end
+                if not item then 
+                    for _, p in ipairs(pads) do if p then p:Destroy() end end
+                    return false 
+                end
                 items[i]=item
             end
             if not waitItemReady(item,3)then end
             local primary=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChild("WoodSection")or item:FindFirstChildWhichIsA("BasePart")
-            if not primary then return false end
+            if not primary then 
+                for _, p in ipairs(pads) do if p then p:Destroy() end end
+                return false 
+            end
             if not item.PrimaryPart then item.PrimaryPart=primary end
             lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
             pcall(function()REPLICATED_STORAGE.Interaction.ClientRequestOwnership:FireServer(primary)end)
@@ -2407,7 +2426,7 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
             
             evilNotify("🚚 拖拽材料", "正在摆放第 "..i.." 个材料 (反放至"..targetIdx.."号位)", 2)
             for j = 1, 30 do
-                DragModel(item, dragTargets[targetIdx])
+                DragModel(item, dragTargets[targetIdx] + Vector3.new(0, 0.1, 0))
                 task.wait(0.02)
             end
             unlockPlayer()
@@ -2417,7 +2436,7 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
             if not item or not item.Parent then
                 local key=selectedMaterialKeys[i]
                 if key then item=findItemByKey(key,true) end
-                if not item then return false end
+                if not item then break end
                 items[i]=item
             end
             local targetIdx = i
@@ -2431,8 +2450,21 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
                 local lockCF=dp2.CFrame+Vector3.new(2,0,0)
                 lockPlayerAt(lockCF)
                 task.wait(0.5)
+                pcall(function()REPLICATED_STORAGE.Interaction.ClientRequestOwnership:FireServer(dp2)end)
                 openItem(item)
-                task.wait(0.4)
+                
+                -- 【终极抢夺所有权】：开盒瞬间强行夺舍，物理归我们管
+                task.wait(0.05)
+                local newEnt = findItemByKey(selectedMaterialKeys[i], true)
+                if newEnt then
+                    local np = newEnt.PrimaryPart or newEnt:FindFirstChildWhichIsA("BasePart")
+                    if np then
+                        pcall(function() np:SetNetworkOwner(player) end)
+                        DragModel(newEnt, dragTargets[targetIdx] + Vector3.new(0, 0.1, 0))
+                    end
+                end
+                
+                task.wait(0.3)
                 unlockPlayer()
             else
                 safeTeleport(openPositions[targetIdx])
@@ -2443,36 +2475,41 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
                 unlockPlayer()
             end
         end
-        safeTeleport(originalPos)
-        task.wait(0.1)
         
-        evilNotify("⏳ 等待生成", "材料已开，等待恶魔鸭出现...", 3)
-        if waitEvilDuckAppear(5, preDucks)then
-            evilNotify("🦆 鸭子出现", "成功触发合成，正在等待光效...", 3)
-            ok=waitEvilDuckLightGone(35)
-            if ok then
-                local newDuck=nil
-                for _,m in pairs(workspace.PlayerModels:GetChildren())do
-                    if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end
-                end
-                if newDuck then
-                    local dp=newDuck.PrimaryPart or newDuck:FindFirstChild("Main")or newDuck:FindFirstChildWhichIsA("BasePart")
-                    if dp then
-                        if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
-                        safeTeleport(dp.CFrame+Vector3.new(0,0.5,0))
-                        evilNotify("🏠 拉回鸭子", "正在将新鸭子拉回安全点", 2)
-                        for j = 1, 30 do
-                            DragModel(newDuck, originalPos)
-                            task.wait(0.02)
-                        end
+        evilNotify("⏳ 等待生成", "材料已开，在祭坛等待恶魔鸭出现...", 3)
+        local duckAppeared = waitEvilDuckAppear(15, preDucks)
+        
+        if duckAppeared then
+            evilNotify("🦆 鸭子出现", "成功触发合成，准备拉回基地...", 3)
+            local newDuck=nil
+            for _,m in pairs(workspace.PlayerModels:GetChildren())do
+                if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end
+            end
+            if newDuck then
+                local dp=newDuck.PrimaryPart or newDuck:FindFirstChild("Main")or newDuck:FindFirstChildWhichIsA("BasePart")
+                if dp then
+                    if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
+                    
+                    safeTeleport(originalPos)
+                    evilNotify("🏠 拉回鸭子", "正在将新鸭子拉回安全点", 2)
+                    for j = 1, 30 do
+                        DragModel(newDuck, originalPos)
+                        task.wait(0.02)
                     end
+                    
+                    ok = waitEvilDuckLightGone(35)
+                    for _, p in ipairs(pads) do if p then p:Destroy() end end
+                    if ok then break end
                 end
-                break
             end
         else
             evilNotify("⚠️ 生成超时", "第 "..attempt.." 次尝试未出现鸭子，准备重试", 3)
+            for _, p in ipairs(pads) do if p then p:Destroy() end end
+            safeTeleport(originalPos)
+            task.wait(1)
         end
     end
+    if not ok then safeTeleport(originalPos) end
     return ok
 end
 
