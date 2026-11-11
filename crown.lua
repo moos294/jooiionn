@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.1",
+    Title = "封存木材 V1.2",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "镜像反转摆放，绝不卡灵魂", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "商人ID死等防失败，拖拽防虚空", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2152,7 +2152,8 @@ local function evilGetAllCashierIds()
     end)
     pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
     local startTime = tick()
-    while receivedCount < totalExpected and tick() - startTime < 20 do task.wait(0.2) end
+    -- 延长到 60 秒死等
+    while receivedCount < totalExpected and tick() - startTime < 60 do task.wait(0.2) end
     conn:Disconnect()
     pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
     return cashierIds
@@ -2179,13 +2180,20 @@ local function evilBuyBlueprint(blueprintName)
     
     local npcInfo = evilShopNpcMap[targetStore.Name]
     if not npcInfo then return nil, "未收录NPC: "..targetStore.Name end
-    if not cachedCashierIds then cachedCashierIds = evilGetAllCashierIds() end
-    local npcId = cachedCashierIds[npcInfo.name]
-    if not npcId then
+    
+    -- 死循环获取 ID，直到拿到为止
+    if not cachedCashierIds or not cachedCashierIds[npcInfo.name] then
         cachedCashierIds = evilGetAllCashierIds()
-        npcId = cachedCashierIds[npcInfo.name]
-        if not npcId then return nil, "无法获取 "..npcInfo.name.." 的ID" end
+        local retry = 0
+        while (not cachedCashierIds[npcInfo.name]) and retry < 5 do
+            evilNotify("恶魔鸭", "未获取到 "..npcInfo.name.." 的ID，重新尝试拉取...", 3)
+            task.wait(1)
+            cachedCashierIds = evilGetAllCashierIds()
+            retry = retry + 1
+        end
     end
+    local npcId = cachedCashierIds[npcInfo.name]
+    if not npcId then return nil, "无法获取 "..npcInfo.name.." 的ID" end
     
     local store=targetStore
     local npcChar=store:FindFirstChild(npcInfo.path)
@@ -2203,12 +2211,14 @@ local function evilBuyBlueprint(blueprintName)
     lockPlayerAt(primary.CFrame+Vector3.new(0,3,0))
     task.wait(0.2)
     
+    -- 加高 1 格，防止卡穿柜台
+    local counterCF = counter.CFrame + Vector3.new(0, 1.6, 0)
     for j = 1, 40 do
-        DragModel(itemModel, counter.CFrame+Vector3.new(0,0.6,0))
+        DragModel(itemModel, counterCF)
         task.wait(0.02)
     end
     
-    task.wait(0.09)
+    task.wait(0.15)
     lockPlayerAt(counter.CFrame+Vector3.new(0,3,0))
     task.wait(0.1)
     
@@ -2333,10 +2343,16 @@ local function startEvilDuckCombine(basePos, materialNames)
             if i == 1 then targetIdx = 3
             elseif i == 3 then targetIdx = 1 end
             
+            -- 抬高 1.5 格防掉虚空
+            local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 1.5, 0)
+            
             for j = 1, 40 do
-                DragModel(item, dragTargets[targetIdx])
+                DragModel(item, safeTargetCF)
                 task.wait(0.02)
             end
+            
+            -- 落地物理稳定时间，等待服务器确认
+            task.wait(0.8)
             
             unlockPlayer()
         end
@@ -2408,6 +2424,7 @@ end
 TabExtra:Input({ Title = "恶魔鸭合成次数", Value = "1", Callback = function(v) local n = tonumber(v); if n and n > 0 then evilCombineCount = math.floor(n) end end })
 TabExtra:Button({ Title = "开始全自动合成恶魔鸭", Callback = function() task.spawn(function() evilMain(evilCombineCount) end) end })
 TabExtra:Button({ Title = "停止自动合成恶魔鸭", Callback = function() evilStopFlag = true end })
+
 TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "自动整理同类物品，叠放整齐", Color = Color3.fromRGB(0, 255, 255) })
 local sortStartHeight, sortGap, sortCountX, sortCountZ = 1, 0, 3, 3
 local currentSortTool = nil
