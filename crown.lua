@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.0",
+    Title = "封存木材 V1.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "贴地死死按住，完美触发祭坛，反向摆放", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "出生秒拉回，死锁防穿模", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2274,35 +2274,10 @@ local function waitEvilDuckAppear(timeout, preSet)
     return false
 end
 
-local function waitEvilDuckLightGone(timeout)
-    local deadline=os.clock()+(timeout or 35)
-    while os.clock()<deadline do
-        if evilStopFlag then return false end
-        local hasLight=false
-        for _,m in pairs(Workspace.PlayerModels:GetChildren())do
-            if m:IsA("Model")and m.Name=="DuckEvil"then local main=m:FindFirstChild("Main"); if main and main:FindFirstChild("PointLight")then hasLight=true break end end
-        end
-        if not hasLight then return true end
-        task.wait(0.2)
-    end
-    return false
-end
-
 local function startEvilDuckCombine(basePos, materialNames)
-    local items={}
-    for i=1,3 do
-        local name = materialNames[i]
-        if not name then return false end
-        local item=evilFindMyItem(name)
-        if not item then
-            local box = evilBuyBlueprint(name)
-            if not box then return false end
-            item = box; task.wait(0.6)
-        end
-        items[i]=item
-    end
-    local originalPos=basePos or(player.Character and player.Character.HumanoidRootPart.CFrame)
+    local originalPos = basePos or (player.Character and player.Character.HumanoidRootPart.CFrame)
     if not originalPos then return false end
+
     local preDucks={}
     for _,m in pairs(Workspace.PlayerModels:GetChildren())do if m:IsA("Model")and m.Name=="DuckEvil"then preDucks[m]=true end end
     local ok=false
@@ -2310,14 +2285,28 @@ local function startEvilDuckCombine(basePos, materialNames)
     for attempt=1,4 do
         if evilStopFlag then return false end
         
+        local items={}
         for i=1,3 do
-            if evilStopFlag then return false end
+            local name = materialNames[i]
+            if not name then return false end
+            local item=evilFindMyItem(name)
+            if not item then
+                local box = evilBuyBlueprint(name)
+                if not box then return false end
+                item = box; task.wait(0.6)
+            end
+            items[i]=item
+        end
+        
+        for i=1,3 do
+            if evilStopFlag then unlockPlayer(); return false end
             local item=items[i]
             if not item or not item.Parent then
                 item=evilFindMyItem(materialNames[i])
                 if not item then break end
                 items[i]=item
             end
+            
             waitItemReady(item, 2)
             
             local targetIdx = i
@@ -2333,58 +2322,46 @@ local function startEvilDuckCombine(basePos, materialNames)
                 pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
                 
                 for j = 1, 30 do
-                    if evilStopFlag then unlockPlayer(); return false end
                     DragModel(item, safeTargetCF)
                     task.wait(0.02)
+                end
+                
+                task.wait(0.1)
+                pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+                openItem(item)
+                task.wait(0.05)
+                
+                for j = 1, 40 do
+                    local newEntity = evilFindMyItem(materialNames[i])
+                    if newEntity then
+                        local newPrimary = newEntity.PrimaryPart or newEntity:FindFirstChildWhichIsA("BasePart")
+                        if newPrimary then pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(newPrimary)end) end
+                        DragModel(newEntity, safeTargetCF)
+                    end
+                    task.wait(0.01)
                 end
                 unlockPlayer()
             end
         end
 
-        for i=1,3 do
-            if evilStopFlag then return false end
-            local item=items[i]
-            if item and item.Parent then
-                waitItemReady(item, 2)
-                local targetIdx = i
-                if i == 1 then targetIdx = 3
-                elseif i == 3 then targetIdx = 1 end
-                
-                local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 0.2, 0)
-                
-                local dp2=item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-                if dp2 then
-                    lockPlayerAt(dp2.CFrame + Vector3.new(0, 2, 2))
-                    task.wait(0.4)
-                    openItem(item)
-                    task.wait(0.1)
-                else
-                    safeTeleport(openPositions[targetIdx])
-                    lockPlayerAt(openPositions[targetIdx] + Vector3.new(0, 2, 2))
-                    task.wait(0.4)
-                    openItem(item)
-                    task.wait(0.1)
-                end
-                unlockPlayer()
-            end
-        end
-        
         safeTeleport(originalPos)
         
         local forceHold = true
         local holdTask = task.spawn(function()
             while forceHold and not evilStopFlag do
                 for i=1,3 do
-                    local item = items[i]
-                    if item and item.Parent then
+                    local item = evilFindMyItem(materialNames[i])
+                    if item then
                         local targetIdx = i
                         if i == 1 then targetIdx = 3
                         elseif i == 3 then targetIdx = 1 end
                         local safeCF = dragTargets[targetIdx] + Vector3.new(0, 0.2, 0)
+                        local primary = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                        if primary then pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end) end
                         DragModel(item, safeCF)
                     end
                 end
-                task.wait(0.05)
+                task.wait()
             end
         end)
         
@@ -2394,24 +2371,40 @@ local function startEvilDuckCombine(basePos, materialNames)
         task.cancel(holdTask)
         
         if duckAppeared then
-            ok=waitEvilDuckLightGone(35)
-            if ok then
-                local newDuck=nil
-                for _,m in pairs(Workspace.PlayerModels:GetChildren())do 
-                    if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end 
-                end
-                if newDuck then
-                    local dp=newDuck.PrimaryPart or newDuck:FindFirstChildWhichIsA("BasePart")
-                    if dp then
-                        if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
-                        safeTeleport(dp.CFrame+Vector3.new(0,0.5,0))
-                        for j = 1, 30 do
-                            if evilStopFlag then break end
-                            DragModel(newDuck, originalPos)
-                            task.wait(0.02)
+            local newDuck = nil
+            for _,m in pairs(Workspace.PlayerModels:GetChildren())do 
+                if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end 
+            end
+            
+            if newDuck then
+                local dp=newDuck.PrimaryPart or newDuck:FindFirstChildWhichIsA("BasePart")
+                if dp then
+                    if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
+                    
+                    for j = 1, 30 do
+                        DragModel(newDuck, originalPos)
+                        task.wait(0.02)
+                    end
+                    
+                    local deadline = os.clock() + 35
+                    while os.clock() < deadline do
+                        if evilStopFlag then break end
+                        DragModel(newDuck, originalPos)
+                        
+                        local hasLight=false
+                        local main = newDuck:FindFirstChild("Main")
+                        if main and main:FindFirstChild("PointLight") then hasLight=true end
+                        
+                        if not hasLight then
+                            ok = true
+                            break
                         end
+                        task.wait(0.1)
                     end
                 end
+            end
+            
+            if ok then
                 break
             end
         end
