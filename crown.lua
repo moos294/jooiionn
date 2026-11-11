@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.9",
+    Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NB",
+    Author = "封存NBV0.1",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "彻底清理缓存，绝不卡失败状态", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "原版先拖后开，反向摆放，强制防掉落", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2311,6 +2311,7 @@ local function startEvilDuckCombine(basePos, materialNames)
             items[i]=item
         end
         
+        -- 第一步：原版逻辑，先全部拖到祭坛上 (反向坐标)
         for i=1,3 do
             if evilStopFlag then unlockPlayer(); return false end
             local item=items[i]
@@ -2338,27 +2339,49 @@ local function startEvilDuckCombine(basePos, materialNames)
                     DragModel(item, safeTargetCF)
                     task.wait(0.02)
                 end
-                
-                task.wait(0.1)
-                pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
-                openItem(item)
-                task.wait(0.05)
-                
-                for j = 1, 40 do
-                    local newEntity = evilFindMyItem(materialNames[i])
-                    if newEntity then
-                        local newPrimary = newEntity.PrimaryPart or newEntity:FindFirstChildWhichIsA("BasePart")
-                        if newPrimary then pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(newPrimary)end) end
-                        DragModel(newEntity, safeTargetCF)
-                    end
-                    task.wait(0.01)
-                end
                 unlockPlayer()
+            end
+        end
+
+        -- 第二步：原版逻辑，全部拖完后，再依次开盒并死死按住实体
+        for i=1,3 do
+            if evilStopFlag then unlockPlayer(); return false end
+            local item=evilFindMyItem(materialNames[i])
+            if item then
+                local targetIdx = i
+                if i == 1 then targetIdx = 3
+                elseif i == 3 then targetIdx = 1 end
+                
+                local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 0.2, 0)
+                local primary=item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                
+                if primary then
+                    if not item.PrimaryPart then item.PrimaryPart=primary end
+                    lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
+                    pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+                    
+                    task.wait(0.1)
+                    pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+                    openItem(item)
+                    task.wait(0.05)
+                    
+                    for j = 1, 40 do
+                        local newEntity = evilFindMyItem(materialNames[i])
+                        if newEntity then
+                            local newPrimary = newEntity.PrimaryPart or newEntity:FindFirstChildWhichIsA("BasePart")
+                            if newPrimary then pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(newPrimary)end) end
+                            DragModel(newEntity, safeTargetCF)
+                        end
+                        task.wait(0.01)
+                    end
+                    unlockPlayer()
+                end
             end
         end
 
         safeTeleport(originalPos)
         
+        -- 第三步：死锁保护，直到鸭子出现
         local forceHold = true
         local holdTask = task.spawn(function()
             while forceHold and not evilStopFlag do
@@ -2394,11 +2417,13 @@ local function startEvilDuckCombine(basePos, materialNames)
                 if dp then
                     if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
                     
+                    -- 鸭子出生瞬间拉回
                     for j = 1, 30 do
                         DragModel(newDuck, originalPos)
                         task.wait(0.02)
                     end
                     
+                    -- 等待光效消失
                     local deadline = os.clock() + 35
                     while os.clock() < deadline do
                         if evilStopFlag then break end
