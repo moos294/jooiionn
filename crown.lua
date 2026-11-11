@@ -55,7 +55,7 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.5",
+    Author = "封存NBV0.6",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -1839,10 +1839,6 @@ TabExtra:Button({
         evilNotify("恶魔鸭", "NPC ID 缓存已重置", 2)
     end,
 })
-
--- ==========================================
--- 建筑工具（整理工具）区域
--- ==========================================
 TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "点击物品，将全图同类的物品整齐叠放在脚下", Color = Color3.fromRGB(0, 255, 255) })
 
 local sortStartHeight = 1
@@ -2037,9 +2033,7 @@ TabExtra:Button({
 })
 local TabTree = Window:Tab({ Title = "自动砍树", Icon = "rbxassetid://10734945123" })
 
-local treeMapping = {}
-local treeNames = {}
-local TREE_CN = {
+local TREE_CN={
     Generic="普通树",GenericDead="枯木",GenericFall="落叶树",GenericGold="金树",GenericPrime="原始树",
     GenericSpecial="特殊树",GoldSwampy="沼泽黄金",GreenSwampy="沼泽青",Cherry="樱花树",
     CaveCrawler="蓝木",Cavern="洞窟紫木",CavernCrawler="洞窟爬虫",GrottoCrawler="洞穴爬虫",
@@ -2063,7 +2057,8 @@ local TREE_CN = {
     Ethereal="以太木",GreatOak="生命古橡",AppleWood="苹果木",Dry="干枯木",DryNeon="霓虹干枯木",
     Sand="沙滩木",Virtual="虚拟木",Waffer="华夫木",PotBush2="花盆灌木2",
 }
-local TREE_FALLBACK = {
+
+local TREE_FALLBACK={
     ["普通树"]="Generic",["沼泽黄金"]="GoldSwampy",["樱花"]="Cherry",["蓝木"]="CaveCrawler",
     ["冰木"]="Frost",["火山木"]="Volcano",["橡木"]="Oak",["巧克力木"]="Walnut",["白桦木"]="Birch",
     ["黄金木"]="SnowGlow",["雪地松"]="Pine",["僵尸木"]="GreenSwampy",["大巧克力树"]="Koa",
@@ -2083,9 +2078,9 @@ local TREE_FALLBACK = {
 local function readTreeClasses()
     local list={}
     local amounts=Workspace:FindFirstChild("Stores")
-        and Workspace.Stores:FindFirstChild("PlanterStore")
-        and Workspace.Stores.PlanterStore:FindFirstChild("Planter Spawner")
-        and Workspace.Stores.PlanterStore["Planter Spawner"]:FindFirstChild("Amounts")
+    and Workspace.Stores:FindFirstChild("PlanterStore")
+    and Workspace.Stores.PlanterStore:FindFirstChild("Planter Spawner")
+    and Workspace.Stores.PlanterStore["Planter Spawner"]:FindFirstChild("Amounts")
     if amounts then
         for _,c in ipairs(amounts:GetChildren())do
             if c:IsA("NumberValue")or c:IsA("IntValue")or c:IsA("StringValue")then
@@ -2095,11 +2090,12 @@ local function readTreeClasses()
     end
     if #list==0 then
         local W=RS:FindFirstChild("Woods")
-        if W then for _,c in ipairs(W:GetChildren())do table.insert(list,tostring(c.Name)) end end
+        if W then for _,c in ipairs(W:GetChildren())do table.insert(list,tostring(c.Name))end end
     end
     return list
 end
 
+local treeMapping={}
 for _,cls in ipairs(readTreeClasses())do
     treeMapping[TREE_CN[cls]or cls]=cls
 end
@@ -2122,127 +2118,123 @@ local function sortTreeNames(list)
     end)
 end
 
+local treeNames={}
 for name in pairs(treeMapping)do table.insert(treeNames,name)end
 sortTreeNames(treeNames)
 
-local treeLockConn = nil
-local function treeUnlock()
-    if treeLockConn then treeLockConn:Disconnect() treeLockConn = nil end
+local function getNextDragID()
+    evilDragCounter = (evilDragCounter or 0) + 1
+    return evilDragCounter
 end
 
-local function treeLock(cf)
-    treeUnlock()
-    local function hold()
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
-        end
-    end
-    hold()
-    treeLockConn = RunService.Heartbeat:Connect(hold)
-end
+local DRAG_TOTAL=60
+local DRAG_SET_START=28
+local DRAG_SET_COUNT=2
+local DRAG_SET_INTERVAL=0.01
+local DRAG_REFRESH_INTERVAL=0.01
+local DRAG_AFTER_WAIT=0.01
 
-local function safeTreeTP(cf)
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
-        task.wait(0.05)
-        if hrp.Position.Y < -100 then
-            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0) + Vector3.new(0, 10, 0)
-        end
-    end
-end
-
-local function treeDragToPosition(model, targetCF, callback, waitFinish)
+local function dragToPosition(model,targetCF,callback,waitFinish)
     if not model or not model.Parent then
-        if callback then callback() end
+        if callback then callback()end
         return
     end
-    local primary = model.PrimaryPart or model:FindFirstChild("WoodSection") or model:FindFirstChild("Main") or model:FindFirstChildWhichIsA("BasePart")
+    local primary=model.PrimaryPart or model:FindFirstChild("WoodSection")or model:FindFirstChild("Main")or model:FindFirstChildWhichIsA("BasePart")
     if not primary then
-        if callback then callback() end
+        if callback then callback()end
         return
     end
-    if not model.PrimaryPart then model.PrimaryPart = primary end
-
-    treeLock(primary.CFrame + Vector3.new(0, 3, 0))
-    local dragID = math.random(100000, 999999)
-    local remote = RS.Interaction.ClientIsDragging
-    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-    pcall(function() remote:FireServer("Begin", model, dragID) end)
-
-    local lastSet = 28 + 2 - 1
-    for i = 1, lastSet do
+    if not model.PrimaryPart then model.PrimaryPart=primary end
+    
+    evilLock(primary.CFrame+Vector3.new(0,3,0))
+    
+    local dragID=getNextDragID()
+    local remote=RS.Interaction.ClientIsDragging
+    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+    pcall(function() remote:FireServer("Begin",model,dragID)end)
+    
+    local lastSet=DRAG_SET_START+DRAG_SET_COUNT-1
+    for i=1,lastSet do
         if not model.Parent or not model.PrimaryPart then
-            pcall(function() remote:FireServer("End", model, dragID) end)
-            if callback then callback() end
+            pcall(function() remote:FireServer("End",model,dragID)end)
+            if callback then callback()end
             return
         end
-        local shouldSet = (i >= 28)
+        local shouldSet=(i>=DRAG_SET_START)
         pcall(function()
-            remote:FireServer("Refresh", model, dragID)
+            remote:FireServer("Refresh",model,dragID)
             if shouldSet then
                 RS.Interaction.ClientRequestOwnership:FireServer(primary)
                 model:SetPrimaryPartCFrame(targetCF)
             end
         end)
-        if i < lastSet then
-            if shouldSet then task.wait(0.01) else task.wait(0.01) end
+        if i<lastSet then
+            if shouldSet then task.wait(DRAG_SET_INTERVAL)
+            else task.wait(DRAG_REFRESH_INTERVAL) end
         end
     end
-
-    task.wait(0.01)
-    local dragEnded = false
+    
+    task.wait(DRAG_AFTER_WAIT)
+    local dragEnded=false
     task.spawn(function()
-        for i = lastSet + 1, 60 do
+        for i=lastSet+1,DRAG_TOTAL do
             if not model.Parent or not model.PrimaryPart then break end
-            pcall(function() remote:FireServer("Refresh", model, dragID) end)
-            if i < 60 then task.wait(0.01) end
+            pcall(function() remote:FireServer("Refresh",model,dragID)end)
+            if i<DRAG_TOTAL then task.wait(DRAG_REFRESH_INTERVAL) end
         end
-        pcall(function() remote:FireServer("End", model, dragID) end)
-        dragEnded = true
+        pcall(function() remote:FireServer("End",model,dragID)end)
+        dragEnded=true
     end)
-
+    
     if waitFinish then
-        local w = 0
-        while w < 1.5 and not dragEnded do
+        local w=0
+        while w<1.5 and not dragEnded do
             task.wait(0.05)
-            w = w + 0.05
+            w=w+0.05
         end
-        for retry = 1, 3 do
+        for retry=1,3 do
             if not model.Parent or not model.PrimaryPart then break end
-            local d = (model.PrimaryPart.Position - targetCF.Position).Magnitude
-            if d <= 3 then break end
-            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+            local d=(model.PrimaryPart.Position-targetCF.Position).Magnitude
+            if d<=3 then break end
+            pcall(function() remote:FireServer("Refresh",model,dragID)end)
         end
     end
-
+    
     task.wait(0.4)
-    local verify = 0
-    while model.Parent and model.PrimaryPart and verify < 2 do
-        local dist = (model.PrimaryPart.Position - targetCF.Position).Magnitude
-        if dist <= 3 then break end
-        verify = verify + 1
-        treeLock(primary.CFrame + Vector3.new(0, 3, 0))
+    local verify=0
+    while model.Parent and model.PrimaryPart and verify<2 do
+        local dist=(model.PrimaryPart.Position-targetCF.Position).Magnitude
+        if dist<=3 then break end
+        verify=verify+1
+        evilLock(primary.CFrame+Vector3.new(0,3,0))
         task.wait(0.15)
-        local retryID = math.random(100000, 999999)
-        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-        pcall(function() remote:FireServer("Begin", model, retryID) end)
-        for _ = 1, 10 do
+        local retryID=getNextDragID()
+        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+        pcall(function() remote:FireServer("Begin",model,retryID)end)
+        for _=1,10 do
             if not model.Parent then break end
-            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-            pcall(function() remote:FireServer("Refresh", model, retryID) end)
-            pcall(function() model:SetPrimaryPartCFrame(targetCF) end)
+            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+            pcall(function() remote:FireServer("Refresh",model,retryID)end)
+            pcall(function() model:SetPrimaryPartCFrame(targetCF)end)
             task.wait(0.05)
         end
-        pcall(function() remote:FireServer("End", model, retryID) end)
+        pcall(function() remote:FireServer("End",model,retryID)end)
         task.wait(0.15)
     end
+    
+    evilUnlock()
+    if callback then callback()end
+end
 
-    treeUnlock()
-    if callback then callback() end
+local function safeTeleport(cf)
+    local hrp=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame=CFrame.new(cf.Position)*CFrame.Angles(0,math.rad(hrp.Orientation.Y or 0),0)
+        task.wait(0.05)
+        if hrp.Position.Y<-100 then
+            hrp.CFrame=CFrame.new(cf.Position+Vector3.new(0,10,0))*CFrame.Angles(0,math.rad(hrp.Orientation.Y or 0),0)
+        end
+    end
 end
 
 local function findUncutTree(treeClass)
@@ -2327,7 +2319,96 @@ local function loadWeaponConfig(weaponName)
             end
         end
     end
-    return nil
+    
+    local module=nil
+    local want=weaponName.."AxeClass"
+    local la=RS:FindFirstChild("LoadedAssets")
+    if la then module=la:FindFirstChild(want) end
+    if not module and type(getloadedmodules)=="function" then
+        for _,m in ipairs(getloadedmodules())do
+            if m:IsA("ModuleScript") and (m.Name==want or m:GetFullName():sub(-#want)==want)then
+                module=m break
+            end
+        end
+    end
+    if not module then
+        for _,d in ipairs(RS:GetChildren())do
+            if d:IsA("Folder")or d:IsA("Model")then
+                local m=d:FindFirstChild(want,true)
+                if m then module=m break end
+            end
+        end
+    end
+    if not module then
+        local tries={
+            {RS:FindFirstChild("RemoteEvents"),"AssetRequests","RequestAssetInfo"},
+            {RS:FindFirstChild("RemoteEvents"),"AssetRequests","RequestAxeClass"},
+            {RS, "LoadedAssets","RequestAssetInfo"},
+        }
+        for _,t in ipairs(tries)do
+            local root,folder,fn=t[1],t[2],t[3]
+            if root then
+                local f=root:FindFirstChild(folder)
+                local rf=f and f:FindFirstChild(fn)
+                if rf then
+                    pcall(function() rf:InvokeServer(weaponName,"Tools","AxeClass",nil) end)
+                    pcall(function() rf:FireServer(weaponName,"Tools","AxeClass") end)
+                    break
+                end
+            end
+        end
+        local deadline=os.clock()+3
+        repeat
+            if la then module=la:FindFirstChild(want) end
+            if not module and type(getloadedmodules)=="function" then
+                for _,m in ipairs(getloadedmodules())do
+                    if m:IsA("ModuleScript") and (m.Name==want or m:GetFullName():sub(-#want)==want)then
+                        module=m break
+                    end
+                end
+            end
+            if module then break end
+            task.wait(0.15)
+        until os.clock()>=deadline
+    end
+    
+    if not module then return nil end
+    
+    local src=nil
+    if type(decompile)=="function" then
+        local ok,s=pcall(decompile,module)
+        if ok and type(s)=="string" and #s>0 then src=s end
+    end
+    if not src and type(getscriptbytecode)=="function" then
+        local ok,bc=pcall(getscriptbytecode,module)
+        if ok and type(bc)=="string" then src=bc end
+    end
+    if not src then return nil end
+    
+    local cfg={Damage=nil,SwingCooldown=nil,Range=nil,SpecialTrees={}}
+    local v=src:match("[%w_%.]+%.?Damage%s*=%s*([%-]?[%d%.]+)")
+    if not v then v=src:match("Damage%s*=%s*([%-]?[%d%.]+)") end
+    cfg.Damage=tonumber(v)
+    
+    v=src:match("[%w_%.]+%.?SwingCooldown%s*=%s*([%-]?[%d%.]+)")
+    if not v then v=src:match("SwingCooldown%s*=%s*([%-]?[%d%.]+)") end
+    cfg.SwingCooldown=tonumber(v)
+    
+    v=src:match("[%w_%.]+%.?Range%s*=%s*([%-]?[%d%.]+)")
+    if not v then v=src:match("Range%s*=%s*([%-]?[%d%.]+)") end
+    cfg.Range=tonumber(v)
+    
+    for treeName,treeBody in src:gmatch("SpecialTrees%.([%w_]+)%s*=%s*{(.-)}")do
+        local sCfg={}
+        sCfg.Damage=tonumber(treeBody:match("Damage%s*=%s*([%-]?[%d%.]+)"))
+        sCfg.SwingCooldown=tonumber(treeBody:match("SwingCooldown%s*=%s*([%-]?[%d%.]+)"))
+        if sCfg.Damage then cfg.SpecialTrees[treeName]=sCfg end
+    end
+    
+    if not cfg.Damage or not cfg.SwingCooldown then return nil end
+    cfg.Range=cfg.Range or 10
+    axeConfigCache[weaponName]=cfg
+    return cfg
 end
 
 local function selectBestWeapon(treeClass)
@@ -2362,11 +2443,11 @@ end
 
 local function bringTreeRemote(treeClass)
     local weaponName,weaponConfig,damage=selectBestWeapon(treeClass)
-    if not weaponName then evilNotify("自动砍树","自动选武器失败",3) return false end
+    if not weaponName then evilNotify("自动砍树","自动选武器失败",3)return false end
     local req={
-        Flame=200000,BlueFlame=200000,Celestial=200000,Void=200000,
-        Ice=200000,Magma=200000,RainbowFlame=200000,Radioactive=200000,
-        Shine=200000,LoneCave=200000,Spirit=200000,
+        Flame=200000, BlueFlame=200000, Celestial=200000, Void=200000,
+        Ice=200000, Magma=200000, RainbowFlame=200000, Radioactive=200000,
+        Shine=200000, LoneCave=200000, Spirit=200000,
     }
     if req[treeClass]and damage<req[treeClass]then
         evilNotify("自动砍树",string.format("伤害不足！需要至少 %.0f",req[treeClass]),4)
@@ -2374,12 +2455,14 @@ local function bringTreeRemote(treeClass)
     end
     local cooldown=(weaponConfig.SpecialTrees[treeClass]and weaponConfig.SpecialTrees[treeClass].SwingCooldown)or weaponConfig.SwingCooldown
     local woodSec,tree=findUncutTree(treeClass)
-    if not woodSec then evilNotify("自动砍树","附近没有可砍的树",3) return false end
+    if not woodSec then evilNotify("自动砍树","附近没有可砍的树",3)return false end
     local minX,maxX=-543,-27.8
     local minY,maxY=-196.7,-148.2
     local minZ,maxZ=-2961.7,-2668.7
     local treePos=woodSec.Position
-    if treePos.X>=minX and treePos.X<=maxX and treePos.Y>=minY and treePos.Y<=maxY and treePos.Z>=minZ and treePos.Z<=maxZ then
+    if treePos.X>=minX and treePos.X<=maxX and
+    treePos.Y>=minY and treePos.Y<=maxY and
+    treePos.Z>=minZ and treePos.Z<=maxZ then
         evilNotify("自动砍树","树在危险区域内，已删除",5)
         if tree and tree.Parent then tree:Destroy() end
         return false
@@ -2392,13 +2475,14 @@ local function bringTreeRemote(treeClass)
             tool=weaponObj and(weaponObj:IsA("Tool")and weaponObj or weaponObj.Value)or nil
         end
     end
-    if not tool then evilNotify("自动砍树","未找到工具: "..weaponName,3) return false end
+    if not tool then evilNotify("自动砍树","未找到工具: "..weaponName,3)return false end
     local cutEvent=tree:FindFirstChild("CutEvent")
-    if not cutEvent then evilNotify("自动砍树","无法获取CutEvent",3) return false end
+    if not cutEvent then evilNotify("自动砍树","无法获取CutEvent",3)return false end
     local remote=RS:WaitForChild("Interaction"):WaitForChild("RemoteProxy")
     local playerOriginalCF=player.Character and player.Character.HumanoidRootPart.CFrame
-    if not playerOriginalCF then evilNotify("自动砍树","无法获取玩家位置",3) return false end
+    if not playerOriginalCF then evilNotify("自动砍树","无法获取玩家位置",3)return false end
     
+    local platformPos=woodSec.CFrame+Vector3.new(8,2.5,0)
     local platformPos=woodSec.Position+Vector3.new(8,2.5,0)
     local tempPart=Instance.new("Part")
     tempPart.Name="TempMarker"
@@ -2412,26 +2496,21 @@ local function bringTreeRemote(treeClass)
     tempPart.Parent=Workspace
     task.wait(0.02)
     
-    treeLock(getTreeTopCFrame(tree))
+    evilLock(getTreeTopCFrame(tree))
     local fallenLog,existingLogs=nil,{}
     for _,log in pairs(Workspace.LogModels:GetChildren())do existingLogs[log]=true end
     local treeCenter=woodSec.Position
     local stopCutting,timeoutReached=false,false
     local sendTask=task.spawn(function()
         while not stopCutting do
-            pcall(remote.FireServer,remote,cutEvent,{
-                height=0.3,faceVector=Vector3.new(-1,0,0),cooldown=cooldown,
-                sectionId=1,hitPoints=damage,tool=tool,cuttingClass="Axe"
-            })
+            pcall(remote.FireServer,remote,cutEvent,{height=0.3,faceVector=Vector3.new(-1,0,0),cooldown=cooldown,sectionId=1,hitPoints=damage,tool=tool,cuttingClass="Axe"})
             task.wait(0.0001)
         end
     end)
-    
     local timeoutTask=task.spawn(function()
         task.wait(15)
         if not stopCutting then timeoutReached=true stopCutting=true end
     end)
-    
     while not fallenLog and not stopCutting do
         for _,log in pairs(Workspace.LogModels:GetChildren())do
             if not existingLogs[log]and log:FindFirstChild("Owner")and log.Owner.Value==player and log:FindFirstChild("TreeClass")and log.TreeClass.Value==treeClass then
@@ -2442,46 +2521,42 @@ local function bringTreeRemote(treeClass)
         end
         task.wait(0.01)
     end
-    
     stopCutting=true task.cancel(sendTask) task.cancel(timeoutTask)
     if timeoutReached or not fallenLog then
-        treeUnlock()
+        evilUnlock()
         evilNotify("自动砍树","砍树超时或木头未掉落",3)
-        if tempPart and tempPart.Parent then tempPart:Destroy() end
-        safeTreeTP(playerOriginalCF)
+        if tempPart and tempPart.Parent then tempPart:Destroy()end
+        safeTeleport(playerOriginalCF)
         return false
     end
-    
-    local primary=fallenLog.PrimaryPart or fallenLog:FindFirstChild("WoodSection") or fallenLog:FindFirstChild("Main") or fallenLog:FindFirstChildWhichIsA("BasePart")
+    local primary=fallenLog.PrimaryPart or fallenLog:FindFirstChild("WoodSection")or fallenLog:FindFirstChild("Main")or fallenLog:FindFirstChildWhichIsA("BasePart")
     if not primary then
-        treeUnlock()
+        evilUnlock()
         evilNotify("自动砍树","无法定位木头",3)
-        if tempPart and tempPart.Parent then tempPart:Destroy() end
-        safeTreeTP(playerOriginalCF)
+        if tempPart and tempPart.Parent then tempPart:Destroy()end
+        safeTeleport(playerOriginalCF)
         return false
     end
-    
     local logPos=primary.Position
-    if logPos.X>=minX and logPos.X<=maxX and logPos.Y>=minY and logPos.Y<=maxY and logPos.Z>=minZ and logPos.Z<=maxZ then
-        treeUnlock()
+    if logPos.X>=minX and logPos.X<=maxX and
+    logPos.Y>=minY and logPos.Y<=maxY and
+    logPos.Z>=minZ and logPos.Z<=maxZ then
+        evilUnlock()
         evilNotify("自动砍树","木头掉落在危险区域，已删除",5)
         if fallenLog and fallenLog.Parent then fallenLog:Destroy() end
-        if tempPart and tempPart.Parent then tempPart:Destroy() end
-        safeTreeTP(playerOriginalCF)
+        if tempPart and tempPart.Parent then tempPart:Destroy()end
+        safeTeleport(playerOriginalCF)
         return false
     end
-    
     if not fallenLog.PrimaryPart then fallenLog.PrimaryPart=primary end
-    treeLock(primary.CFrame+Vector3.new(0,3,0))
-    
+    evilLock(primary.CFrame+Vector3.new(0,3,0))
     local done=false
-    treeDragToPosition(fallenLog,playerOriginalCF,function()
-        treeUnlock()
-        safeTreeTP(playerOriginalCF)
-        if tempPart and tempPart.Parent then tempPart:Destroy() end
+    dragToPosition(fallenLog, playerOriginalCF, function()
+        evilUnlock()
+        safeTeleport(playerOriginalCF)
+        if tempPart and tempPart.Parent then tempPart:Destroy()end
         done=true
-    end,10,nil)
-    
+    end, 10, nil)
     while not done do task.wait(0.01) end
     return true
 end
