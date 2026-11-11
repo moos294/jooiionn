@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V0.8",
+    Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NB",
+    Author = "封存NBV0.8",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -1534,62 +1534,19 @@ TabExtra:Button({
     Desc = "关闭UI并清除所有残留工具与点位",
     Callback = function() CleanupAll() end
 })
-TabExtra:Paragraph({ Title = "【 恶魔鸭自动购买 】", Desc = "自动破译材料并买回脚下，手动去祭坛合", Color = Color3.fromRGB(255, 105, 180) })
-
-local evilStopFlag = false
-local evilAutoRunning = false
-local cachedCashierIds = nil
-
-local evilShopNpcMap = {
-    AutumnCatalog={name="William", path="William"}, 
-    BlackMarket={name="sneakypotato7", path="sneakypotato7"}, 
-    CarStore={name="Jenny", path="Jenny"},
-    MusicStore={name="NazuReborn", path="NazuReborn"}, 
-    FineArt={name="Timothy", path="Timothy"}, 
-    FineFinds={name="Manachron", path="Manachron"},
-    FurnitureStore={name="Corey", path="Corey"}, 
-    HLStand={name="???", path="???"}, 
-    Igloo={name="Cold Guy", path="Cold Guy"},
-    LogicStore={name="Lincoln", path="Lincoln"}, 
-    MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, 
-    PlanterStore={name="OGxOutcast", path="OGxOutcast"},
-    PlantomicsChoice={name="Null", path="Null"}, 
-    SallysSeasonal={name="Sally", path="Sally"}, 
-    SaplingCart={name="Billy", path="Billy"},
-    SeaSide={name="Guy", path="Guy"}, 
-    StoneRUs={name="Bloxyway", path="Bloxyway"}, 
-    TravelingTrader={name="Trader", path="Trader"},
-    VIPSHOP={name="Todd", path="Todd"}, 
-    WoodRUs={name="Thom", path="Thom"},
-}
-
-local evilEnItemMap = {
-    ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa",
-    ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp",
-    ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery",
-    ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall",
-}
-
-local evilNameCN = {
-    Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡",
-    Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机",
-    Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球"
-}
-
-local function getCN(enName)
-    return (evilNameCN[enName] or "未知") .. " (" .. tostring(enName) .. ")"
-end
+local TabTree = Window:Tab({ Title = "自动砍树", Icon = "rbxassetid://10734945123" })
 
 local function evilNotify(t, c, d)
     WindUI:Notify({ Title = tostring(t or ""), Content = tostring(c or ""), Duration = d or 3 })
 end
 
-local evilLockConn = nil
-local function evilUnlock()
-    if evilLockConn then evilLockConn:Disconnect(); evilLockConn = nil end
+local universalLockConn = nil
+local function unlockPlayer()
+    if universalLockConn then universalLockConn:Disconnect(); universalLockConn = nil end
 end
-local function evilLock(cf)
-    evilUnlock()
+
+local function lockPlayerAt(cf)
+    unlockPlayer()
     local function hold()
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
@@ -1599,441 +1556,117 @@ local function evilLock(cf)
         end
     end
     hold()
-    evilLockConn = RunService.Heartbeat:Connect(hold)
+    universalLockConn = RunService.Heartbeat:Connect(hold)
 end
 
-local function evilForceBring(model, targetCF)
-    if not model or not model.Parent then return end
-    local p = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-    if p then
-        if not model.PrimaryPart then model.PrimaryPart = p end
-        evilLock(p.CFrame + Vector3.new(0, 3, 0))
-        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(p) end)
-        for i = 1, 50 do
-            DragModel(model, targetCF)
-            task.wait(0.01)
+local function safeTeleport(cf)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
+        task.wait(0.05)
+        if hrp.Position.Y < -100 then
+            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0) + Vector3.new(0, 10, 0)
         end
-        evilUnlock()
     end
 end
 
-local function evilGetAllCashierIds()
-    local cashierIds = {}
-    local receivedCount = 0
-    local totalExpected = 0
-    for _ in pairs(evilShopNpcMap) do totalExpected = totalExpected + 1 end
-
-    local conn = RS.NPCDialog.PromptChat.OnClientEvent:Connect(function(...)
-        local pack = {...}
-        for _, v in ipairs(pack) do
-            if type(v) == "table" then
-                local nm = v.Name
-                local id = v.ID
-                if nm ~= nil and id ~= nil then
-                    if not cashierIds[nm] then
-                        cashierIds[nm] = id
-                        receivedCount = receivedCount + 1
-                    end
-                end
-            end
-        end
-    end)
-    pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
-    local startTime = tick()
-    while receivedCount < totalExpected and tick() - startTime < 20 do
-        task.wait(0.2)
-    end
-    conn:Disconnect()
-    pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
-    return cashierIds
+local dragIDCounter = 0
+local function getNextDragID()
+    dragIDCounter = dragIDCounter + 1
+    return dragIDCounter
 end
 
-local function evilBuyBlueprint(blueprintName, baseCF)
-    local targetStore, targetItemName = nil, nil
-    local lower = string.lower(tostring(blueprintName))
-    
-    local stores = Workspace:FindFirstChild("Stores")
-    if not stores then return false, "找不到Stores" end
-    
-    for _, store in pairs(stores:GetChildren()) do
-        local shopItems = store:FindFirstChild("ShopItems")
-        if shopItems then
-            for _, item in pairs(shopItems:GetChildren()) do
-                if string.lower(tostring(item.Name)) == lower then
-                    targetStore, targetItemName = store, item.Name
-                    break
-                end
-                local pbn = item:FindFirstChild("PurchasedBoxItemName")
-                if pbn and string.lower(tostring(pbn.Value)) == lower then
-                    targetStore, targetItemName = store, item.Name
-                    break
-                end
-            end
-        end
-        if targetStore then break end
+local function dragToPosition(model, targetCF, callback, waitFinish)
+    if not model or not model.Parent then
+        if callback then callback() end
+        return
     end
-
-    if not targetStore then return false, "没有任何商店出售: " .. getCN(blueprintName) end
-    local info = evilShopNpcMap[targetStore.Name]
-    if not info then return false, "未收录商店: " .. targetStore.Name end
-    
-    if not cachedCashierIds then cachedCashierIds = evilGetAllCashierIds() end
-    local npcId = cachedCashierIds[info.name]
-    if not npcId then
-        cachedCashierIds = evilGetAllCashierIds()
-        npcId = cachedCashierIds[info.name]
-        if not npcId then return false, "无法获取 "..info.name.." 的ID" end
+    local primary = model.PrimaryPart or model:FindFirstChild("WoodSection") or model:FindFirstChild("Main") or model:FindFirstChildWhichIsA("BasePart")
+    if not primary then
+        if callback then callback() end
+        return
     end
+    if not model.PrimaryPart then model.PrimaryPart = primary end
 
-    local npcChar = targetStore:FindFirstChild(info.path)
-    if not npcChar then return false, "找不到NPC: "..info.path end
-    local counter = targetStore:FindFirstChild("Counter")
-    if not counter then return false, "找不到Counter" end
-    local shopItems = targetStore:FindFirstChild("ShopItems")
-    local itemModel = shopItems:FindFirstChild(targetItemName)
+    lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
+    local dragID = getNextDragID()
+    local remote = RS.Interaction.ClientIsDragging
+    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+    pcall(function() remote:FireServer("Begin", model, dragID) end)
 
-    if not itemModel then return false, "商品不在货架: "..getCN(targetItemName) end
-
-    local primary = itemModel.PrimaryPart or itemModel:FindFirstChild("WoodSection") or itemModel:FindFirstChild("Main") or itemModel:FindFirstChildWhichIsA("BasePart")
-    if not primary then return false, "无法定位商品" end
-    if not itemModel.PrimaryPart then itemModel.PrimaryPart = primary end
-
-    evilLock(primary.CFrame + Vector3.new(0, 3, 0))
-    task.wait(0.3)
-    
-    evilForceBring(itemModel, counter.CFrame + Vector3.new(0, 0.6, 0))
-    
-    task.wait(0.15)
-    evilLock(counter.CFrame + Vector3.new(0, 3, 0))
-    task.wait(0.1)
-
-    local purchased = {}
-    local conn = Workspace.PlayerModels.ChildAdded:Connect(function(m)
-        if m:IsA("Model") and m:FindFirstChild("Owner") and m.Owner.Value == player then
-            table.insert(purchased, m)
+    local lastSet = 28 + 2 - 1
+    for i = 1, lastSet do
+        if not model.Parent or not model.PrimaryPart then
+            pcall(function() remote:FireServer("End", model, dragID) end)
+            if callback then callback() end
+            return
         end
-    end)
-
-    local NPCDialog = RS:WaitForChild("NPCDialog")
-    local args = {{ID=npcId, Character=npcChar, Name=info.name}, "ConfirmPurchase"}
-    
-    pcall(function() NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
-    task.wait(0.1)
-    pcall(function() NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
-    task.wait(0.1)
-    conn:Disconnect()
-    evilUnlock()
-
-    local myBox = nil
-    for i = #purchased, 1, -1 do
-        local m = purchased[i]
-        if m and m.Parent then
-            myBox = m
-            break
-        end
-    end
-
-    if myBox then
-        evilNotify("恶魔鸭", "购买成功，强力拉回中: "..getCN(blueprintName), 2)
-        task.wait(0.2)
-        evilForceBring(myBox, baseCF)
-        return true, "成功"
-    end
-    return false, "购买后未找到新盒子(钱不够或卡了)"
-end
-
-local function evilGetMaterialNames()
-    local stoneRUs = Workspace:FindFirstChild("Stores") and Workspace.Stores:FindFirstChild("StoneRUs")
-    local parts = stoneRUs and stoneRUs:FindFirstChild("Parts")
-    if not parts then return nil, "未找到 StoneRUs" end
-    local names = {}
-    for i = 1, 3 do
-        local raw = ""
-        local note = parts:FindFirstChild("Note"..i)
-        if note then
-            local gui = note:FindFirstChildOfClass("SurfaceGui")
-            if gui then
-                for _, obj in pairs(gui:GetDescendants()) do
-                    if obj:IsA("TextLabel") then raw = obj.Text; break end
-                end
+        local shouldSet = (i >= 28)
+        pcall(function()
+            remote:FireServer("Refresh", model, dragID)
+            if shouldSet then
+                RS.Interaction.ClientRequestOwnership:FireServer(primary)
+                model:SetPrimaryPartCFrame(targetCF)
             end
-        end
-        if raw ~= "" then
-            local words = {}
-            for w in raw:gmatch("[^/]+") do
-                local letters = {}
-                for l in w:gmatch("%S+") do
-                    table.insert(letters, morse[l] or "?")
-                end
-                table.insert(words, table.concat(letters))
-            end
-            local decoded = table.concat(words, " ")
-            names[i] = { decoded = decoded, item = evilEnItemMap[decoded] }
-        else
-            names[i] = { decoded = "", item = nil }
-        end
-    end
-    return names
-end
-
-TabExtra:Button({
-    Title = "一键购买恶魔鸭材料 (拉回脚下)",
-    Desc = "自动破解并买齐3个材料，摆放在你脚下",
-    Callback = function()
-        if evilAutoRunning then evilNotify("恶魔鸭", "正在购买中，请稍候...", 2); return end
-        evilAutoRunning = true
-        
-        task.spawn(function()
-            local names, err = evilGetMaterialNames()
-            if not names then
-                evilNotify("恶魔鸭", err or "材料识别失败", 3)
-                evilAutoRunning = false
-                return
-            end
-            
-            local matNames = {}
-            for i = 1, 3 do
-                if names[i] and names[i].item then
-                    matNames[i] = names[i].item
-                    evilNotify("恶魔鸭", "需购买材料"..i..": "..getCN(names[i].item), 3)
-                else
-                    evilNotify("恶魔鸭", "材料"..i.."识别失败", 4)
-                    evilAutoRunning = false
-                    return
-                end
-            end
-
-            local baseCF = player.Character and player.Character.HumanoidRootPart.CFrame
-            if not baseCF then evilAutoRunning = false; return end
-
-            for i = 1, 3 do
-                local success = false
-                for retry = 1, 3 do
-                    local ok, msg = evilBuyBlueprint(matNames[i], baseCF)
-                    if ok then
-                        success = true
-                        break
-                    else
-                        evilNotify("恶魔鸭", "购买第"..i.."个材料失败("..tostring(msg)..")，重试中...", 3)
-                        task.wait(1)
-                    end
-                end
-                if not success then
-                    evilNotify("恶魔鸭", "购买中止，请检查货架或网络", 4)
-                    evilAutoRunning = false
-                    return
-                end
-                task.wait(0.5)
-            end
-
-            evilNotify("恶魔鸭", "材料已买齐！请手动去祭坛合成。", 5)
-            evilAutoRunning = false
         end)
-    end,
-})
-
-TabExtra:Button({
-    Title = "重置商店 NPC ID 缓存",
-    Callback = function()
-        cachedCashierIds = nil
-        evilNotify("恶魔鸭", "NPC ID 缓存已重置", 2)
-    end,
-})
-TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "点击物品，将全图同类的物品整齐叠放在脚下", Color = Color3.fromRGB(0, 255, 255) })
-
-local sortStartHeight = 1
-local sortGap = 0
-local sortCountX = 3
-local sortCountZ = 3
-local currentSortTool = nil
-
-local function getSortItemType(model)
-    if model:FindFirstChild("BlueprintWoodClass") or model:FindFirstChild("ButtonRemote_SpawnButton") then return nil end
-    if model:FindFirstChild("PurchasedBoxItemName") then
-        local itemName = model.PurchasedBoxItemName.Value
-        if itemName == nil or itemName == "" or itemName == " " then return nil end
+        if i < lastSet then
+            if shouldSet then task.wait(0.01) else task.wait(0.01) end
+        end
     end
-    if model:FindFirstChild("BoxItemName") then
-        local itemName = model.BoxItemName.Value
-        if itemName == nil or itemName == "" or itemName == " " then return nil end
-    end
-    if model:FindFirstChild("TreeClass") then return "TreeClass:"..model.TreeClass.Value end
-    if model:FindFirstChild("Type") then return "Type:"..model.Type.Value end
-    if model.Name and model.Name ~= "" then return "Name:"..model.Name end
-    return nil
-end
 
-local function getModelSize(model)
-    local primary = model.PrimaryPart or model:FindFirstChild("Main") or model:FindFirstChild("WoodSection") or model:FindFirstChildWhichIsA("BasePart")
-    if primary then return primary.Size end
-    return Vector3.new(2, 2, 2)
-end
-
-local function isSortable(model)
-    if model:FindFirstChild("BlueprintWoodClass") or model:FindFirstChild("ButtonRemote_SpawnButton") then return false end
-    if model:FindFirstChild("PurchasedBoxItemName") then
-        local itemName = model.PurchasedBoxItemName.Value
-        if itemName == nil or itemName == "" or itemName == " " then return false end
-    end
-    if model:FindFirstChild("BoxItemName") then
-        local itemName = model.BoxItemName.Value
-        if itemName == nil or itemName == "" or itemName == " " then return false end
-    end
-    if model:FindFirstChild("TreeClass") or model:FindFirstChild("Owner") then return true end
-    return false
-end
-
-local function giveSortTool()
-    if currentSortTool and currentSortTool.Parent then currentSortTool:Destroy() end
-    currentSortTool = Instance.new("Tool")
-    currentSortTool.RequiresHandle = false
-    currentSortTool.Name = "点击整理物品"
-    currentSortTool.Activated:Connect(function()
-        local target = Mouse.Target
-        if not target then return end
-        local model = target:FindFirstAncestorOfClass("Model")
-        if not model then return end
-        
-        local owner = model:FindFirstChild("Owner")
-        if not owner or owner.Value ~= player then
-            evilNotify("整理工具", "只能整理自己的物品", 2)
-            return
+    task.wait(0.01)
+    local dragEnded = false
+    task.spawn(function()
+        for i = lastSet + 1, 60 do
+            if not model.Parent or not model.PrimaryPart then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+            if i < 60 then task.wait(0.01) end
         end
-        if not isSortable(model) then
-            evilNotify("整理工具", "该物品不可整理", 2)
-            return
-        end
-        
-        local itemName = model.Name
-        local items = {}
-        for _, v in pairs(Workspace.PlayerModels:GetChildren()) do
-            if v:IsA("Model") and v:FindFirstChild("Owner") and v.Owner.Value == player then
-                if v.Name == itemName and isSortable(v) then
-                    table.insert(items, v)
-                end
-            end
-        end
-        for _, log in pairs(Workspace.LogModels:GetChildren()) do
-            if log:FindFirstChild("Owner") and log.Owner.Value == player then
-                if log.Name == itemName and isSortable(log) then
-                    table.insert(items, log)
-                end
-            end
-        end
-        
-        if #items == 0 then
-            evilNotify("整理工具", "没有找到同类物品", 3)
-            return
-        end
-        
-        evilNotify("整理工具", "正在整理: "..itemName, 2)
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        
-        local feetPos = hrp.Position - Vector3.new(0, 3.5, 0)
-        local startPos = feetPos + Vector3.new(0, sortStartHeight, 0)
-        
-        local maxSize = Vector3.new(0,0,0)
-        for _, item in ipairs(items) do
-            local sz = getModelSize(item)
-            if sz.X > maxSize.X then maxSize = Vector3.new(sz.X, maxSize.Y, maxSize.Z) end
-            if sz.Y > maxSize.Y then maxSize = Vector3.new(maxSize.X, sz.Y, maxSize.Z) end
-            if sz.Z > maxSize.Z then maxSize = Vector3.new(maxSize.X, maxSize.Y, sz.Z) end
-        end
-        
-        local layerHeight = maxSize.Y * 0.8
-        local sortedCount = 0
-        local colInRow = 0
-        local rowInLayer = 0
-        local layerCount = 0
-        
-        table.sort(items, function(a,b)
-            local szA = getModelSize(a)
-            local szB = getModelSize(b)
-            return szA.X*szA.Z < szB.X*szB.Z
-        end)
-        
-        for i, item in ipairs(items) do
-            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then break end
-            local size = getModelSize(item)
-            local itemWidth = size.X + sortGap
-            local itemDepth = size.Z + sortGap
-            local x = colInRow * itemWidth
-            local z = rowInLayer * itemDepth
-            local y = layerCount * layerHeight
-            
-            local targetPos = CFrame.new(startPos.X + x, startPos.Y + y, startPos.Z + z)
-            
-            colInRow = colInRow + 1
-            if colInRow >= sortCountX then
-                colInRow = 0
-                rowInLayer = rowInLayer + 1
-                if rowInLayer >= sortCountZ then
-                    rowInLayer = 0
-                    layerCount = layerCount + 1
-                end
-            end
-            
-            local primary = item.PrimaryPart or item:FindFirstChild("Main") or item:FindFirstChild("WoodSection") or item:FindFirstChildWhichIsA("BasePart")
-            if primary then
-                if not item.PrimaryPart then item.PrimaryPart = primary end
-                evilLock(primary.CFrame + Vector3.new(0,2,0))
-                task.wait(0.1)
-                evilForceBring(item, targetPos)
-                sortedCount = sortedCount + 1
-            end
-        end
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            evilLock(hrp.CFrame)
-            task.wait(0.1)
-            evilUnlock()
-        end
-        evilNotify("整理工具", string.format("整理完成 %d/%d", sortedCount, #items), 3)
+        pcall(function() remote:FireServer("End", model, dragID) end)
+        dragEnded = true
     end)
-    currentSortTool.Parent = player.Backpack
-    evilNotify("整理工具", "已放入背包，点击物品开始整理", 3)
+
+    if waitFinish then
+        local w = 0
+        while w < 1.5 and not dragEnded do
+            task.wait(0.05)
+            w = w + 0.05
+        end
+        for retry = 1, 3 do
+            if not model.Parent or not model.PrimaryPart then break end
+            local d = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+            if d <= 3 then break end
+            pcall(function() remote:FireServer("Refresh", model, dragID) end)
+        end
+    end
+
+    task.wait(0.4)
+    local verify = 0
+    while model.Parent and model.PrimaryPart and verify < 2 do
+        local dist = (model.PrimaryPart.Position - targetCF.Position).Magnitude
+        if dist <= 3 then break end
+        verify = verify + 1
+        lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.15)
+        local retryID = getNextDragID()
+        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+        pcall(function() remote:FireServer("Begin", model, retryID) end)
+        for _ = 1, 10 do
+            if not model.Parent then break end
+            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
+            pcall(function() remote:FireServer("Refresh", model, retryID) end)
+            pcall(function() model:SetPrimaryPartCFrame(targetCF) end)
+            task.wait(0.05)
+        end
+        pcall(function() remote:FireServer("End", model, retryID) end)
+        task.wait(0.15)
+    end
+
+    unlockPlayer()
+    if callback then callback() end
 end
 
-TabExtra:Input({
-    Title = "每行/每列数量",
-    Value = "3",
-    Callback = function(v)
-        local n = tonumber(v)
-        if n and n > 0 then sortCountX = math.floor(n); sortCountZ = math.floor(n) end
-    end,
-})
-
-TabExtra:Input({
-    Title = "物品间隙",
-    Value = "0",
-    Callback = function(v)
-        local n = tonumber(v)
-        if n and n >= 0 then sortGap = n end
-    end,
-})
-
-TabExtra:Button({
-    Title = "获取建筑整理工具",
-    Callback = function()
-        giveSortTool()
-    end,
-})
-
-TabExtra:Button({
-    Title = "删除整理工具",
-    Callback = function()
-        if currentSortTool and currentSortTool.Parent then
-            currentSortTool:Destroy()
-            currentSortTool = nil
-            evilNotify("整理工具", "已删除", 2)
-        else
-            evilNotify("整理工具", "背包里没有工具", 2)
-        end
-    end,
-})
-local TabTree = Window:Tab({ Title = "自动砍树", Icon = "rbxassetid://10734945123" })
-
-local TREE_CN={
+local TREE_CN = {
     Generic="普通树",GenericDead="枯木",GenericFall="落叶树",GenericGold="金树",GenericPrime="原始树",
     GenericSpecial="特殊树",GoldSwampy="沼泽黄金",GreenSwampy="沼泽青",Cherry="樱花树",
     CaveCrawler="蓝木",Cavern="洞窟紫木",CavernCrawler="洞窟爬虫",GrottoCrawler="洞穴爬虫",
@@ -2057,8 +1690,7 @@ local TREE_CN={
     Ethereal="以太木",GreatOak="生命古橡",AppleWood="苹果木",Dry="干枯木",DryNeon="霓虹干枯木",
     Sand="沙滩木",Virtual="虚拟木",Waffer="华夫木",PotBush2="花盆灌木2",
 }
-
-local TREE_FALLBACK={
+local TREE_FALLBACK = {
     ["普通树"]="Generic",["沼泽黄金"]="GoldSwampy",["樱花"]="Cherry",["蓝木"]="CaveCrawler",
     ["冰木"]="Frost",["火山木"]="Volcano",["橡木"]="Oak",["巧克力木"]="Walnut",["白桦木"]="Birch",
     ["黄金木"]="SnowGlow",["雪地松"]="Pine",["僵尸木"]="GreenSwampy",["大巧克力树"]="Koa",
@@ -2074,7 +1706,6 @@ local TREE_FALLBACK={
     ["火焰木"]="Flame",["蓝色火焰木"]="BlueFlame",["彩色火焰木"]="RainbowFlame",["星星木"]="Star",
     ["雪木"]="Snow",["冷杉木"]="Fir",
 }
-
 local function readTreeClasses()
     local list={}
     local amounts=Workspace:FindFirstChild("Stores")
@@ -2083,9 +1714,7 @@ local function readTreeClasses()
     and Workspace.Stores.PlanterStore["Planter Spawner"]:FindFirstChild("Amounts")
     if amounts then
         for _,c in ipairs(amounts:GetChildren())do
-            if c:IsA("NumberValue")or c:IsA("IntValue")or c:IsA("StringValue")then
-                table.insert(list,tostring(c.Name))
-            end
+            if c:IsA("NumberValue")or c:IsA("IntValue")or c:IsA("StringValue")then table.insert(list,tostring(c.Name)) end
         end
     end
     if #list==0 then
@@ -2096,146 +1725,23 @@ local function readTreeClasses()
 end
 
 local treeMapping={}
-for _,cls in ipairs(readTreeClasses())do
-    treeMapping[TREE_CN[cls]or cls]=cls
-end
-if next(treeMapping)==nil then
-    for cn,cls in pairs(TREE_FALLBACK)do treeMapping[cn]=cls end
-end
+for _,cls in ipairs(readTreeClasses())do treeMapping[TREE_CN[cls]or cls]=cls end
+if next(treeMapping)==nil then for cn,cls in pairs(TREE_FALLBACK)do treeMapping[cn]=cls end end
 treeMapping["普通树"]=treeMapping["普通树"]or"Generic"
 treeMapping["幻影木"]=treeMapping["幻影木"]or"LoneCave"
 
 local TREE_PRIORITY={"火焰木","石头木","蓝色火焰木","彩色火焰木"}
-local function sortTreeNames(list)
-    local prio={}
-    for i,n in ipairs(TREE_PRIORITY)do prio[n]=i end
-    table.sort(list,function(a,b)
-        local pa,pb=prio[a],prio[b]
-        if pa and pb then return pa<pb end
-        if pa then return true end
-        if pb then return false end
-        return a<b
-    end)
-end
-
 local treeNames={}
 for name in pairs(treeMapping)do table.insert(treeNames,name)end
-sortTreeNames(treeNames)
-
-local function getNextDragID()
-    evilDragCounter = (evilDragCounter or 0) + 1
-    return evilDragCounter
-end
-
-local DRAG_TOTAL=60
-local DRAG_SET_START=28
-local DRAG_SET_COUNT=2
-local DRAG_SET_INTERVAL=0.01
-local DRAG_REFRESH_INTERVAL=0.01
-local DRAG_AFTER_WAIT=0.01
-
-local function dragToPosition(model,targetCF,callback,waitFinish)
-    if not model or not model.Parent then
-        if callback then callback()end
-        return
-    end
-    local primary=model.PrimaryPart or model:FindFirstChild("WoodSection")or model:FindFirstChild("Main")or model:FindFirstChildWhichIsA("BasePart")
-    if not primary then
-        if callback then callback()end
-        return
-    end
-    if not model.PrimaryPart then model.PrimaryPart=primary end
-    
-    evilLock(primary.CFrame+Vector3.new(0,3,0))
-    
-    local dragID=getNextDragID()
-    local remote=RS.Interaction.ClientIsDragging
-    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
-    pcall(function() remote:FireServer("Begin",model,dragID)end)
-    
-    local lastSet=DRAG_SET_START+DRAG_SET_COUNT-1
-    for i=1,lastSet do
-        if not model.Parent or not model.PrimaryPart then
-            pcall(function() remote:FireServer("End",model,dragID)end)
-            if callback then callback()end
-            return
-        end
-        local shouldSet=(i>=DRAG_SET_START)
-        pcall(function()
-            remote:FireServer("Refresh",model,dragID)
-            if shouldSet then
-                RS.Interaction.ClientRequestOwnership:FireServer(primary)
-                model:SetPrimaryPartCFrame(targetCF)
-            end
-        end)
-        if i<lastSet then
-            if shouldSet then task.wait(DRAG_SET_INTERVAL)
-            else task.wait(DRAG_REFRESH_INTERVAL) end
-        end
-    end
-    
-    task.wait(DRAG_AFTER_WAIT)
-    local dragEnded=false
-    task.spawn(function()
-        for i=lastSet+1,DRAG_TOTAL do
-            if not model.Parent or not model.PrimaryPart then break end
-            pcall(function() remote:FireServer("Refresh",model,dragID)end)
-            if i<DRAG_TOTAL then task.wait(DRAG_REFRESH_INTERVAL) end
-        end
-        pcall(function() remote:FireServer("End",model,dragID)end)
-        dragEnded=true
-    end)
-    
-    if waitFinish then
-        local w=0
-        while w<1.5 and not dragEnded do
-            task.wait(0.05)
-            w=w+0.05
-        end
-        for retry=1,3 do
-            if not model.Parent or not model.PrimaryPart then break end
-            local d=(model.PrimaryPart.Position-targetCF.Position).Magnitude
-            if d<=3 then break end
-            pcall(function() remote:FireServer("Refresh",model,dragID)end)
-        end
-    end
-    
-    task.wait(0.4)
-    local verify=0
-    while model.Parent and model.PrimaryPart and verify<2 do
-        local dist=(model.PrimaryPart.Position-targetCF.Position).Magnitude
-        if dist<=3 then break end
-        verify=verify+1
-        evilLock(primary.CFrame+Vector3.new(0,3,0))
-        task.wait(0.15)
-        local retryID=getNextDragID()
-        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
-        pcall(function() remote:FireServer("Begin",model,retryID)end)
-        for _=1,10 do
-            if not model.Parent then break end
-            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
-            pcall(function() remote:FireServer("Refresh",model,retryID)end)
-            pcall(function() model:SetPrimaryPartCFrame(targetCF)end)
-            task.wait(0.05)
-        end
-        pcall(function() remote:FireServer("End",model,retryID)end)
-        task.wait(0.15)
-    end
-    
-    evilUnlock()
-    if callback then callback()end
-end
-
-local function safeTeleport(cf)
-    local hrp=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame=CFrame.new(cf.Position)*CFrame.Angles(0,math.rad(hrp.Orientation.Y or 0),0)
-        task.wait(0.05)
-        if hrp.Position.Y<-100 then
-            hrp.CFrame=CFrame.new(cf.Position+Vector3.new(0,10,0))*CFrame.Angles(0,math.rad(hrp.Orientation.Y or 0),0)
-        end
-    end
-end
+table.sort(treeNames,function(a,b)
+    local prio={}
+    for i,n in ipairs(TREE_PRIORITY)do prio[n]=i end
+    local pa,pb=prio[a],prio[b]
+    if pa and pb then return pa<pb end
+    if pa then return true end
+    if pb then return false end
+    return a<b
+end)
 
 local function findUncutTree(treeClass)
     local playerPos=player.Character and player.Character.HumanoidRootPart.Position
@@ -2261,6 +1767,97 @@ local function findUncutTree(treeClass)
 end
 
 local axeConfigCache={}
+local function decompileSafe(script)
+    if not script then return nil end
+    if type(decompile)=="function" then
+        local ok,src=pcall(decompile,script)
+        if ok and type(src)=="string" and #src>0 then return src end
+    end
+    if type(getscriptbytecode)=="function" then
+        local ok,bc=pcall(getscriptbytecode,script)
+        if ok and type(bc)=="string" then return bc end
+    end
+    return nil
+end
+local function parseNum(src,key)
+    local v=src:match("[%w_%.]+%.?"..key.."%s*=%s*([%-]?[%d%.]+)")
+    if not v then v=src:match(key.."%s*=%s*([%-]?[%d%.]+)") end
+    return tonumber(v)
+end
+local function parseSpecialTrees(src)
+    local out={}
+    for treeName,treeBody in src:gmatch("SpecialTrees%.([%w_]+)%s*=%s*{(.-)}")do
+        local cfg={}
+        cfg.Damage=tonumber(treeBody:match("Damage%s*=%s*([%-]?[%d%.]+)"))
+        cfg.SwingCooldown=tonumber(treeBody:match("SwingCooldown%s*=%s*([%-]?[%d%.]+)"))
+        if cfg.Damage then out[treeName]=cfg end
+    end
+    return out
+end
+local function findAxeModule(weaponName)
+    local want=weaponName.."AxeClass"
+    local la=RS:FindFirstChild("LoadedAssets")
+    if la then
+        local m=la:FindFirstChild(want)
+        if m then return m end
+    end
+    if type(getloadedmodules)=="function" then
+        for _,m in ipairs(getloadedmodules())do
+            if m:IsA("ModuleScript") and (m.Name==want or m:GetFullName():sub(-#want)==want)then return m end
+        end
+    end
+    for _,root in ipairs({RS})do
+        for _,d in ipairs(root:GetChildren())do
+            if d:IsA("Folder")or d:IsA("Model")then
+                local m=d:FindFirstChild(want,true)
+                if m then return m end
+            end
+        end
+    end
+    return nil
+end
+local function requestAxeAsset(weaponName)
+    local tries={
+        {RS:FindFirstChild("RemoteEvents"),"AssetRequests","RequestAssetInfo"},
+        {RS:FindFirstChild("RemoteEvents"),"AssetRequests","RequestAxeClass"},
+        {RS, "LoadedAssets","RequestAssetInfo"},
+    }
+    for _,t in ipairs(tries)do
+        local root,folder,fn=t[1],t[2],t[3]
+        if root then
+            local f=root:FindFirstChild(folder)
+            local rf=f and f:FindFirstChild(fn)
+            if rf then
+                pcall(function() rf:InvokeServer(weaponName,"Tools","AxeClass",nil) end)
+                pcall(function() rf:FireServer(weaponName,"Tools","AxeClass") end)
+                return true
+            end
+        end
+    end
+    return false
+end
+local function readWeaponConfig(weaponName)
+    local module=findAxeModule(weaponName)
+    if not module then
+        requestAxeAsset(weaponName)
+        local deadline=os.clock()+3
+        repeat
+            module=findAxeModule(weaponName)
+            if module then break end
+            task.wait(0.15)
+        until os.clock()>=deadline
+    end
+    if not module then return nil end
+    local src=decompileSafe(module)
+    if not src then return nil end
+    local cfg={
+        Damage=parseNum(src,"Damage"), SwingCooldown=parseNum(src,"SwingCooldown"),
+        Range=parseNum(src,"Range"), SpecialTrees=parseSpecialTrees(src),
+    }
+    if not cfg.Damage or not cfg.SwingCooldown then return nil end
+    cfg.Range=cfg.Range or 10
+    return cfg
+end
 local function loadWeaponConfig(weaponName)
     if axeConfigCache[weaponName]~=nil then return axeConfigCache[weaponName] end
     if weaponName=="OlReliable"or weaponName=="OIReliable"then
@@ -2273,9 +1870,7 @@ local function loadWeaponConfig(weaponName)
                 local toolName=wsTool:FindFirstChild("ToolName")
                 if toolName then
                     local val=tostring(toolName.Value)
-                    if val=="OlReliable"or val=="OIReliable"then
-                        override=wsTool:FindFirstChild("AxeClassDamageOverride")
-                    end
+                    if val=="OlReliable"or val=="OIReliable"then override=wsTool:FindFirstChild("AxeClassDamageOverride") end
                 end
             end
         end
@@ -2319,98 +1914,14 @@ local function loadWeaponConfig(weaponName)
             end
         end
     end
-    
-    local module=nil
-    local want=weaponName.."AxeClass"
-    local la=RS:FindFirstChild("LoadedAssets")
-    if la then module=la:FindFirstChild(want) end
-    if not module and type(getloadedmodules)=="function" then
-        for _,m in ipairs(getloadedmodules())do
-            if m:IsA("ModuleScript") and (m.Name==want or m:GetFullName():sub(-#want)==want)then
-                module=m break
-            end
-        end
+    local config=readWeaponConfig(weaponName)
+    if not config then
+        axeConfigCache[weaponName]=nil
+        return nil
     end
-    if not module then
-        for _,d in ipairs(RS:GetChildren())do
-            if d:IsA("Folder")or d:IsA("Model")then
-                local m=d:FindFirstChild(want,true)
-                if m then module=m break end
-            end
-        end
-    end
-    if not module then
-        local tries={
-            {RS:FindFirstChild("RemoteEvents"),"AssetRequests","RequestAssetInfo"},
-            {RS:FindFirstChild("RemoteEvents"),"AssetRequests","RequestAxeClass"},
-            {RS, "LoadedAssets","RequestAssetInfo"},
-        }
-        for _,t in ipairs(tries)do
-            local root,folder,fn=t[1],t[2],t[3]
-            if root then
-                local f=root:FindFirstChild(folder)
-                local rf=f and f:FindFirstChild(fn)
-                if rf then
-                    pcall(function() rf:InvokeServer(weaponName,"Tools","AxeClass",nil) end)
-                    pcall(function() rf:FireServer(weaponName,"Tools","AxeClass") end)
-                    break
-                end
-            end
-        end
-        local deadline=os.clock()+3
-        repeat
-            if la then module=la:FindFirstChild(want) end
-            if not module and type(getloadedmodules)=="function" then
-                for _,m in ipairs(getloadedmodules())do
-                    if m:IsA("ModuleScript") and (m.Name==want or m:GetFullName():sub(-#want)==want)then
-                        module=m break
-                    end
-                end
-            end
-            if module then break end
-            task.wait(0.15)
-        until os.clock()>=deadline
-    end
-    
-    if not module then return nil end
-    
-    local src=nil
-    if type(decompile)=="function" then
-        local ok,s=pcall(decompile,module)
-        if ok and type(s)=="string" and #s>0 then src=s end
-    end
-    if not src and type(getscriptbytecode)=="function" then
-        local ok,bc=pcall(getscriptbytecode,module)
-        if ok and type(bc)=="string" then src=bc end
-    end
-    if not src then return nil end
-    
-    local cfg={Damage=nil,SwingCooldown=nil,Range=nil,SpecialTrees={}}
-    local v=src:match("[%w_%.]+%.?Damage%s*=%s*([%-]?[%d%.]+)")
-    if not v then v=src:match("Damage%s*=%s*([%-]?[%d%.]+)") end
-    cfg.Damage=tonumber(v)
-    
-    v=src:match("[%w_%.]+%.?SwingCooldown%s*=%s*([%-]?[%d%.]+)")
-    if not v then v=src:match("SwingCooldown%s*=%s*([%-]?[%d%.]+)") end
-    cfg.SwingCooldown=tonumber(v)
-    
-    v=src:match("[%w_%.]+%.?Range%s*=%s*([%-]?[%d%.]+)")
-    if not v then v=src:match("Range%s*=%s*([%-]?[%d%.]+)") end
-    cfg.Range=tonumber(v)
-    
-    for treeName,treeBody in src:gmatch("SpecialTrees%.([%w_]+)%s*=%s*{(.-)}")do
-        local sCfg={}
-        sCfg.Damage=tonumber(treeBody:match("Damage%s*=%s*([%-]?[%d%.]+)"))
-        sCfg.SwingCooldown=tonumber(treeBody:match("SwingCooldown%s*=%s*([%-]?[%d%.]+)"))
-        if sCfg.Damage then cfg.SpecialTrees[treeName]=sCfg end
-    end
-    
-    if not cfg.Damage or not cfg.SwingCooldown then return nil end
-    cfg.Range=cfg.Range or 10
-    axeConfigCache[weaponName]=cfg
-    return cfg
+    axeConfigCache[weaponName]=config
+    return config
 end
-
 local function selectBestWeapon(treeClass)
     local toolFolder=player:FindFirstChild("ToolFolder")
     if not toolFolder then return nil,nil,"未找到 ToolFolder"end
@@ -2424,7 +1935,6 @@ local function selectBestWeapon(treeClass)
     end
     return bestWeapon,bestConfig,bestDamage
 end
-
 local function getTreeTopCFrame(treeModel)
     local topY=-math.huge
     local topCF=nil
@@ -2440,29 +1950,22 @@ local function getTreeTopCFrame(treeModel)
     if not topCF then topCF=treeModel:GetPivot()+Vector3.new(0,2,0) end
     return topCF
 end
-
 local function bringTreeRemote(treeClass)
     local weaponName,weaponConfig,damage=selectBestWeapon(treeClass)
-    if not weaponName then evilNotify("自动砍树","自动选武器失败",3)return false end
-    local req={
-        Flame=200000, BlueFlame=200000, Celestial=200000, Void=200000,
-        Ice=200000, Magma=200000, RainbowFlame=200000, Radioactive=200000,
-        Shine=200000, LoneCave=200000, Spirit=200000,
-    }
+    if not weaponName then evilNotify("自动砍树","自动选武器失败",3) return false end
+    local req={Flame=200000,BlueFlame=200000,Celestial=200000,Void=200000,Ice=200000,Magma=200000,RainbowFlame=200000,Radioactive=200000,Shine=200000,LoneCave=200000,Spirit=200000}
     if req[treeClass]and damage<req[treeClass]then
         evilNotify("自动砍树",string.format("伤害不足！需要至少 %.0f",req[treeClass]),4)
         return false
     end
     local cooldown=(weaponConfig.SpecialTrees[treeClass]and weaponConfig.SpecialTrees[treeClass].SwingCooldown)or weaponConfig.SwingCooldown
     local woodSec,tree=findUncutTree(treeClass)
-    if not woodSec then evilNotify("自动砍树","附近没有可砍的树",3)return false end
+    if not woodSec then evilNotify("自动砍树","附近没有可砍的树",3) return false end
     local minX,maxX=-543,-27.8
     local minY,maxY=-196.7,-148.2
     local minZ,maxZ=-2961.7,-2668.7
     local treePos=woodSec.Position
-    if treePos.X>=minX and treePos.X<=maxX and
-    treePos.Y>=minY and treePos.Y<=maxY and
-    treePos.Z>=minZ and treePos.Z<=maxZ then
+    if treePos.X>=minX and treePos.X<=maxX and treePos.Y>=minY and treePos.Y<=maxY and treePos.Z>=minZ and treePos.Z<=maxZ then
         evilNotify("自动砍树","树在危险区域内，已删除",5)
         if tree and tree.Parent then tree:Destroy() end
         return false
@@ -2475,14 +1978,13 @@ local function bringTreeRemote(treeClass)
             tool=weaponObj and(weaponObj:IsA("Tool")and weaponObj or weaponObj.Value)or nil
         end
     end
-    if not tool then evilNotify("自动砍树","未找到工具: "..weaponName,3)return false end
+    if not tool then evilNotify("自动砍树","未找到工具: "..weaponName,3) return false end
     local cutEvent=tree:FindFirstChild("CutEvent")
-    if not cutEvent then evilNotify("自动砍树","无法获取CutEvent",3)return false end
+    if not cutEvent then evilNotify("自动砍树","无法获取CutEvent",3) return false end
     local remote=RS:WaitForChild("Interaction"):WaitForChild("RemoteProxy")
     local playerOriginalCF=player.Character and player.Character.HumanoidRootPart.CFrame
-    if not playerOriginalCF then evilNotify("自动砍树","无法获取玩家位置",3)return false end
+    if not playerOriginalCF then evilNotify("自动砍树","无法获取玩家位置",3) return false end
     
-    local platformPos=woodSec.CFrame+Vector3.new(8,2.5,0)
     local platformPos=woodSec.Position+Vector3.new(8,2.5,0)
     local tempPart=Instance.new("Part")
     tempPart.Name="TempMarker"
@@ -2496,7 +1998,7 @@ local function bringTreeRemote(treeClass)
     tempPart.Parent=Workspace
     task.wait(0.02)
     
-    evilLock(getTreeTopCFrame(tree))
+    lockPlayerAt(getTreeTopCFrame(tree))
     local fallenLog,existingLogs=nil,{}
     for _,log in pairs(Workspace.LogModels:GetChildren())do existingLogs[log]=true end
     local treeCenter=woodSec.Position
@@ -2523,40 +2025,38 @@ local function bringTreeRemote(treeClass)
     end
     stopCutting=true task.cancel(sendTask) task.cancel(timeoutTask)
     if timeoutReached or not fallenLog then
-        evilUnlock()
+        unlockPlayer()
         evilNotify("自动砍树","砍树超时或木头未掉落",3)
-        if tempPart and tempPart.Parent then tempPart:Destroy()end
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
         safeTeleport(playerOriginalCF)
         return false
     end
-    local primary=fallenLog.PrimaryPart or fallenLog:FindFirstChild("WoodSection")or fallenLog:FindFirstChild("Main")or fallenLog:FindFirstChildWhichIsA("BasePart")
+    local primary=fallenLog.PrimaryPart or fallenLog:FindFirstChild("WoodSection") or fallenLog:FindFirstChild("Main") or fallenLog:FindFirstChildWhichIsA("BasePart")
     if not primary then
-        evilUnlock()
+        unlockPlayer()
         evilNotify("自动砍树","无法定位木头",3)
-        if tempPart and tempPart.Parent then tempPart:Destroy()end
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
         safeTeleport(playerOriginalCF)
         return false
     end
     local logPos=primary.Position
-    if logPos.X>=minX and logPos.X<=maxX and
-    logPos.Y>=minY and logPos.Y<=maxY and
-    logPos.Z>=minZ and logPos.Z<=maxZ then
-        evilUnlock()
+    if logPos.X>=minX and logPos.X<=maxX and logPos.Y>=minY and logPos.Y<=maxY and logPos.Z>=minZ and logPos.Z<=maxZ then
+        unlockPlayer()
         evilNotify("自动砍树","木头掉落在危险区域，已删除",5)
         if fallenLog and fallenLog.Parent then fallenLog:Destroy() end
-        if tempPart and tempPart.Parent then tempPart:Destroy()end
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
         safeTeleport(playerOriginalCF)
         return false
     end
     if not fallenLog.PrimaryPart then fallenLog.PrimaryPart=primary end
-    evilLock(primary.CFrame+Vector3.new(0,3,0))
+    lockPlayerAt(primary.CFrame+Vector3.new(0,3,0))
     local done=false
-    dragToPosition(fallenLog, playerOriginalCF, function()
-        evilUnlock()
+    dragToPosition(fallenLog,playerOriginalCF,function()
+        unlockPlayer()
         safeTeleport(playerOriginalCF)
-        if tempPart and tempPart.Parent then tempPart:Destroy()end
+        if tempPart and tempPart.Parent then tempPart:Destroy() end
         done=true
-    end, 10, nil)
+    end,10,nil)
     while not done do task.wait(0.01) end
     return true
 end
@@ -2567,123 +2067,331 @@ local batchCount = 1
 local isTreeRunning = false
 
 TabTree:Dropdown({
-    Title = "选择树木种类",
-    Values = treeNames,
-    Value = selectedTreeName,
-    Callback = function(b)
-        selectedTreeName = b
-        selectedTreeClass = treeMapping[b]
-    end
+    Title = "选择树木种类", Values = treeNames, Value = selectedTreeName,
+    Callback = function(b) selectedTreeName = b; selectedTreeClass = treeMapping[b] end
 })
-
 TabTree:Input({
-    Title = "砍伐数量",
-    Value = "1",
-    Callback = function(v)
-        local num = tonumber(v)
-        if num and num > 0 then batchCount = math.floor(num) end
-    end
+    Title = "砍伐数量", Value = "1",
+    Callback = function(v) local num = tonumber(v); if num and num > 0 then batchCount = math.floor(num) end end
 })
-
 TabTree:Button({
     Title = "开始自动砍树",
     Callback = function()
-        if isTreeRunning then evilNotify("自动砍树", "任务正在运行中，请勿重复启动", 2); return end
-        if not selectedTreeClass then evilNotify("自动砍树", "请先选择一种树木", 3); return end
-        if batchCount < 1 then evilNotify("自动砍树", "请设置有效数量", 3); return end
-        
+        if isTreeRunning then evilNotify("自动砍树", "任务正在运行中", 2); return end
         isTreeRunning = true
         task.spawn(function()
-            local successCount = 0
-            local failCount = 0
+            local successCount, failCount = 0, 0
             for i = 1, batchCount do
-                if not isTreeRunning then
-                    evilNotify("自动砍树", "任务已被用户停止", 2)
-                    break
-                end
-                
-                if batchCount == 1 then evilNotify("自动砍树", "开始砍树...", 2)
-                else evilNotify("自动砍树", string.format("开始第 %d/%d 次...", i, batchCount), 2) end
-                
-                local ok = bringTreeRemote(selectedTreeClass)
-                if ok then
-                    successCount = successCount + 1
-                    if batchCount > 1 then evilNotify("自动砍树", string.format("第 %d 次成功 (成功:%d, 失败:%d)", i, successCount, failCount), 2) end
-                else
-                    failCount = failCount + 1
-                    evilNotify("自动砍树", string.format("第 %d 次失败，已停止", i), 3)
-                    break
-                end
+                if not isTreeRunning then break end
+                if bringTreeRemote(selectedTreeClass) then successCount = successCount + 1
+                else failCount = failCount + 1; break end
                 task.wait(0.01)
             end
-            
-            if batchCount > 1 then evilNotify("自动砍树", string.format("全部完成 — 成功 %d 次，失败 %d 次", successCount, failCount), 3)
-            elseif successCount == 1 then evilNotify("自动砍树", "砍树完成", 3) end
             isTreeRunning = false
+            evilNotify("自动砍树", string.format("结束 — 成功 %d 次，失败 %d 次", successCount, failCount), 3)
         end)
     end
 })
-
 TabTree:Button({
     Title = "停止砍树",
-    Callback = function()
-        if isTreeRunning then
-            isTreeRunning = false
-            evilNotify("自动砍树", "正在停止任务...", 2)
-        else
-            evilNotify("自动砍树", "当前没有运行中的任务", 2)
-        end
-    end
+    Callback = function() isTreeRunning = false end
 })
-TabExtra:Paragraph({ Title = "【 复制/卡斧头 】", Desc = "同时开启丢和捡，利用网络延迟卡出多把斧头", Color = Color3.fromRGB(255, 0, 0) })
 
-local autoDropAxe = false
-local autoPickAxe = false
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "原版4次重试+备用坐标开盒", Color = Color3.fromRGB(255, 105, 180) })
+local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
+local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
+local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
+local function getCN(enName) return (evilNameCN[enName] or "未知") .. " (" .. tostring(enName) .. ")" end
 
-local function droptool(cframe)
-    local tool=player.Character:FindFirstChildOfClass("Tool")
-    if tool then 
-        tool.Parent=Workspace
-        tool:SetPrimaryPartCFrame(cframe)
+local dragTargets = { [1] = CFrame.new(-223.74, 61.00, 940.42), [2] = CFrame.new(-232.924927, 61.3797455, 933.015076), [3] = CFrame.new(-241.81, 61, 925.51) }
+local openPositions = { [1] = CFrame.new(-228.78, 59.8, 943.14), [2] = CFrame.new(-230.03, 59.8, 935.47), [3] = CFrame.new(-239.71, 59.8, 927.46) }
+
+local evilStopFlag = false
+local evilAutoRunning = false
+local evilCombineCount = 1
+local cachedCashierIds = nil
+
+local function openItem(item)
+    if not item then return false end
+    local remoteButton=item:FindFirstChild("ButtonRemote_Main")
+    if remoteButton then
+        local ok=pcall(function() RS.Interaction.RemoteProxy:FireServer(remoteButton) end)
+        if ok then return true end
     end
+    if item:FindFirstChild("BoxItemName")or item:FindFirstChild("PurchasedBoxItemName")then
+        local ok=pcall(function() RS.Interaction.ClientInteracted:FireServer(item,'Open box') end)
+        if ok then return true end
+    end
+    return false
 end
 
-TabExtra:Toggle({
-    Title = "自动扔斧头 (开启后疯狂丢)",
-    Default = false,
-    Callback = function(state)
-        autoDropAxe = state
-        if state then
-            task.spawn(function()
-                while autoDropAxe do
-                    task.wait()
-                    if autoDropAxe == true then
-                        droptool(player.Character.HumanoidRootPart.CFrame)
-                    end
-                end
-            end)
+local function evilGetAllCashierIds()
+    local cashierIds, receivedCount, totalExpected = {}, 0, 0
+    for _ in pairs(evilShopNpcMap) do totalExpected = totalExpected + 1 end
+    local conn = RS.NPCDialog.PromptChat.OnClientEvent:Connect(function(...)
+        local pack = {...}
+        for _, v in ipairs(pack) do
+            if type(v) == "table" and v.Name and v.ID and not cashierIds[v.Name] then
+                cashierIds[v.Name] = v.ID; receivedCount = receivedCount + 1
+            end
         end
-    end
-})
+    end)
+    pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
+    local startTime = tick()
+    while receivedCount < totalExpected and tick() - startTime < 20 do task.wait(0.2) end
+    conn:Disconnect()
+    pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
+    return cashierIds
+end
 
-TabExtra:Toggle({
-    Title = "自动捡斧头 (疯狂捡回背包)",
-    Default = false,
-    Callback = function(state)
-        autoPickAxe = state
-        if state then
-            task.spawn(function()
-                while autoPickAxe == true do
-                    task.wait(0.1)
-                    for _, b in pairs(Workspace.PlayerModels:GetChildren()) do
-                        if b:FindFirstChild("Owner") and b.Owner.Value == player then
-                            if b:FindFirstChild("Type") and b.Type.Value == "Tool" then
-                                RS.Interaction.ClientInteracted:FireServer(b, 'Pick up tool')
-                            end
-                        end
-                    end
+local function evilBuyBlueprint(blueprintName)
+    local targetStore, targetItemName, lower = nil, nil, string.lower(tostring(blueprintName))
+    local stores = Workspace:FindFirstChild("Stores")
+    if not stores then return nil, "找不到Stores" end
+    for _, store in pairs(stores:GetChildren()) do
+        local shopItems = store:FindFirstChild("ShopItems")
+        if shopItems then
+            for _, item in pairs(shopItems:GetChildren()) do
+                local pbn = item:FindFirstChild("PurchasedBoxItemName")
+                if string.lower(tostring(item.Name)) == lower or (pbn and string.lower(tostring(pbn.Value)) == lower) then
+                    targetStore, targetItemName = store, item.Name; break
                 end
-            end)
+            end
+        end
+        if targetStore then break end
+    end
+    if not targetStore then return nil, "没有任何商店出售: " .. getCN(blueprintName) end
+    local info = evilShopNpcMap[targetStore.Name]
+    if not cachedCashierIds then cachedCashierIds = evilGetAllCashierIds() end
+    local npcId = cachedCashierIds[info.name]
+    if not npcId then
+        cachedCashierIds = evilGetAllCashierIds(); npcId = cachedCashierIds[info.name]
+        if not npcId then return nil, "无法获取 "..info.name.." 的ID" end
+    end
+    local npcChar, counter, itemModel = targetStore:FindFirstChild(info.path), targetStore:FindFirstChild("Counter"), targetStore:FindFirstChild("ShopItems"):FindFirstChild(targetItemName)
+    local primary = itemModel.PrimaryPart or itemModel:FindFirstChildWhichIsA("BasePart")
+    if not itemModel.PrimaryPart then itemModel.PrimaryPart = primary end
+    lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0)); task.wait(0.3)
+    dragToPosition(itemModel, counter.CFrame + Vector3.new(0, 0.6, 0), nil, true)
+    task.wait(0.09); lockPlayerAt(counter.CFrame + Vector3.new(0, 3, 0)); task.wait(0.1)
+    local purchased = {}
+    local conn = Workspace.PlayerModels.ChildAdded:Connect(function(m) if m:IsA("Model") and m:FindFirstChild("Owner") and m.Owner.Value == player then table.insert(purchased, m) end end)
+    local args = {{ID=npcId, Character=npcChar, Name=info.name}, "ConfirmPurchase"}
+    pcall(function() RS.NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
+    task.wait(0.1); pcall(function() RS.NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
+    task.wait(0.1); conn:Disconnect(); unlockPlayer()
+    for i = #purchased, 1, -1 do if purchased[i] and purchased[i].Parent then return purchased[i], "成功" end end
+    return nil, "购买后未找到新盒子"
+end
+
+local function evilGetMaterialNames()
+    local parts = Workspace:FindFirstChild("Stores") and Workspace.Stores:FindFirstChild("StoneRUs") and Workspace.Stores.StoneRUs:FindFirstChild("Parts")
+    if not parts then return nil, "未找到 StoneRUs" end
+    local names = {}
+    for i = 1, 3 do
+        local raw, note = "", parts:FindFirstChild("Note"..i)
+        if note then
+            local gui = note:FindFirstChildOfClass("SurfaceGui")
+            if gui then for _, obj in pairs(gui:GetDescendants()) do if obj:IsA("TextLabel") then raw = obj.Text; break end end end
+        end
+        if raw ~= "" then
+            local words = {}
+            for w in raw:gmatch("[^/]+") do
+                local letters = {}
+                for l in w:gmatch("%S+") do table.insert(letters, morse[l] or "?") end
+                table.insert(words, table.concat(letters))
+            end
+            local decoded = table.concat(words, " ")
+            names[i] = { decoded = decoded, item = evilEnItemMap[decoded] }
+        else names[i] = { decoded = "", item = nil } end
+    end
+    return names
+end
+
+local function evilFindMyItem(itemName)
+    for _, m in Workspace.PlayerModels:GetChildren() do
+        if m:IsA("Model") and m:FindFirstChild("Owner") and m.Owner.Value == player then
+            local inm = m:FindFirstChild("ItemName"); if inm and inm.Value == itemName then return m end
+            local pbn = m:FindFirstChild("PurchasedBoxItemName"); if pbn and pbn.Value == itemName then return m end
         end
     end
-})
+    return nil
+end
+
+local function waitEvilDuckAppear(timeout, preSet)
+    local deadline=os.clock()+(timeout or 5)
+    while os.clock()<deadline do
+        if evilStopFlag then return false end
+        for _,m in pairs(Workspace.PlayerModels:GetChildren())do if m:IsA("Model")and m.Name=="DuckEvil"and(not preSet or not preSet[m])then return true end end
+        task.wait(0.2)
+    end
+    return false
+end
+
+local function waitEvilDuckLightGone(timeout)
+    local deadline=os.clock()+(timeout or 35)
+    while os.clock()<deadline do
+        if evilStopFlag then return false end
+        local hasLight=false
+        for _,m in pairs(Workspace.PlayerModels:GetChildren())do
+            if m:IsA("Model")and m.Name=="DuckEvil"then local main=m:FindFirstChild("Main"); if main and main:FindFirstChild("PointLight")then hasLight=true break end end
+        end
+        if not hasLight then return true end
+        task.wait(0.2)
+    end
+    return false
+end
+
+local function startEvilDuckCombine(basePos, materialNames)
+    local items={}
+    for i=1,3 do
+        local name = materialNames[i]
+        if not name then return false end
+        local item=evilFindMyItem(name)
+        if not item then
+            local box = evilBuyBlueprint(name)
+            if not box then return false end
+            item = box; task.wait(0.6)
+        end
+        items[i]=item
+    end
+    local originalPos=basePos or(player.Character and player.Character.HumanoidRootPart.CFrame)
+    if not originalPos then return false end
+    local preDucks={}
+    for _,m in pairs(Workspace.PlayerModels:GetChildren())do if m:IsA("Model")and m.Name=="DuckEvil"then preDucks[m]=true end end
+    local ok=false
+    for attempt=1,4 do
+        if evilStopFlag then return false end
+        for i=1,3 do
+            local item=items[i]
+            if not item or not item.Parent then
+                item=evilFindMyItem(materialNames[i])
+                if not item then return false end
+                items[i]=item
+            end
+            local primary=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChildWhichIsA("BasePart")
+            if not item.PrimaryPart then item.PrimaryPart=primary end
+            lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
+            pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+            dragToPosition(item,dragTargets[i],nil,true)
+            unlockPlayer()
+        end
+        for i=1,3 do
+            local item=items[i]
+            if not item or not item.Parent then item=evilFindMyItem(materialNames[i]); items[i]=item end
+            local dp2=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChildWhichIsA("BasePart")
+            if dp2 then
+                if not item.PrimaryPart then item.PrimaryPart=dp2 end
+                lockPlayerAt(dp2.CFrame+Vector3.new(2,0,0))
+                task.wait(0.5); openItem(item); task.wait(0.4); unlockPlayer()
+            else
+                safeTeleport(openPositions[i])
+                lockPlayerAt(openPositions[i]+Vector3.new(2,0,0))
+                task.wait(0.5); openItem(item); task.wait(0.4); unlockPlayer()
+            end
+        end
+        safeTeleport(originalPos); task.wait(0.1)
+        if waitEvilDuckAppear(5, preDucks)then
+            ok=waitEvilDuckLightGone(35)
+            if ok then
+                local newDuck=nil
+                for _,m in pairs(Workspace.PlayerModels:GetChildren())do if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end end
+                if newDuck then
+                    local dp=newDuck.PrimaryPart or newDuck:FindFirstChild("Main")or newDuck:FindFirstChildWhichIsA("BasePart")
+                    if dp then
+                        if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
+                        safeTeleport(dp.CFrame+Vector3.new(0,0.5,0))
+                        dragToPosition(newDuck,originalPos,nil,true)
+                    end
+                end
+                break
+            end
+        end
+    end
+    return ok
+end
+
+local function evilMain(count)
+    if evilAutoRunning then return end
+    evilAutoRunning, evilStopFlag = true, false
+    local names, err = evilGetMaterialNames()
+    if not names then evilNotify("恶魔鸭", err or "识别失败", 3); evilAutoRunning = false; return end
+    local matNames = {}
+    for i = 1, 3 do
+        if names[i] and names[i].item then matNames[i] = names[i].item
+        else evilNotify("恶魔鸭", "材料"..i.."识别失败", 4); evilAutoRunning = false; return end
+    end
+    local baseCF = player.Character and player.Character.HumanoidRootPart.CFrame
+    for c = 1, count do
+        if evilStopFlag then break end
+        if startEvilDuckCombine(baseCF, matNames) then evilNotify("恶魔鸭", "第"..c.."次成功", 2)
+        else evilNotify("恶魔鸭", "第"..c.."次失败", 3) end
+        if baseCF then safeTeleport(baseCF) end
+        task.wait(1)
+    end
+    evilAutoRunning = false
+end
+
+TabExtra:Input({ Title = "恶魔鸭合成次数", Value = "1", Callback = function(v) local n = tonumber(v); if n and n > 0 then evilCombineCount = math.floor(n) end end })
+TabExtra:Button({ Title = "开始全自动合成恶魔鸭", Callback = function() task.spawn(function() evilMain(evilCombineCount) end) end })
+TabExtra:Button({ Title = "停止自动合成恶魔鸭", Callback = function() evilStopFlag = true end })
+
+TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "自动整理同类物品，叠放整齐", Color = Color3.fromRGB(0, 255, 255) })
+local sortStartHeight, sortGap, sortCountX, sortCountZ = 1, 0, 3, 3
+local currentSortTool = nil
+local function getModelSize(model)
+    local primary = model.PrimaryPart or model:FindFirstChild("Main") or model:FindFirstChild("WoodSection") or model:FindFirstChildWhichIsA("BasePart")
+    if primary then return primary.Size end
+    return Vector3.new(2, 2, 2)
+end
+local function isSortable(model)
+    if model:FindFirstChild("BlueprintWoodClass") or model:FindFirstChild("ButtonRemote_SpawnButton") then return false end
+    if model:FindFirstChild("TreeClass") or model:FindFirstChild("Owner") then return true end
+    return false
+end
+local function giveSortTool()
+    if currentSortTool and currentSortTool.Parent then currentSortTool:Destroy() end
+    currentSortTool = Instance.new("Tool"); currentSortTool.RequiresHandle = false; currentSortTool.Name = "点击整理物品"
+    currentSortTool.Activated:Connect(function()
+        local model = Mouse.Target and Mouse.Target:FindFirstAncestorOfClass("Model")
+        if not model or not model:FindFirstChild("Owner") or model.Owner.Value ~= player or not isSortable(model) then return end
+        local itemName, items = model.Name, {}
+        for _, v in pairs(Workspace.PlayerModels:GetChildren()) do if v:IsA("Model") and v.Name == itemName and v:FindFirstChild("Owner") and v.Owner.Value == player and isSortable(v) then table.insert(items, v) end end
+        for _, log in pairs(Workspace.LogModels:GetChildren()) do if log.Name == itemName and log:FindFirstChild("Owner") and log.Owner.Value == player then table.insert(items, log) end end
+        if #items == 0 then return end
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        local startPos, maxSize = hrp.Position - Vector3.new(0, 3.5, 0) + Vector3.new(0, sortStartHeight, 0), Vector3.new(0,0,0)
+        for _, item in ipairs(items) do
+            local sz = getModelSize(item)
+            if sz.X > maxSize.X then maxSize = Vector3.new(sz.X, maxSize.Y, maxSize.Z) end
+            if sz.Y > maxSize.Y then maxSize = Vector3.new(maxSize.X, sz.Y, maxSize.Z) end
+            if sz.Z > maxSize.Z then maxSize = Vector3.new(maxSize.X, maxSize.Y, sz.Z) end
+        end
+        local layerHeight, colInRow, rowInLayer, layerCount = maxSize.Y * 0.8, 0, 0, 0
+        table.sort(items, function(a,b) local szA, szB = getModelSize(a), getModelSize(b); return szA.X*szA.Z < szB.X*szB.Z end)
+        for i, item in ipairs(items) do
+            local size = getModelSize(item)
+            local x, z, y = colInRow * (size.X + sortGap), rowInLayer * (size.Z + sortGap), layerCount * layerHeight
+            local targetPos = CFrame.new(startPos.X + x, startPos.Y + y, startPos.Z + z)
+            colInRow = colInRow + 1
+            if colInRow >= sortCountX then colInRow = 0; rowInLayer = rowInLayer + 1; if rowInLayer >= sortCountZ then rowInLayer = 0; layerCount = layerCount + 1 end end
+            local primary = item.PrimaryPart or item:FindFirstChild("Main") or item:FindFirstChild("WoodSection") or item:FindFirstChildWhichIsA("BasePart")
+            if primary then
+                if not item.PrimaryPart then item.PrimaryPart = primary end
+                dragToPosition(item, targetPos, nil, true)
+            end
+        end
+    end)
+    currentSortTool.Parent = player.Backpack
+end
+TabExtra:Button({ Title = "获取建筑整理工具", Callback = function() giveSortTool() end })
+
+TabExtra:Paragraph({ Title = "【 复制/卡斧头 】", Desc = "同时开启，疯狂丢捡", Color = Color3.fromRGB(255, 0, 0) })
+local autoDropAxe, autoPickAxe = false, false
+local function droptool(cframe)
+    local tool=player.Character:FindFirstChildOfClass("Tool")
+    if tool then tool.Parent=Workspace; tool:SetPrimaryPartCFrame(cframe) end
+end
+TabExtra:Toggle({ Title = "自动扔斧头", Default = false, Callback = function(state) autoDropAxe = state; if state then task.spawn(function() while autoDropAxe do task.wait(); if autoDropAxe then droptool(player.Character.HumanoidRootPart.CFrame) end end end) end end })
+TabExtra:Toggle({ Title = "自动捡斧头", Default = false, Callback = function(state) autoPickAxe = state; if state then task.spawn(function() while autoPickAxe do task.wait(0.1); for _, b in pairs(Workspace.PlayerModels:GetChildren()) do if b:FindFirstChild("Owner") and b.Owner.Value == player then if b:FindFirstChild("Type") and b.Type.Value == "Tool" then RS.Interaction.ClientInteracted:FireServer(b, 'Pick up tool') end end end end end) end end })
