@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.5",
+    Title = "封存木材 V1.0",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "1.5格悬停防摔，反向摆放，绝对防死锁", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "贴地死死按住，完美触发祭坛，反向摆放", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2263,7 +2263,7 @@ local function evilFindMyItem(itemName)
 end
 
 local function waitEvilDuckAppear(timeout, preSet)
-    local deadline=os.clock()+(timeout or 5)
+    local deadline=os.clock()+(timeout or 10)
     while os.clock()<deadline do
         if evilStopFlag then return false end
         for _,m in pairs(Workspace.PlayerModels:GetChildren())do 
@@ -2324,7 +2324,7 @@ local function startEvilDuckCombine(basePos, materialNames)
             if i == 1 then targetIdx = 3
             elseif i == 3 then targetIdx = 1 end
             
-            local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 1.5, 0)
+            local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 0.2, 0)
             local primary=item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
             
             if primary then
@@ -2350,7 +2350,7 @@ local function startEvilDuckCombine(basePos, materialNames)
                 if i == 1 then targetIdx = 3
                 elseif i == 3 then targetIdx = 1 end
                 
-                local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 1.5, 0)
+                local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 0.2, 0)
                 
                 local dp2=item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
                 if dp2 then
@@ -2358,34 +2358,42 @@ local function startEvilDuckCombine(basePos, materialNames)
                     task.wait(0.4)
                     openItem(item)
                     task.wait(0.1)
-                    
-                    for j = 1, 25 do
-                        if evilStopFlag then break end
-                        DragModel(item, safeTargetCF)
-                        task.wait(0.02)
-                    end
-                    task.wait(0.2)
                 else
                     safeTeleport(openPositions[targetIdx])
                     lockPlayerAt(openPositions[targetIdx] + Vector3.new(0, 2, 2))
                     task.wait(0.4)
                     openItem(item)
                     task.wait(0.1)
-                    
-                    for j = 1, 25 do
-                        if evilStopFlag then break end
-                        DragModel(item, safeTargetCF)
-                        task.wait(0.02)
-                    end
-                    task.wait(0.2)
                 end
                 unlockPlayer()
             end
         end
         
-        safeTeleport(originalPos); task.wait(0.5)
+        safeTeleport(originalPos)
         
-        if waitEvilDuckAppear(5, preDucks)then
+        local forceHold = true
+        local holdTask = task.spawn(function()
+            while forceHold and not evilStopFlag do
+                for i=1,3 do
+                    local item = items[i]
+                    if item and item.Parent then
+                        local targetIdx = i
+                        if i == 1 then targetIdx = 3
+                        elseif i == 3 then targetIdx = 1 end
+                        local safeCF = dragTargets[targetIdx] + Vector3.new(0, 0.2, 0)
+                        DragModel(item, safeCF)
+                    end
+                end
+                task.wait(0.05)
+            end
+        end)
+        
+        local duckAppeared = waitEvilDuckAppear(10, preDucks)
+        
+        forceHold = false
+        task.cancel(holdTask)
+        
+        if duckAppeared then
             ok=waitEvilDuckLightGone(35)
             if ok then
                 local newDuck=nil
