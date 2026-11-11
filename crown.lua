@@ -55,7 +55,7 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local Window = WindUI:CreateWindow({
     Title = "封存木材",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.3",
+    Author = "封存NBV0.01",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -2097,41 +2097,38 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "纯源码2原版购买+拖拽逻辑", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "全屏报错提示，手机端福音", Color = Color3.fromRGB(255, 105, 180) })
 
 local REPLICATED_STORAGE = game:GetService("ReplicatedStorage")
 local StoresFolder = workspace:WaitForChild("Stores")
+local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
+local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
+
+local function getCN(enName) return (evilNameCN[enName] or "未知") .. " (" .. tostring(enName) .. ")" end
+local function evilNotify(t, c, d)
+    WindUI:Notify({ Title = tostring(t or ""), Content = tostring(c or ""), Duration = d or 3 })
+end
 
 local storeInfoMapping = {
-    AutumnCatalog={name="William", path="William"},
-    BlackMarket={name="sneakypotato7", path="sneakypotato7"},
-    CarStore={name="Jenny", path="Jenny"},
-    MusicStore={name="NazuReborn", path="NazuReborn"},
-    FineArt={name="Timothy", path="Timothy"},
-    FineFinds={name="Manachron", path="Manachron"},
-    FurnitureStore={name="Corey", path="Corey"},
-    HLStand={name="???", path="???"},
-    Igloo={name="Cold Guy", path="Cold Guy"},
-    LogicStore={name="Lincoln", path="Lincoln"},
-    MountainSide={name="Mr.Bacon", path="Mr.Bacon"},
-    PlanterStore={name="OGxOutcast", path="OGxOutcast"},
-    PlantomicsChoice={name="Null", path="Null"},
-    SallysSeasonal={name="Sally", path="Sally"},
-    SaplingCart={name="Billy", path="Billy"},
-    SeaSide={name="Guy", path="Guy"},
-    StoneRUs={name="Bloxyway", path="Bloxyway"},
-    TravelingTrader={name="Trader", path="Trader"},
-    VIPSHOP={name="Todd", path="Todd"},
-    WoodRUs={name="Thom", path="Thom"},
+    AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"},
+    CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"},
+    FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"},
+    FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"},
+    Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"},
+    MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"},
+    PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"},
+    SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"},
+    StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"},
+    VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"},
 }
 
 local npcMapping = {}
 for storeName,info in pairs(storeInfoMapping)do
-    npcMapping[storeName]={name=info.name, id=nil, path=info.path, statusLabel=nil}
+    npcMapping[storeName]={name=info.name, id=nil, path=info.path}
 end
-_G.qSnowNpcMapping = npcMapping
 
 local function GetAllCashierIds()
+    evilNotify("🔄 流程提示", "正在获取全图商人ID...", 3)
     local cashierIds={}
     local receivedCount=0
     local totalExpected=0
@@ -2154,14 +2151,11 @@ local function GetAllCashierIds()
     pcall(function() REPLICATED_STORAGE.NPCDialog.SetChattingValue:InvokeServer(1) end)
     local timeout=20
     local startTime=tick()
-    while receivedCount<totalExpected and tick()-startTime<timeout do
-        task.wait(0.2)
-    end
+    while receivedCount<totalExpected and tick()-startTime<timeout do task.wait(0.2) end
     connection:Disconnect()
     pcall(function() REPLICATED_STORAGE.NPCDialog.SetChattingValue:InvokeServer(0) end)
     return cashierIds
 end
-_G.qSnowGetCashierIds = GetAllCashierIds
 
 local allStores = {}
 for _,store in pairs(StoresFolder:GetChildren())do
@@ -2169,75 +2163,49 @@ for _,store in pairs(StoresFolder:GetChildren())do
     if shopItems and#shopItems:GetChildren()>0 then
         local storeName=store.Name
         local npcInfo=npcMapping[storeName]
-        if not npcInfo then
-        else
-            local itemsList={}
-            for _,item in pairs(shopItems:GetChildren())do
-                table.insert(itemsList,{model=item,display=item.Name})
-            end
-            table.insert(allStores,{
-                name=storeName,
-                object=store,
-                shopItems=shopItems,
-                npc=npcInfo,
-                itemsList=itemsList,
-                isMusicStore=(storeName=="MusicStore")
-            })
+        if npcInfo then
+            table.insert(allStores,{name=storeName, object=store, shopItems=shopItems, npc=npcInfo})
         end
     end
 end
 
-local function updateNpcStatusLabel(npc,text)
-    if npc and npc.statusLabel then
-        pcall(function() npc.statusLabel.Text=text end)
-    end
-end
-
-_G.qSnowBuyBlueprintBox=function(blueprintName)
+local function evilBuyBlueprintBox(blueprintName)
     local targetStore,targetItemName=nil,nil
     local lower=string.lower(tostring(blueprintName))
     for _,s in ipairs(allStores)do
         if s.shopItems then
             for _,item in pairs(s.shopItems:GetChildren())do
-                if string.lower(tostring(item.Name))==lower then
-                    targetStore,targetItemName=s,item.Name
-                    break
-                end
+                if string.lower(tostring(item.Name))==lower then targetStore,targetItemName=s,item.Name break end
             end
         end
         if targetStore then break end
     end
-    if not targetStore then
-        return nil,"没有任何商店出售蓝图: "..tostring(blueprintName)
-    end
+    if not targetStore then return nil,"没有任何商店出售: "..tostring(blueprintName) end
+    
     if not targetStore.npc or not targetStore.npc.id then
         local newIds=GetAllCashierIds()
         for storeName,info in pairs(storeInfoMapping)do
             local npc=npcMapping[storeName]
-            if npc and npc.id==nil and newIds[info.name]then
-                npc.id=newIds[info.name]
-                if npc.statusLabel then
-                    updateNpcStatusLabel(npc,"NPC ID: "..tostring(npc.id).." ✅")
-                end
-            end
+            if npc and npc.id==nil and newIds[info.name]then npc.id=newIds[info.name] end
         end
-        if not targetStore.npc.id then
-            return nil,"商店 "..targetStore.name.." 的 NPC ID 未获取"
-        end
+        if not targetStore.npc.id then return nil,"商店 "..targetStore.name.." 的 NPC ID 未获取" end
     end
+    
     local store=targetStore.object
     local npcInfo=targetStore.npc
     local npcChar=store:FindFirstChild(npcInfo.path)
-    if not npcChar then return nil,"找不到NPC: "..tostring(npcInfo.path)end
+    if not npcChar then return nil,"找不到NPC实体: "..tostring(npcInfo.path)end
     local counter=store:FindFirstChild("Counter")
-    if not counter or not counter:IsA("BasePart")then return nil,"商店无 Counter"end
+    if not counter or not counter:IsA("BasePart")then return nil,"商店无 Counter 柜台"end
     local shopItems=store:FindFirstChild("ShopItems")
-    if not shopItems then return nil,"无 ShopItems"end
     local itemModel=shopItems:FindFirstChild(targetItemName)
-    if not itemModel then return nil,"商品不在货架: "..targetItemName end
+    if not itemModel then return nil,"商品不在货架(可能被买空了): "..targetItemName end
+    
     local primary=itemModel.PrimaryPart or itemModel:FindFirstChild("WoodSection") or itemModel:FindFirstChild("Main") or itemModel:FindFirstChildWhichIsA("BasePart")
     if not primary then return nil,"无法定位商品模型"end
     if not itemModel.PrimaryPart then itemModel.PrimaryPart=primary end
+    
+    evilNotify("🚚 拖拽购买", "正在拉取 "..getCN(blueprintName), 2)
     lockPlayerAt(primary.CFrame+Vector3.new(0,3,0))
     task.wait(0.3)
     for j = 1, 40 do
@@ -2247,11 +2215,11 @@ _G.qSnowBuyBlueprintBox=function(blueprintName)
     task.wait(0.09)
     lockPlayerAt(counter.CFrame+Vector3.new(0,3,0))
     task.wait(0.1)
+    
+    evilNotify("💰 确认购买", "正在付款: "..getCN(blueprintName), 2)
     local purchased={}
     local conn=workspace.PlayerModels.ChildAdded:Connect(function(m)
-        if m:IsA("Model")and m:FindFirstChild("Owner")and m.Owner.Value==player then
-            table.insert(purchased,m)
-        end
+        if m:IsA("Model")and m:FindFirstChild("Owner")and m.Owner.Value==player then table.insert(purchased,m) end
     end)
     local NPCDialog=REPLICATED_STORAGE:WaitForChild("NPCDialog")
     local args={{ID=npcInfo.id,Character=npcChar,Name=npcInfo.name},"ConfirmPurchase"}
@@ -2261,38 +2229,43 @@ _G.qSnowBuyBlueprintBox=function(blueprintName)
     task.wait(0.1)
     conn:Disconnect()
     unlockPlayer()
+    
     for i=#purchased,1,-1 do
         local m=purchased[i]
-        if m and m.Parent then
-            return m,targetStore.name
-        end
+        if m and m.Parent then return m,targetStore.name end
     end
-    return nil,"购买后未找到新盒子"
+    return nil,"购买后未找到新盒子 (可能是钱不够或延迟)"
 end
 
-local evilStopFlag = false
-local evilAutoRunning = false
-local evilCombineCount = 1
-local dragTargets = {
-    [1]=CFrame.new(-223.74,61.00,940.42),
-    [2]=CFrame.new(-232.924927,61.3797455,933.015076),
-    [3]=CFrame.new(-241.81,61,925.51)
-}
-local openPositions = {
-    [1]=CFrame.new(-228.78,59.8,943.14),
-    [2]=CFrame.new(-230.03,59.8,935.47),
-    [3]=CFrame.new(-239.71,59.8,927.46)
-}
+local function evilGetMaterialNames()
+    local parts = Workspace:FindFirstChild("Stores") and Workspace.Stores:FindFirstChild("StoneRUs") and Workspace.Stores.StoneRUs:FindFirstChild("Parts")
+    if not parts then return nil, "未找到 StoneRUs 商店或 Parts" end
+    local names = {}
+    for i = 1, 3 do
+        local raw, note = "", parts:FindFirstChild("Note"..i)
+        if note then
+            local gui = note:FindFirstChildOfClass("SurfaceGui")
+            if gui then for _, obj in pairs(gui:GetDescendants()) do if obj:IsA("TextLabel") then raw = obj.Text; break end end end
+        end
+        if raw ~= "" then
+            local words = {}
+            for w in raw:gmatch("[^/]+") do
+                local letters = {}
+                for l in w:gmatch("%S+") do table.insert(letters, morse[l] or "?") end
+                table.insert(words, table.concat(letters))
+            end
+            local decoded = table.concat(words, " ")
+            names[i] = { decoded = decoded, item = evilEnItemMap[decoded] }
+        else names[i] = { decoded = "", item = nil } end
+    end
+    return names
+end
 
 local function getItemKey(model)
     if not model then return nil end
-    if model:FindFirstChild("PurchasedBoxItemName")then
-        return"PurchasedBoxItemName:"..model.PurchasedBoxItemName.Value
-    elseif model:FindFirstChild("ItemName")then
-        return"ItemName:"..model.ItemName.Value
-    elseif model:FindFirstChild("DraggableItem")then
-        return"DraggableItem:"..tostring(model.DraggableItem.Parent)
-    end
+    if model:FindFirstChild("PurchasedBoxItemName")then return"PurchasedBoxItemName:"..model.PurchasedBoxItemName.Value
+    elseif model:FindFirstChild("ItemName")then return"ItemName:"..model.ItemName.Value
+    elseif model:FindFirstChild("DraggableItem")then return"DraggableItem:"..tostring(model.DraggableItem.Parent) end
     return nil
 end
 
@@ -2302,29 +2275,19 @@ local function findItemByKey(key,allowFuzzy)
     if not prefix or not value then return nil end
     for _,model in pairs(workspace.PlayerModels:GetChildren())do
         if model:FindFirstChild("Owner")and model.Owner.Value==player then
-            if prefix=="PurchasedBoxItemName"and model:FindFirstChild("PurchasedBoxItemName")and model.PurchasedBoxItemName.Value==value then
-                return model
-            elseif prefix=="ItemName"and model:FindFirstChild("ItemName")and model.ItemName.Value==value then
-                return model
-            elseif prefix=="DraggableItem"and model:FindFirstChild("DraggableItem")and tostring(model.DraggableItem.Parent)==value then
-                return model
-            end
+            if prefix=="PurchasedBoxItemName"and model:FindFirstChild("PurchasedBoxItemName")and model.PurchasedBoxItemName.Value==value then return model
+            elseif prefix=="ItemName"and model:FindFirstChild("ItemName")and model.ItemName.Value==value then return model
+            elseif prefix=="DraggableItem"and model:FindFirstChild("DraggableItem")and tostring(model.DraggableItem.Parent)==value then return model end
         end
     end
     if allowFuzzy then
         for _,model in pairs(workspace.PlayerModels:GetChildren())do
             if model:FindFirstChild("Owner")and model.Owner.Value==player then
                 local modelValue=nil
-                if model:FindFirstChild("PurchasedBoxItemName")then
-                    modelValue=model.PurchasedBoxItemName.Value
-                elseif model:FindFirstChild("ItemName")then
-                    modelValue=model.ItemName.Value
-                elseif model:FindFirstChild("DraggableItem")then
-                    modelValue=tostring(model.DraggableItem.Parent)
-                end
-                if modelValue==value then
-                    return model
-                end
+                if model:FindFirstChild("PurchasedBoxItemName")then modelValue=model.PurchasedBoxItemName.Value
+                elseif model:FindFirstChild("ItemName")then modelValue=model.ItemName.Value
+                elseif model:FindFirstChild("DraggableItem")then modelValue=tostring(model.DraggableItem.Parent) end
+                if modelValue==value then return model end
             end
         end
     end
@@ -2336,9 +2299,7 @@ local function waitItemReady(item,timeout)
     local waited=0
     while waited<timeout do
         if not item or not item.Parent then return false end
-        if item:FindFirstChild("ButtonRemote_Main")or item:FindFirstChild("BoxItemName")or item:FindFirstChild("PurchasedBoxItemName")or item:FindFirstChild("ItemName")or item:FindFirstChild("DraggableItem")then
-            return true
-        end
+        if item:FindFirstChild("ButtonRemote_Main")or item:FindFirstChild("BoxItemName")or item:FindFirstChild("PurchasedBoxItemName")or item:FindFirstChild("ItemName")or item:FindFirstChild("DraggableItem")then return true end
         task.wait(0.2)
         waited=waited+0.2
     end
@@ -2349,15 +2310,11 @@ local function openItem(item)
     if not item then return false end
     local remoteButton=item:FindFirstChild("ButtonRemote_Main")
     if remoteButton then
-        local ok=pcall(function()
-            REPLICATED_STORAGE.Interaction.RemoteProxy:FireServer(remoteButton)
-        end)
+        local ok=pcall(function() REPLICATED_STORAGE.Interaction.RemoteProxy:FireServer(remoteButton) end)
         if ok then return true end
     end
     if item:FindFirstChild("BoxItemName")or item:FindFirstChild("PurchasedBoxItemName")then
-        local ok=pcall(function()
-            REPLICATED_STORAGE.Interaction.ClientInteracted:FireServer(item,'Open box')
-        end)
+        local ok=pcall(function() REPLICATED_STORAGE.Interaction.ClientInteracted:FireServer(item,'Open box') end)
         if ok then return true end
     end
     return false
@@ -2368,9 +2325,7 @@ local function waitEvilDuckAppear(timeout, preSet)
     while os.clock()<deadline do
         if evilStopFlag then return false end
         for _,m in pairs(workspace.PlayerModels:GetChildren())do
-            if m:IsA("Model")and m.Name=="DuckEvil"and(not preSet or not preSet[m])then
-                return true
-            end
+            if m:IsA("Model")and m.Name=="DuckEvil"and(not preSet or not preSet[m])then return true end
         end
         task.wait(0.2)
     end
@@ -2398,13 +2353,9 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
     local items={}
     for i=1,3 do
         local key=selectedMaterialKeys[i]
-        if not key then
-            return false
-        end
+        if not key then return false end
         local item=findItemByKey(key,true)
-        if not item then
-            return false
-        end
+        if not item then return false end
         items[i]=item
         selectedMaterialKeys[i]=getItemKey(item)
     end
@@ -2418,30 +2369,27 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
     local ok=false
     for attempt=1,4 do
         if evilStopFlag then return false end
+        evilNotify("🔄 流程提示", "开始第 "..attempt.." 次拖拽尝试", 2)
+        
         for i=1,3 do
             local item=items[i]
             if not item or not item.Parent then
                 local key=selectedMaterialKeys[i]
-                if key then
-                    item=findItemByKey(key,true)
-                end
-                if not item then
-                    return false
-                end
+                if key then item=findItemByKey(key,true) end
+                if not item then return false end
                 items[i]=item
             end
-            if not waitItemReady(item,3)then
-            end
+            if not waitItemReady(item,3)then end
             local primary=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChild("WoodSection")or item:FindFirstChildWhichIsA("BasePart")
-            if not primary then
-                return false
-            end
+            if not primary then return false end
             if not item.PrimaryPart then item.PrimaryPart=primary end
             lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
             pcall(function()REPLICATED_STORAGE.Interaction.ClientRequestOwnership:FireServer(primary)end)
             local targetIdx = i
             if i == 1 then targetIdx = 3
             elseif i == 3 then targetIdx = 1 end
+            
+            evilNotify("🚚 拖拽材料", "正在摆放第 "..i.." 个材料 (反放至"..targetIdx.."号位)", 2)
             for j = 1, 30 do
                 DragModel(item, dragTargets[targetIdx])
                 task.wait(0.02)
@@ -2452,19 +2400,16 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
             local item=items[i]
             if not item or not item.Parent then
                 local key=selectedMaterialKeys[i]
-                if key then
-                    item=findItemByKey(key,true)
-                end
-                if not item then
-                    return false
-                end
+                if key then item=findItemByKey(key,true) end
+                if not item then return false end
                 items[i]=item
             end
-            local posIdx=i
             local targetIdx = i
             if i == 1 then targetIdx = 3
             elseif i == 3 then targetIdx = 1 end
             local dp2=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChild("WoodSection")or item:FindFirstChildWhichIsA("BasePart")
+            
+            evilNotify("📦 开启盒子", "正在打开第 "..i.." 个材料", 2)
             if dp2 then
                 if not item.PrimaryPart then item.PrimaryPart=dp2 end
                 local lockCF=dp2.CFrame+Vector3.new(2,0,0)
@@ -2484,21 +2429,22 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
         end
         safeTeleport(originalPos)
         task.wait(0.1)
+        
+        evilNotify("⏳ 等待生成", "材料已开，等待恶魔鸭出现...", 3)
         if waitEvilDuckAppear(5, preDucks)then
+            evilNotify("🦆 鸭子出现", "成功触发合成，正在等待光效...", 3)
             ok=waitEvilDuckLightGone(35)
             if ok then
                 local newDuck=nil
                 for _,m in pairs(workspace.PlayerModels:GetChildren())do
-                    if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then
-                        newDuck=m
-                        break
-                    end
+                    if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end
                 end
                 if newDuck then
                     local dp=newDuck.PrimaryPart or newDuck:FindFirstChild("Main")or newDuck:FindFirstChildWhichIsA("BasePart")
                     if dp then
                         if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
                         safeTeleport(dp.CFrame+Vector3.new(0,0.5,0))
+                        evilNotify("🏠 拉回鸭子", "正在将新鸭子拉回安全点", 2)
                         for j = 1, 30 do
                             DragModel(newDuck, originalPos)
                             task.wait(0.02)
@@ -2507,83 +2453,73 @@ local function startEvilDuckCombine(basePos, selectedMaterialKeys)
                 end
                 break
             end
+        else
+            evilNotify("⚠️ 生成超时", "第 "..attempt.." 次尝试未出现鸭子，准备重试", 3)
         end
     end
     return ok
 end
 
 local function evilMain(count)
-    if evilAutoRunning then 
-        notify("恶魔鸭", "任务正在运行中，请先点停止", 3)
-        return 
-    end
+    if evilAutoRunning then evilNotify("恶魔鸭", "任务正在运行中，请先点停止", 3) return end
     evilAutoRunning, evilStopFlag = true, false
+    
     task.spawn(function()
         local success, err = pcall(function()
+            evilNotify("🔄 初始化", "开始获取商人ID...", 3)
             local newIds = GetAllCashierIds()
             for storeName,info in pairs(storeInfoMapping)do
                 local npc=npcMapping[storeName]
-                if npc and newIds[info.name]then
-                    npc.id=newIds[info.name]
-                end
+                if npc and newIds[info.name]then npc.id=newIds[info.name] end
             end
             
+            evilNotify("🔍 破解材料", "正在读取日志上的摩斯密码...", 3)
             local names, msg = evilGetMaterialNames()
             if not names then error(msg or "识别失败") end
-            
             local matKeys = {}
             for i = 1, 3 do
-                if names[i] and names[i].item then 
-                    matKeys[i] = "ItemName:"..names[i].item
-                else 
-                    error("材料"..i.."识别失败") 
-                end
+                if names[i] and names[i].item then matKeys[i] = "ItemName:"..names[i].item
+                else error("材料"..i.."摩斯密码识别失败") end
             end
             
             local baseCF = player.Character and player.Character.HumanoidRootPart.CFrame
             for c = 1, count do
                 if evilStopFlag then break end
+                evilNotify("🎯 开始合成", "================\n准备第 "..c.."/"..count.." 次合成", 3)
                 
                 for i=1,3 do
                     if evilStopFlag then break end
                     local key=matKeys[i]
                     if findItemByKey(key,false)then
-                        notify("恶魔鸭", string.format("材料 %d 已有，跳过购买",i), 2)
+                        evilNotify("✅ 材料检查", string.format("材料 %d (%s) 已有，跳过购买",i, key:match("ItemName:(.+)")), 2)
                     else
                         local buyName = key:match("ItemName:(.+)")
                         local box,err
                         for r=1,3 do
                             if evilStopFlag then break end
-                            box,err=_G.qSnowBuyBlueprintBox(buyName)
+                            box,err=evilBuyBlueprintBox(buyName)
                             if box then break end
-                            notify("恶魔鸭", string.format("购买材料 %d 失败（第 %d 次重试）: %s",i,r,tostring(err or"未知")),3)
+                            evilNotify("❌ 购买失败", string.format("购买材料 %d 失败: %s",i,tostring(err or"未知")), 4)
                             task.wait(0.6)
                         end
-                        if box then
-                            notify("恶魔鸭", string.format("已购买材料 %d: %s",i,buyName), 2)
-                        else
-                            notify("恶魔鸭", string.format("材料 %d 购买失败，重试3次仍未成功",i), 3)
-                        end
+                        if box then evilNotify("✅ 购买成功", string.format("已买齐材料 %d: %s",i,buyName), 2)
+                        else error(string.format("材料 %d 连续3次购买失败，停止运行",i)) end
                     end
                     task.wait(0.6)
                 end
                 
                 local ok = startEvilDuckCombine(baseCF, matKeys)
-                
                 if evilStopFlag then break end
-                if ok then
-                    notify("恶魔鸭", "第"..c.."次成功", 2)
-                else
-                    notify("恶魔鸭", "第"..c.."次失败", 3)
-                end
+                if ok then evilNotify("🎉 合成成功", "第 "..c.." 次合成完成！", 3)
+                else evilNotify("❌ 合成失败", "第 "..c.." 次摆放失败，请检查祭坛", 3) end
                 
                 if baseCF then safeTeleport(baseCF) end
                 task.wait(1)
             end
         end)
         
-        if not success then
-            notify("恶魔鸭", "运行出错: "..tostring(err), 5)
+        if not success then 
+            evilNotify("❌ 运行报错", "原因: "..tostring(err), 10) 
         end
         unlockPlayer()
         evilAutoRunning = false
@@ -2593,12 +2529,7 @@ end
 
 TabExtra:Input({ Title = "恶魔鸭合成次数", Value = "1", Callback = function(v) local n = tonumber(v); if n and n > 0 then evilCombineCount = math.floor(n) end end })
 TabExtra:Button({ Title = "开始全自动合成恶魔鸭", Callback = function() evilMain(evilCombineCount) end })
-TabExtra:Button({ Title = "停止自动合成恶魔鸭", Callback = function() 
-    evilStopFlag = true 
-    evilAutoRunning = false 
-    unlockPlayer() 
-    notify("恶魔鸭", "已强制停止，可重新开始", 3) 
-end })
+TabExtra:Button({ Title = "停止自动合成恶魔鸭", Callback = function() evilStopFlag = true evilAutoRunning = false unlockPlayer() evilNotify("恶魔鸭", "已强制停止", 3) end })
 TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "自动整理同类物品，叠放整齐", Color = Color3.fromRGB(0, 255, 255) })
 local sortStartHeight, sortGap, sortCountX, sortCountZ = 1, 0, 3, 3
 local currentSortTool = nil
