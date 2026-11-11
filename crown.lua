@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.0",
+    Title = "封存木材 V1.1",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "采用点击传送原理，绝不卡灵魂体", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "镜像反转摆放，绝不卡灵魂", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2329,8 +2329,12 @@ local function startEvilDuckCombine(basePos, materialNames)
             lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
             pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
             
+            local targetIdx = i
+            if i == 1 then targetIdx = 3
+            elseif i == 3 then targetIdx = 1 end
+            
             for j = 1, 40 do
-                DragModel(item, dragTargets[i])
+                DragModel(item, dragTargets[targetIdx])
                 task.wait(0.02)
             end
             
@@ -2341,14 +2345,18 @@ local function startEvilDuckCombine(basePos, materialNames)
             if not item or not item.Parent then item=evilFindMyItem(materialNames[i]); items[i]=item end
             waitItemReady(item, 2)
             
+            local targetIdx = i
+            if i == 1 then targetIdx = 3
+            elseif i == 3 then targetIdx = 1 end
+            
             local dp2=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChildWhichIsA("BasePart")
             if dp2 then
                 if not item.PrimaryPart then item.PrimaryPart=dp2 end
                 lockPlayerAt(dp2.CFrame+Vector3.new(2,0,0))
                 task.wait(0.5); openItem(item); task.wait(0.4); unlockPlayer()
             else
-                safeTeleport(openPositions[i])
-                lockPlayerAt(openPositions[i]+Vector3.new(2,0,0))
+                safeTeleport(openPositions[targetIdx])
+                lockPlayerAt(openPositions[targetIdx]+Vector3.new(2,0,0))
                 task.wait(0.5); openItem(item); task.wait(0.4); unlockPlayer()
             end
         end
