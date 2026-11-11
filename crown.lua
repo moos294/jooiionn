@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材 V1.0",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.9",
+    Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -1536,136 +1536,6 @@ TabExtra:Button({
 })
 local TabTree = Window:Tab({ Title = "自动砍树", Icon = "rbxassetid://10734945123" })
 
-local function evilNotify(t, c, d)
-    WindUI:Notify({ Title = tostring(t or ""), Content = tostring(c or ""), Duration = d or 3 })
-end
-
-local universalLockConn = nil
-local function unlockPlayer()
-    if universalLockConn then universalLockConn:Disconnect(); universalLockConn = nil end
-end
-
-local function lockPlayerAt(cf)
-    unlockPlayer()
-    local function hold()
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
-        end
-    end
-    hold()
-    universalLockConn = RunService.Heartbeat:Connect(hold)
-end
-
-local function safeTeleport(cf)
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0)
-        task.wait(0.05)
-        if hrp.Position.Y < -100 then
-            hrp.CFrame = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y or 0), 0) + Vector3.new(0, 10, 0)
-        end
-    end
-end
-
-local dragIDCounter = 0
-local function getNextDragID()
-    dragIDCounter = dragIDCounter + 1
-    return dragIDCounter
-end
-
-local function dragToPosition(model, targetCF, callback, waitFinish)
-    if not model or not model.Parent then
-        if callback then callback() end
-        return
-    end
-    local primary = model.PrimaryPart or model:FindFirstChild("WoodSection") or model:FindFirstChild("Main") or model:FindFirstChildWhichIsA("BasePart")
-    if not primary then
-        if callback then callback() end
-        return
-    end
-    if not model.PrimaryPart then model.PrimaryPart = primary end
-
-    lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
-    local dragID = getNextDragID()
-    local remote = RS.Interaction.ClientIsDragging
-    pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-    pcall(function() remote:FireServer("Begin", model, dragID) end)
-
-    local lastSet = 28 + 2 - 1
-    for i = 1, lastSet do
-        if not model.Parent or not model.PrimaryPart then
-            pcall(function() remote:FireServer("End", model, dragID) end)
-            if callback then callback() end
-            return
-        end
-        local shouldSet = (i >= 28)
-        pcall(function()
-            remote:FireServer("Refresh", model, dragID)
-            if shouldSet then
-                RS.Interaction.ClientRequestOwnership:FireServer(primary)
-                model:SetPrimaryPartCFrame(targetCF)
-            end
-        end)
-        if i < lastSet then
-            if shouldSet then task.wait(0.01) else task.wait(0.01) end
-        end
-    end
-
-    task.wait(0.01)
-    local dragEnded = false
-    task.spawn(function()
-        for i = lastSet + 1, 60 do
-            if not model.Parent or not model.PrimaryPart then break end
-            pcall(function() remote:FireServer("Refresh", model, dragID) end)
-            if i < 60 then task.wait(0.01) end
-        end
-        pcall(function() remote:FireServer("End", model, dragID) end)
-        dragEnded = true
-    end)
-
-    if waitFinish then
-        local w = 0
-        while w < 1.5 and not dragEnded do
-            task.wait(0.05)
-            w = w + 0.05
-        end
-        for retry = 1, 3 do
-            if not model.Parent or not model.PrimaryPart then break end
-            local d = (model.PrimaryPart.Position - targetCF.Position).Magnitude
-            if d <= 3 then break end
-            pcall(function() remote:FireServer("Refresh", model, dragID) end)
-        end
-    end
-
-    task.wait(0.4)
-    local verify = 0
-    while model.Parent and model.PrimaryPart and verify < 2 do
-        local dist = (model.PrimaryPart.Position - targetCF.Position).Magnitude
-        if dist <= 3 then break end
-        verify = verify + 1
-        lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0))
-        task.wait(0.15)
-        local retryID = getNextDragID()
-        pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-        pcall(function() remote:FireServer("Begin", model, retryID) end)
-        for _ = 1, 10 do
-            if not model.Parent then break end
-            pcall(function() RS.Interaction.ClientRequestOwnership:FireServer(primary) end)
-            pcall(function() remote:FireServer("Refresh", model, retryID) end)
-            pcall(function() model:SetPrimaryPartCFrame(targetCF) end)
-            task.wait(0.05)
-        end
-        pcall(function() remote:FireServer("End", model, retryID) end)
-        task.wait(0.15)
-    end
-
-    unlockPlayer()
-    if callback then callback() end
-end
-
 local TREE_CN = {
     Generic="普通树",GenericDead="枯木",GenericFall="落叶树",GenericGold="金树",GenericPrime="原始树",
     GenericSpecial="特殊树",GoldSwampy="沼泽黄金",GreenSwampy="沼泽青",Cherry="樱花树",
@@ -1706,6 +1576,7 @@ local TREE_FALLBACK = {
     ["火焰木"]="Flame",["蓝色火焰木"]="BlueFlame",["彩色火焰木"]="RainbowFlame",["星星木"]="Star",
     ["雪木"]="Snow",["冷杉木"]="Fir",
 }
+
 local function readTreeClasses()
     local list={}
     local amounts=Workspace:FindFirstChild("Stores")
@@ -1953,11 +1824,7 @@ end
 local function bringTreeRemote(treeClass)
     local weaponName,weaponConfig,damage=selectBestWeapon(treeClass)
     if not weaponName then evilNotify("自动砍树","自动选武器失败",3) return false end
-    local req={Flame=200000,BlueFlame=200000,Celestial=200000,Void=200000,Ice=200000,Magma=200000,RainbowFlame=200000,Radioactive=200000,Shine=200000,LoneCave=200000,Spirit=200000}
-    if req[treeClass]and damage<req[treeClass]then
-        evilNotify("自动砍树",string.format("伤害不足！需要至少 %.0f",req[treeClass]),4)
-        return false
-    end
+    
     local cooldown=(weaponConfig.SpecialTrees[treeClass]and weaponConfig.SpecialTrees[treeClass].SwingCooldown)or weaponConfig.SwingCooldown
     local woodSec,tree=findUncutTree(treeClass)
     if not woodSec then evilNotify("自动砍树","附近没有可砍的树",3) return false end
@@ -2003,16 +1870,20 @@ local function bringTreeRemote(treeClass)
     for _,log in pairs(Workspace.LogModels:GetChildren())do existingLogs[log]=true end
     local treeCenter=woodSec.Position
     local stopCutting,timeoutReached=false,false
+    
+    if not damage or damage <= 0 then damage = 10000 end
+    
     local sendTask=task.spawn(function()
         while not stopCutting do
             pcall(remote.FireServer,remote,cutEvent,{height=0.3,faceVector=Vector3.new(-1,0,0),cooldown=cooldown,sectionId=1,hitPoints=damage,tool=tool,cuttingClass="Axe"})
-            task.wait(0.0001)
+            task.wait(0.05)
         end
     end)
     local timeoutTask=task.spawn(function()
-        task.wait(15)
+        task.wait(60)
         if not stopCutting then timeoutReached=true stopCutting=true end
     end)
+    
     while not fallenLog and not stopCutting do
         for _,log in pairs(Workspace.LogModels:GetChildren())do
             if not existingLogs[log]and log:FindFirstChild("Owner")and log.Owner.Value==player and log:FindFirstChild("TreeClass")and log.TreeClass.Value==treeClass then
@@ -2097,7 +1968,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "原版4次重试+备用坐标开盒", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "完全复原作者源码，异步拖拽", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2145,43 +2016,73 @@ local function evilGetAllCashierIds()
 end
 
 local function evilBuyBlueprint(blueprintName)
-    local targetStore, targetItemName, lower = nil, nil, string.lower(tostring(blueprintName))
+    local targetStore,targetItemName=nil,nil
+    local lower=string.lower(tostring(blueprintName))
     local stores = Workspace:FindFirstChild("Stores")
     if not stores then return nil, "找不到Stores" end
-    for _, store in pairs(stores:GetChildren()) do
-        local shopItems = store:FindFirstChild("ShopItems")
+    for _,s in ipairs(stores:GetChildren())do
+        local shopItems = s:FindFirstChild("ShopItems")
         if shopItems then
-            for _, item in pairs(shopItems:GetChildren()) do
-                local pbn = item:FindFirstChild("PurchasedBoxItemName")
-                if string.lower(tostring(item.Name)) == lower or (pbn and string.lower(tostring(pbn.Value)) == lower) then
-                    targetStore, targetItemName = store, item.Name; break
+            for _,item in pairs(shopItems:GetChildren())do
+                if string.lower(tostring(item.Name))==lower then
+                    targetStore,targetItemName=s,item.Name
+                    break
                 end
             end
         end
         if targetStore then break end
     end
-    if not targetStore then return nil, "没有任何商店出售: " .. getCN(blueprintName) end
-    local info = evilShopNpcMap[targetStore.Name]
+    if not targetStore then return nil, "没有任何商店出售: " .. tostring(blueprintName) end
+    
+    local npcInfo = evilShopNpcMap[targetStore.Name]
+    if not npcInfo then return nil, "未收录NPC: "..targetStore.Name end
     if not cachedCashierIds then cachedCashierIds = evilGetAllCashierIds() end
-    local npcId = cachedCashierIds[info.name]
+    local npcId = cachedCashierIds[npcInfo.name]
     if not npcId then
-        cachedCashierIds = evilGetAllCashierIds(); npcId = cachedCashierIds[info.name]
-        if not npcId then return nil, "无法获取 "..info.name.." 的ID" end
+        cachedCashierIds = evilGetAllCashierIds()
+        npcId = cachedCashierIds[npcInfo.name]
+        if not npcId then return nil, "无法获取 "..npcInfo.name.." 的ID" end
     end
-    local npcChar, counter, itemModel = targetStore:FindFirstChild(info.path), targetStore:FindFirstChild("Counter"), targetStore:FindFirstChild("ShopItems"):FindFirstChild(targetItemName)
-    local primary = itemModel.PrimaryPart or itemModel:FindFirstChildWhichIsA("BasePart")
-    if not itemModel.PrimaryPart then itemModel.PrimaryPart = primary end
-    lockPlayerAt(primary.CFrame + Vector3.new(0, 3, 0)); task.wait(0.3)
-    dragToPosition(itemModel, counter.CFrame + Vector3.new(0, 0.6, 0), nil, true)
-    task.wait(0.09); lockPlayerAt(counter.CFrame + Vector3.new(0, 3, 0)); task.wait(0.1)
-    local purchased = {}
-    local conn = Workspace.PlayerModels.ChildAdded:Connect(function(m) if m:IsA("Model") and m:FindFirstChild("Owner") and m.Owner.Value == player then table.insert(purchased, m) end end)
-    local args = {{ID=npcId, Character=npcChar, Name=info.name}, "ConfirmPurchase"}
-    pcall(function() RS.NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
-    task.wait(0.1); pcall(function() RS.NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
-    task.wait(0.1); conn:Disconnect(); unlockPlayer()
-    for i = #purchased, 1, -1 do if purchased[i] and purchased[i].Parent then return purchased[i], "成功" end end
-    return nil, "购买后未找到新盒子"
+    
+    local store=targetStore
+    local npcChar=store:FindFirstChild(npcInfo.path)
+    if not npcChar then return nil, "找不到NPC: "..tostring(npcInfo.path) end
+    local counter=store:FindFirstChild("Counter")
+    if not counter or not counter:IsA("BasePart") then return nil, "商店无 Counter" end
+    local shopItems=store:FindFirstChild("ShopItems")
+    if not shopItems then return nil, "无 ShopItems" end
+    local itemModel=shopItems:FindFirstChild(targetItemName)
+    if not itemModel then return nil, "商品不在货架: "..targetItemName end
+    local primary=itemModel.PrimaryPart or itemModel:FindFirstChild("WoodSection") or itemModel:FindFirstChild("Main") or itemModel:FindFirstChildWhichIsA("BasePart")
+    if not primary then return nil, "无法定位商品模型" end
+    if not itemModel.PrimaryPart then itemModel.PrimaryPart=primary end
+    
+    lockPlayerAt(primary.CFrame+Vector3.new(0,3,0))
+    task.wait(0.3)
+    dragToPosition(itemModel, counter.CFrame+Vector3.new(0,0.6,0))
+    task.wait(0.09)
+    lockPlayerAt(counter.CFrame+Vector3.new(0,3,0))
+    task.wait(0.1)
+    
+    local purchased={}
+    local conn=Workspace.PlayerModels.ChildAdded:Connect(function(m)
+        if m:IsA("Model") and m:FindFirstChild("Owner") and m.Owner.Value==player then
+            table.insert(purchased,m)
+        end
+    end)
+    local NPCDialog=RS:WaitForChild("NPCDialog")
+    local args={{ID=npcId,Character=npcChar,Name=npcInfo.name},"ConfirmPurchase"}
+    pcall(function()NPCDialog.PlayerChatted:InvokeServer(table.unpack(args))end)
+    task.wait(0.1)
+    pcall(function()NPCDialog.PlayerChatted:InvokeServer(table.unpack(args))end)
+    task.wait(0.1)
+    conn:Disconnect()
+    unlockPlayer()
+    for i=#purchased,1,-1 do
+        local m=purchased[i]
+        if m and m.Parent then return m, "成功" end
+    end
+    return nil,"购买后未找到新盒子"
 end
 
 local function evilGetMaterialNames()
