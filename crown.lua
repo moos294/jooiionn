@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材 V1.2",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.01",
+    Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "全屏报错提示，手机端福音", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "坐标硬编码防崩溃，全屏报错提示", Color = Color3.fromRGB(255, 105, 180) })
 
 local REPLICATED_STORAGE = game:GetService("ReplicatedStorage")
 local StoresFolder = workspace:WaitForChild("Stores")
@@ -2106,7 +2106,9 @@ local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", Light
 
 local function getCN(enName) return (evilNameCN[enName] or "未知") .. " (" .. tostring(enName) .. ")" end
 local function evilNotify(t, c, d)
-    WindUI:Notify({ Title = tostring(t or ""), Content = tostring(c or ""), Duration = d or 3 })
+    pcall(function()
+        WindUI:Notify({ Title = tostring(t or ""), Content = tostring(c or ""), Duration = d or 3 })
+    end)
 end
 
 local storeInfoMapping = {
@@ -2202,7 +2204,7 @@ local function evilBuyBlueprintBox(blueprintName)
     if not itemModel then return nil,"商品不在货架(可能被买空了): "..targetItemName end
     
     local primary=itemModel.PrimaryPart or itemModel:FindFirstChild("WoodSection") or itemModel:FindFirstChild("Main") or itemModel:FindFirstChildWhichIsA("BasePart")
-    if not primary then return nil,"无法定位商品模型"end
+    if not primary then return nil,"无法定位商品模型" end
     if not itemModel.PrimaryPart then itemModel.PrimaryPart=primary end
     
     evilNotify("🚚 拖拽购买", "正在拉取 "..getCN(blueprintName), 2)
@@ -2350,7 +2352,21 @@ local function waitEvilDuckLightGone(timeout)
 end
 
 local function startEvilDuckCombine(basePos, selectedMaterialKeys)
+    -- 坐标彻底写死，防止外部被覆盖
+    local dragTargets = {
+        [1]=CFrame.new(-223.74,61.00,940.42),
+        [2]=CFrame.new(-232.924927,61.3797455,933.015076),
+        [3]=CFrame.new(-241.81,61,925.51)
+    }
+    local openPositions = {
+        [1]=CFrame.new(-228.78,59.8,943.14),
+        [2]=CFrame.new(-230.03,59.8,935.47),
+        [3]=CFrame.new(-239.71,59.8,927.46)
+    }
+
     local items={}
+    if not selectedMaterialKeys then return false end
+    
     for i=1,3 do
         local key=selectedMaterialKeys[i]
         if not key then return false end
@@ -2485,13 +2501,13 @@ local function evilMain(count)
             local baseCF = player.Character and player.Character.HumanoidRootPart.CFrame
             for c = 1, count do
                 if evilStopFlag then break end
-                evilNotify("🎯 开始合成", "================\n准备第 "..c.."/"..count.." 次合成", 3)
+                evilNotify("🎯 开始合成", "准备第 "..c.."/"..count.." 次合成", 3)
                 
                 for i=1,3 do
                     if evilStopFlag then break end
                     local key=matKeys[i]
                     if findItemByKey(key,false)then
-                        evilNotify("✅ 材料检查", string.format("材料 %d (%s) 已有，跳过购买",i, key:match("ItemName:(.+)")), 2)
+                        evilNotify("✅ 材料检查", string.format("材料 %d 已有，跳过购买",i), 2)
                     else
                         local buyName = key:match("ItemName:(.+)")
                         local box,err
