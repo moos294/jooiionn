@@ -53,7 +53,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.2",
+    Title = "封存木材 V1.5",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
@@ -2097,7 +2097,7 @@ TabTree:Button({
     Callback = function() isTreeRunning = false end
 })
 
-TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "商人ID死等防失败，拖拽防虚空", Color = Color3.fromRGB(255, 105, 180) })
+TabExtra:Paragraph({ Title = "【 恶魔鸭全自动合成 】", Desc = "1.5格悬停防摔，反向摆放，绝对防死锁", Color = Color3.fromRGB(255, 105, 180) })
 local evilShopNpcMap = { AutumnCatalog={name="William", path="William"}, BlackMarket={name="sneakypotato7", path="sneakypotato7"}, CarStore={name="Jenny", path="Jenny"}, MusicStore={name="NazuReborn", path="NazuReborn"}, FineArt={name="Timothy", path="Timothy"}, FineFinds={name="Manachron", path="Manachron"}, FurnitureStore={name="Corey", path="Corey"}, HLStand={name="???", path="???"}, Igloo={name="Cold Guy", path="Cold Guy"}, LogicStore={name="Lincoln", path="Lincoln"}, MountainSide={name="Mr.Bacon", path="Mr.Bacon"}, PlanterStore={name="OGxOutcast", path="OGxOutcast"}, PlantomicsChoice={name="Null", path="Null"}, SallysSeasonal={name="Sally", path="Sally"}, SaplingCart={name="Billy", path="Billy"}, SeaSide={name="Guy", path="Guy"}, StoneRUs={name="Bloxyway", path="Bloxyway"}, TravelingTrader={name="Trader", path="Trader"}, VIPSHOP={name="Todd", path="Todd"}, WoodRUs={name="Thom", path="Thom"} }
 local evilEnItemMap = { ["I CANT SEE"]="Eye3", ["HATCHES INTO SOMETHING GREAT"]="Egg", ["KEEP ME WARM"]="Cocoa", ["GRANT ME LIGHT"]="LightBulb", ["QUACK QUACK"]="Duck", ["GRANT MY WISH"]="MagicLamp", ["GREAT WITH COOKIES"]="Milk", ["CHEAT CODE"]="NESController", ["GIVE ME POWER"]="Battery", ["IM THIRSTY"]="BloxyCola", ["CLAIMS TO BE HAPPY"]="HappyBall", ["WIELDED BY SOMEONE POWERFUL"]="MagicLamp" }
 local evilNameCN = { Eye3 = "老虎眼", Egg = "蛋", Cocoa = "热可可", LightBulb = "灯泡", Duck = "鸭子", MagicLamp = "神灯", Milk = "牛奶", NESController = "游戏机", Battery = "电池", BloxyCola = "可乐", HappyBall = "快乐球" }
@@ -2122,7 +2122,7 @@ local function waitItemReady(item,timeout)
         task.wait(0.2)
         waited=waited+0.2
     end
-    return item and item.Parent and(item:FindFirstChild("ItemName")~=nil or item:FindFirstChild("PurchasedBoxItemName")~=nil)
+    return item and item.Parent
 end
 
 local function openItem(item)
@@ -2152,8 +2152,7 @@ local function evilGetAllCashierIds()
     end)
     pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(1) end)
     local startTime = tick()
-    -- 延长到 60 秒死等
-    while receivedCount < totalExpected and tick() - startTime < 60 do task.wait(0.2) end
+    while receivedCount < totalExpected and tick() - startTime < 15 do task.wait(0.2) end
     conn:Disconnect()
     pcall(function() RS.NPCDialog.SetChattingValue:InvokeServer(0) end)
     return cashierIds
@@ -2180,38 +2179,24 @@ local function evilBuyBlueprint(blueprintName)
     
     local npcInfo = evilShopNpcMap[targetStore.Name]
     if not npcInfo then return nil, "未收录NPC: "..targetStore.Name end
-    
-    -- 死循环获取 ID，直到拿到为止
     if not cachedCashierIds or not cachedCashierIds[npcInfo.name] then
         cachedCashierIds = evilGetAllCashierIds()
-        local retry = 0
-        while (not cachedCashierIds[npcInfo.name]) and retry < 5 do
-            evilNotify("恶魔鸭", "未获取到 "..npcInfo.name.." 的ID，重新尝试拉取...", 3)
-            task.wait(1)
-            cachedCashierIds = evilGetAllCashierIds()
-            retry = retry + 1
-        end
     end
     local npcId = cachedCashierIds[npcInfo.name]
     if not npcId then return nil, "无法获取 "..npcInfo.name.." 的ID" end
     
     local store=targetStore
     local npcChar=store:FindFirstChild(npcInfo.path)
-    if not npcChar then return nil, "找不到NPC: "..tostring(npcInfo.path) end
     local counter=store:FindFirstChild("Counter")
-    if not counter or not counter:IsA("BasePart") then return nil, "商店无 Counter" end
-    local shopItems=store:FindFirstChild("ShopItems")
-    if not shopItems then return nil, "无 ShopItems" end
-    local itemModel=shopItems:FindFirstChild(targetItemName)
-    if not itemModel then return nil, "商品不在货架: "..targetItemName end
-    local primary=itemModel.PrimaryPart or itemModel:FindFirstChild("WoodSection") or itemModel:FindFirstChild("Main") or itemModel:FindFirstChildWhichIsA("BasePart")
-    if not primary then return nil, "无法定位商品模型" end
+    local itemModel=store:FindFirstChild("ShopItems"):FindFirstChild(targetItemName)
+    if not npcChar or not counter or not itemModel then return nil, "模型缺失" end
+    
+    local primary=itemModel.PrimaryPart or itemModel:FindFirstChildWhichIsA("BasePart")
     if not itemModel.PrimaryPart then itemModel.PrimaryPart=primary end
     
     lockPlayerAt(primary.CFrame+Vector3.new(0,3,0))
     task.wait(0.2)
     
-    -- 加高 1 格，防止卡穿柜台
     local counterCF = counter.CFrame + Vector3.new(0, 1.6, 0)
     for j = 1, 40 do
         DragModel(itemModel, counterCF)
@@ -2281,7 +2266,9 @@ local function waitEvilDuckAppear(timeout, preSet)
     local deadline=os.clock()+(timeout or 5)
     while os.clock()<deadline do
         if evilStopFlag then return false end
-        for _,m in pairs(Workspace.PlayerModels:GetChildren())do if m:IsA("Model")and m.Name=="DuckEvil"and(not preSet or not preSet[m])then return true end end
+        for _,m in pairs(Workspace.PlayerModels:GetChildren())do 
+            if m:IsA("Model")and m.Name=="DuckEvil"and(not preSet or not preSet[m])then return true end 
+        end
         task.wait(0.2)
     end
     return false
@@ -2319,75 +2306,99 @@ local function startEvilDuckCombine(basePos, materialNames)
     local preDucks={}
     for _,m in pairs(Workspace.PlayerModels:GetChildren())do if m:IsA("Model")and m.Name=="DuckEvil"then preDucks[m]=true end end
     local ok=false
+    
     for attempt=1,4 do
         if evilStopFlag then return false end
+        
         for i=1,3 do
+            if evilStopFlag then return false end
             local item=items[i]
             if not item or not item.Parent then
                 item=evilFindMyItem(materialNames[i])
-                if not item then return false end
+                if not item then break end
                 items[i]=item
             end
-            
-            if not waitItemReady(item,3)then
-                evilNotify("恶魔鸭", string.format("第 %d 个材料尚未就绪，拖拽可能失败",i),2)
-            end
-            
-            local primary=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChildWhichIsA("BasePart")
-            if not item.PrimaryPart then item.PrimaryPart=primary end
-            
-            lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
-            pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
-            
-            local targetIdx = i
-            if i == 1 then targetIdx = 3
-            elseif i == 3 then targetIdx = 1 end
-            
-            -- 抬高 1.5 格防掉虚空
-            local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 1.5, 0)
-            
-            for j = 1, 40 do
-                DragModel(item, safeTargetCF)
-                task.wait(0.02)
-            end
-            
-            -- 落地物理稳定时间，等待服务器确认
-            task.wait(0.8)
-            
-            unlockPlayer()
-        end
-        for i=1,3 do
-            local item=items[i]
-            if not item or not item.Parent then item=evilFindMyItem(materialNames[i]); items[i]=item end
             waitItemReady(item, 2)
             
             local targetIdx = i
             if i == 1 then targetIdx = 3
             elseif i == 3 then targetIdx = 1 end
             
-            local dp2=item.PrimaryPart or item:FindFirstChild("Main")or item:FindFirstChildWhichIsA("BasePart")
-            if dp2 then
-                if not item.PrimaryPart then item.PrimaryPart=dp2 end
-                lockPlayerAt(dp2.CFrame+Vector3.new(2,0,0))
-                task.wait(0.5); openItem(item); task.wait(0.4); unlockPlayer()
-            else
-                safeTeleport(openPositions[targetIdx])
-                lockPlayerAt(openPositions[targetIdx]+Vector3.new(2,0,0))
-                task.wait(0.5); openItem(item); task.wait(0.4); unlockPlayer()
+            local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 1.5, 0)
+            local primary=item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+            
+            if primary then
+                if not item.PrimaryPart then item.PrimaryPart=primary end
+                lockPlayerAt(primary.CFrame+Vector3.new(2,0,0))
+                pcall(function()RS.Interaction.ClientRequestOwnership:FireServer(primary)end)
+                
+                for j = 1, 30 do
+                    if evilStopFlag then unlockPlayer(); return false end
+                    DragModel(item, safeTargetCF)
+                    task.wait(0.02)
+                end
+                unlockPlayer()
             end
         end
-        safeTeleport(originalPos); task.wait(0.1)
+
+        for i=1,3 do
+            if evilStopFlag then return false end
+            local item=items[i]
+            if item and item.Parent then
+                waitItemReady(item, 2)
+                local targetIdx = i
+                if i == 1 then targetIdx = 3
+                elseif i == 3 then targetIdx = 1 end
+                
+                local safeTargetCF = dragTargets[targetIdx] + Vector3.new(0, 1.5, 0)
+                
+                local dp2=item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                if dp2 then
+                    lockPlayerAt(dp2.CFrame + Vector3.new(0, 2, 2))
+                    task.wait(0.4)
+                    openItem(item)
+                    task.wait(0.1)
+                    
+                    for j = 1, 25 do
+                        if evilStopFlag then break end
+                        DragModel(item, safeTargetCF)
+                        task.wait(0.02)
+                    end
+                    task.wait(0.2)
+                else
+                    safeTeleport(openPositions[targetIdx])
+                    lockPlayerAt(openPositions[targetIdx] + Vector3.new(0, 2, 2))
+                    task.wait(0.4)
+                    openItem(item)
+                    task.wait(0.1)
+                    
+                    for j = 1, 25 do
+                        if evilStopFlag then break end
+                        DragModel(item, safeTargetCF)
+                        task.wait(0.02)
+                    end
+                    task.wait(0.2)
+                end
+                unlockPlayer()
+            end
+        end
+        
+        safeTeleport(originalPos); task.wait(0.5)
+        
         if waitEvilDuckAppear(5, preDucks)then
             ok=waitEvilDuckLightGone(35)
             if ok then
                 local newDuck=nil
-                for _,m in pairs(Workspace.PlayerModels:GetChildren())do if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end end
+                for _,m in pairs(Workspace.PlayerModels:GetChildren())do 
+                    if m:IsA("Model")and m.Name=="DuckEvil"and not preDucks[m]then newDuck=m break end 
+                end
                 if newDuck then
-                    local dp=newDuck.PrimaryPart or newDuck:FindFirstChild("Main")or newDuck:FindFirstChildWhichIsA("BasePart")
+                    local dp=newDuck.PrimaryPart or newDuck:FindFirstChildWhichIsA("BasePart")
                     if dp then
                         if not newDuck.PrimaryPart then newDuck.PrimaryPart=dp end
                         safeTeleport(dp.CFrame+Vector3.new(0,0.5,0))
-                        for j = 1, 40 do
+                        for j = 1, 30 do
+                            if evilStopFlag then break end
                             DragModel(newDuck, originalPos)
                             task.wait(0.02)
                         end
@@ -2401,29 +2412,52 @@ local function startEvilDuckCombine(basePos, materialNames)
 end
 
 local function evilMain(count)
-    if evilAutoRunning then return end
+    if evilAutoRunning then 
+        evilNotify("恶魔鸭", "任务正在运行中，请先点停止", 3)
+        return 
+    end
     evilAutoRunning, evilStopFlag = true, false
-    local names, err = evilGetMaterialNames()
-    if not names then evilNotify("恶魔鸭", err or "识别失败", 3); evilAutoRunning = false; return end
-    local matNames = {}
-    for i = 1, 3 do
-        if names[i] and names[i].item then matNames[i] = names[i].item
-        else evilNotify("恶魔鸭", "材料"..i.."识别失败", 4); evilAutoRunning = false; return end
-    end
-    local baseCF = player.Character and player.Character.HumanoidRootPart.CFrame
-    for c = 1, count do
-        if evilStopFlag then break end
-        if startEvilDuckCombine(baseCF, matNames) then evilNotify("恶魔鸭", "第"..c.."次成功", 2)
-        else evilNotify("恶魔鸭", "第"..c.."次失败", 3) end
-        if baseCF then safeTeleport(baseCF) end
-        task.wait(1)
-    end
-    evilAutoRunning = false
+    
+    task.spawn(function()
+        local success, err = pcall(function()
+            local names, msg = evilGetMaterialNames()
+            if not names then error(msg or "识别失败") end
+            local matNames = {}
+            for i = 1, 3 do
+                if names[i] and names[i].item then matNames[i] = names[i].item
+                else error("材料"..i.."识别失败") end
+            end
+            local baseCF = player.Character and player.Character.HumanoidRootPart.CFrame
+            for c = 1, count do
+                if evilStopFlag then break end
+                if startEvilDuckCombine(baseCF, matNames) then 
+                    evilNotify("恶魔鸭", "第"..c.."次成功", 2)
+                else 
+                    evilNotify("恶魔鸭", "第"..c.."次失败", 3) 
+                end
+                if baseCF then safeTeleport(baseCF) end
+                task.wait(1)
+            end
+        end)
+        
+        if not success then
+            evilNotify("恶魔鸭", "运行出错: "..tostring(err), 5)
+        end
+        
+        unlockPlayer()
+        evilAutoRunning = false
+        evilStopFlag = false
+    end)
 end
 
 TabExtra:Input({ Title = "恶魔鸭合成次数", Value = "1", Callback = function(v) local n = tonumber(v); if n and n > 0 then evilCombineCount = math.floor(n) end end })
-TabExtra:Button({ Title = "开始全自动合成恶魔鸭", Callback = function() task.spawn(function() evilMain(evilCombineCount) end) end })
-TabExtra:Button({ Title = "停止自动合成恶魔鸭", Callback = function() evilStopFlag = true end })
+TabExtra:Button({ Title = "开始全自动合成恶魔鸭", Callback = function() evilMain(evilCombineCount) end })
+TabExtra:Button({ Title = "停止自动合成恶魔鸭", Callback = function() 
+    evilStopFlag = true 
+    evilAutoRunning = false 
+    unlockPlayer() 
+    evilNotify("恶魔鸭", "已强制停止，可重新开始", 3) 
+end })
 
 TabExtra:Paragraph({ Title = "【 建筑整理工具 】", Desc = "自动整理同类物品，叠放整齐", Color = Color3.fromRGB(0, 255, 255) })
 local sortStartHeight, sortGap, sortCountX, sortCountZ = 1, 0, 3, 3
