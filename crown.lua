@@ -53,9 +53,9 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材 V0.8",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.6",
+    Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -2632,6 +2632,58 @@ TabTree:Button({
             evilNotify("自动砍树", "正在停止任务...", 2)
         else
             evilNotify("自动砍树", "当前没有运行中的任务", 2)
+        end
+    end
+})
+TabExtra:Paragraph({ Title = "【 复制/卡斧头 】", Desc = "同时开启丢和捡，利用网络延迟卡出多把斧头", Color = Color3.fromRGB(255, 0, 0) })
+
+local autoDropAxe = false
+local autoPickAxe = false
+
+local function droptool(cframe)
+    local tool=player.Character:FindFirstChildOfClass("Tool")
+    if tool then 
+        tool.Parent=Workspace
+        tool:SetPrimaryPartCFrame(cframe)
+    end
+end
+
+TabExtra:Toggle({
+    Title = "自动扔斧头 (开启后疯狂丢)",
+    Default = false,
+    Callback = function(state)
+        autoDropAxe = state
+        if state then
+            task.spawn(function()
+                while autoDropAxe do
+                    task.wait()
+                    if autoDropAxe == true then
+                        droptool(player.Character.HumanoidRootPart.CFrame)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+TabExtra:Toggle({
+    Title = "自动捡斧头 (疯狂捡回背包)",
+    Default = false,
+    Callback = function(state)
+        autoPickAxe = state
+        if state then
+            task.spawn(function()
+                while autoPickAxe == true do
+                    task.wait(0.1)
+                    for _, b in pairs(Workspace.PlayerModels:GetChildren()) do
+                        if b:FindFirstChild("Owner") and b.Owner.Value == player then
+                            if b:FindFirstChild("Type") and b.Type.Value == "Tool" then
+                                RS.Interaction.ClientInteracted:FireServer(b, 'Pick up tool')
+                            end
+                        end
+                    end
+                end
+            end)
         end
     end
 })
