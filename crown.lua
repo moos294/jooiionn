@@ -8,15 +8,97 @@ local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 
-local WhitelistURL = "https://raw.githubusercontent.com/moos294/jooiionn/main/whitelist.txt"
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local function CheckWhitelist()
-    local success, response = pcall(function() return game:HttpGet(WhitelistURL) end)
-    if not success or not response then return false end
-    if string.find(response, player.Name) or string.find(response, tostring(player.UserId)) then return true end
-    return false
+local Window = Rayfield:CreateWindow({
+    Name = "封存木材 V1.3",
+    LoadingTitle = "封存木材加载中...",
+    LoadingSubtitle = "Author: 封存NB",
+    ConfigurationSaving = { Enabled = false },
+    KeySystem = false
+})
+
+local WindUI = {}
+
+function WindUI:Notify(args)
+    Rayfield:Notify({
+        Title = args.Title or "通知",
+        Content = args.Content or "",
+        Duration = args.Duration or 3,
+        Image = 4483362458
+    })
 end
 
+function WindUI:CreateWindow(args)
+    return self
+end
+
+function Window:Tab(args)
+    local tab = Rayfield:CreateTab(args.Title, 4483362458)
+    
+    tab.Paragraph = function(self, pArgs)
+        self:CreateSection(pArgs.Title or "")
+        return { 
+            SetTitle = function() end, 
+            SetDesc = function() end, 
+            SetColor = function() end 
+        }
+    end
+
+    tab.Section = tab.Paragraph
+
+    tab.Button = function(self, bArgs)
+        self:CreateButton({
+            Name = bArgs.Title,
+            Callback = bArgs.Callback
+        })
+    end
+
+    tab.Toggle = function(self, tArgs)
+        self:CreateToggle({
+            Name = tArgs.Title,
+            CurrentValue = tArgs.Default or false,
+            Flag = tostring(math.random(100000, 999999)),
+            Callback = tArgs.Callback
+        })
+    end
+
+    tab.Slider = function(self, sArgs)
+        self:CreateSlider({
+            Name = sArgs.Title,
+            Range = { sArgs.Value.Min, sArgs.Value.Max },
+            Increment = 1,
+            Suffix = "",
+            CurrentValue = sArgs.Value.Default,
+            Flag = tostring(math.random(100000, 999999)),
+            Callback = sArgs.Callback
+        })
+    end
+
+    tab.Dropdown = function(self, dArgs)
+        self:CreateDropdown({
+            Name = dArgs.Title,
+            Options = dArgs.Values,
+            CurrentOption = { dArgs.Value },
+            MultipleOptions = false,
+            Flag = tostring(math.random(100000, 999999)),
+            Callback = dArgs.Callback
+        })
+        return { SetOptions = function() end, SetValue = function() end }
+    end
+
+    tab.Input = function(self, iArgs)
+        self:CreateInput({
+            Name = iArgs.Title,
+            CurrentValue = iArgs.Value,
+            PlaceholderText = "请输入...",
+            RemoveTextAfterFocusLost = false,
+            Callback = iArgs.Callback
+        })
+    end
+    
+    return tab
+end
 if not CheckWhitelist() then
     game:GetService("StarterGui"):SetCore("SendNotification", {Title = "系统提示", Text = "你并没有白名单无法用此脚本", Duration = 5})
     return 
@@ -53,7 +135,7 @@ CleanupAll()
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/moos294/ghghjj/main/crown.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.3",
+    Title = "封存木材 V1.0",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
