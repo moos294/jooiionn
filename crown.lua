@@ -18,63 +18,59 @@ Window:EditOpenButton({
     Enabled = true,
     Draggable = true,
     CornerRadius = UDim.new(0, 8),
-    Color = ColorSequence.new(Color3.fromRGB(0, 255, 255), Color3.fromRGB(255, 0, 255))
 })
 
 task.spawn(function()
-    task.wait(1.5) 
+    task.wait(1.5)
     if Window.OpenButtonMain and Window.OpenButtonMain.Button then
-        local btn = Window.OpenButtonMain.Button
+        local openBtn = Window.OpenButtonMain.Button
         
-        btn.Size = UDim2.new(0, 42, 0, 42)
+        openBtn.AutomaticSize = Enum.AutomaticSize.None
+        openBtn.Size = UDim2.new(0, 45, 0, 45)
         
-        for _, child in pairs(btn:GetDescendants()) do
-            if child:IsA("TextLabel") then
-                child.Visible = false
-            end
-            if child:IsA("ImageLabel") and child.Name ~= "CustomBgImage" then
-                child.ImageTransparency = 1
-                child.BackgroundTransparency = 1
+        for _, child in pairs(openBtn:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("ImageLabel") or child:IsA("Frame") or child:IsA("TextButton") then
+                if child.Name ~= "CustomImage" and child.Name ~= "CustomStroke" then
+                    child.Visible = false
+                end
             end
         end
-        
-        local bgImg = Instance.new("ImageLabel")
-        bgImg.Name = "CustomBgImage"
-        bgImg.Parent = btn
-        bgImg.Size = UDim2.new(1, 0, 1, 0)
-        bgImg.BackgroundTransparency = 1
-        bgImg.Image = "rbxasset://b33a43199a0a3f7d776cac641182db83/bg.jpg"
-        bgImg.ScaleType = Enum.ScaleType.Crop
-        bgImg.ZIndex = 0
+
+        local img = Instance.new("ImageLabel")
+        img.Name = "CustomImage"
+        img.Parent = openBtn
+        img.Size = UDim2.new(1, 0, 1, 0)
+        img.BackgroundTransparency = 1
+        img.Image = "rbxasset://b33a43199a0a3f7d776cac641182db83/bg.jpg"
+        img.ScaleType = Enum.ScaleType.Crop
+        img.ZIndex = 1
         
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = bgImg
+        corner.Parent = img
 
         local stroke = Instance.new("UIStroke")
-        stroke.Thickness = 2
+        stroke.Name = "CustomStroke"
+        stroke.Thickness = 2.5
         stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        stroke.Parent = bgImg
+        stroke.Parent = img
         
         local gradient = Instance.new("UIGradient")
         gradient.Color = ColorSequence.new{
             ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))
         }
-        gradient.Rotation = 45
         gradient.Parent = stroke
         
-        local glow = Instance.new("ImageLabel")
-        glow.Name = "GlowEffect"
-        glow.Parent = btn
-        glow.Size = UDim2.new(1, 16, 1, 16)
-        glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-        glow.AnchorPoint = Vector2.new(0.5, 0.5)
-        glow.BackgroundTransparency = 1
-        glow.Image = "rbxassetid://1316045217"
-        glow.ImageColor3 = Color3.fromRGB(255, 0, 255)
-        glow.ImageTransparency = 0.5
-        glow.ZIndex = -1
+        local rotation = 0
+        task.spawn(function()
+            while img.Parent do
+                rotation = rotation + 1
+                gradient.Rotation = rotation
+                task.wait(0.02)
+            end
+        end)
     end
 end)
 
