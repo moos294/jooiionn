@@ -984,6 +984,260 @@ TabBuy:Button({ Title = "停止购买", Callback = function()
     if isAutoBuyingDuck then duckStopFlag = true end
 end })
 TabBuy:Button({ Title = "重置 NPC ID 缓存", Callback = function() duckNpcIdCache = nil end })
+local storeInfoMapping = {
+    AutumnCatalog = {name = "William", path = "William"}, BlackMarket = {name = "sneakypotato7", path = "sneakypotato7"},
+    CarStore = {name = "Jenny", path = "Jenny"}, MusicStore = {name = "NazuReborn", path = "NazuReborn"},
+    FineArt = {name = "Timothy", path = "Timothy"}, FineFinds = {name = "Manachron", path = "Manachron"},
+    FurnitureStore = {name = "Corey", path = "Corey"}, HLStand = {name = "???", path = "???"},
+    Igloo = {name = "Cold Guy", path = "Cold Guy"}, LogicStore = {name = "Lincoln", path = "Lincoln"},
+    MountainSide = {name = "Mr.Bacon", path = "Mr.Bacon"}, PlanterStore = {name = "OGxOutcast", path = "OGxOutcast"},
+    PlantomicsChoice = {name = "Null", path = "Null"}, SallysSeasonal = {name = "Sally", path = "Sally"},
+    SaplingCart = {name = "Billy", path = "Billy"}, SeaSide = {name = "Guy", path = "Guy"},
+    StoneRUs = {name = "Bloxyway", path = "Bloxyway"}, TravelingTrader = {name = "Trader", path = "Trader"},
+    VIPSHOP = {name = "Todd", path = "Todd"}, WoodRUs = {name = "Thom", path = "Thom"},
+}
+
+local npcMapping = {}
+for storeName, info in pairs(storeInfoMapping) do
+    npcMapping[storeName] = { name = info.name, id = nil, path = info.path }
+end
+
+local function GetAllCashierIds()
+    local cashierIds = {}
+    local receivedCount = 0
+    local totalExpected = 0
+    for _ in pairs(storeInfoMapping) do totalExpected = totalExpected + 1 end
+    local connection = REPLICATED_STORAGE.NPCDialog.PromptChat.OnClientEvent:Connect(function(...)
+        local pack = { ... }
+        for _, v in ipairs(pack) do
+            if type(v) == "table" then
+                local nm = v.Name
+                local id = v.ID
+                if nm ~= nil and id ~= nil then
+                    if not cashierIds[nm] then
+                        cashierIds[nm] = id
+                        receivedCount = receivedCount + 1
+                    end
+                end
+            end
+        end
+    end)
+    pcall(function() REPLICATED_STORAGE.NPCDialog.SetChattingValue:InvokeServer(1) end)
+    local timeout = 20
+    local startTime = tick()
+    while receivedCount < totalExpected and tick() - startTime < timeout do task.wait(0.2) end
+    connection:Disconnect()
+    pcall(function() REPLICATED_STORAGE.NPCDialog.SetChattingValue:InvokeServer(0) end)
+    return cashierIds
+end
+
+local translateMap = {
+    ["Plank"] = "木板", ["Crate"] = "板条箱", ["Log"] = "原木", ["Blueprint"] = "蓝图", ["Axe"] = "斧头", 
+    ["Sawmill"] = "锯木机", ["Workbench"] = "工作台", ["Lantern"] = "灯笼", ["Furniture"] = "家具", ["Door"] = "门", 
+    ["Window"] = "窗户", ["Car"] = "汽车", ["Wheel"] = "车轮", ["Toy"] = "玩具", ["Gift"] = "礼物", 
+    ["Egg"] = "蛋", ["LightBulb"] = "灯泡", ["Duck"] = "鸭子", ["MagicLamp"] = "神灯", ["Milk"] = "牛奶", 
+    ["NESController"] = "游戏机", ["Battery"] = "电池", ["BloxyCola"] = "可乐", ["HappyBall"] = "快乐球", ["Cocoa"] = "热可可",
+    ["Eye3"] = "老虎眼", ["Sapling"] = "树苗", ["Bucket"] = "水桶", ["Map"] = "地图", ["Wrench"] = "扳手", ["Sign"] = "告示牌",
+    ["Chair"] = "椅子", ["Table"] = "桌子", ["Lamp"] = "台灯", ["Bed"] = "床", ["Shelf"] = "架子", ["Rug"] = "地毯", ["Paint"] = "油漆"
+}
+
+local function getCNName(enName)
+    if translateMap[enName] then return translateMap[enName] end
+    for k, v in pairs(translateMap) do
+        if string.find(enName, k) then return v .. " (" .. enName .. ")" end
+    end
+    return enName
+end
+
+local allStores = {}
+local stopPurchaseFlag = false
+
+local function waitForItemRefresh(shopItems, itemName, timeout)
+    timeout = timeout or 10
+    local startTime = tick()
+    while tick() - startTime < timeout do
+        if stopPurchaseFlag then return false end
+        if shopItems:FindFirstChild(itemName) then return true end
+        task.wait(0.05)
+    end
+    return false
+end
+
+local function purchaseCycle(storeInfo, selectedItemName, buyAmount, doubleConfirm)
+    local store = storeInfo.object
+    local shopItems = storeInfo.shopItems
+    local npcInfo = storeInfo.npc
+    if not npcInfo or not npcInfo.id then return false end
+    local npcChar = store:FindFirstChild(npcInfo.path)
+    if not npcChar then return false end
+    local counter = store:FindFirstChild("Counter")
+    if not counter or not counter:IsA("BasePart") then return false end
+    local NPCDialog = REPLICATED_STORAGE:WaitForChild("NPCDialog")
+    
+    local function sendPurchaseAndCollect()
+        local purchasedItems = {}
+        local conn = workspace.PlayerModels.ChildAdded:Connect(function(model)
+            if model:IsA("Model") and model:FindFirstChild("Owner") and model.Owner.Value == player then
+                table.insert(purchasedItems, model)
+            end
+        end)
+        local args = { { ID = npcInfo.id, Character = npcChar, Name = npcInfo.name }, "ConfirmPurchase" }
+        local ok, err = pcall(function() NPCDialog.PlayerChatted:InvokeServer(table.unpack(args)) end)
+        if not ok then conn:Disconnect() return nil end
+        task.wait(0.04)
+        conn:Disconnect()
+        return purchasedItems
+    end
+    
+    local originalPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not originalPos then return false end
+    originalPos = originalPos.CFrame
+    local successCycles = 0
+    
+    for i = 1, buyAmount do
+        if stopPurchaseFlag then break end
+        local itemModel = shopItems:FindFirstChild(selectedItemName)
+        if not itemModel then
+            if not waitForItemRefresh(shopItems, selectedItemName, 15) then break end
+            itemModel = shopItems:FindFirstChild(selectedItemName)
+            if not itemModel then break end
+        end
+        
+        local itemPrimary = itemModel.PrimaryPart or itemModel:FindFirstChild("WoodSection") or itemModel:FindFirstChild("Main") or itemModel:FindFirstChildWhichIsA("BasePart")
+        if not itemPrimary then break end
+        if not itemModel.PrimaryPart then itemModel.PrimaryPart = itemPrimary end
+        if stopPurchaseFlag then break end
+        
+        duckLockPlayerAt(itemPrimary.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.2)
+        if stopPurchaseFlag then break end
+        
+        duckDragToPosition(itemModel, counter.CFrame + Vector3.new(0, 0.6, 0), nil, true)
+        if stopPurchaseFlag then break end
+        
+        duckLockPlayerAt(counter.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.1)
+        
+        local allItems = {}
+        for k = 1, 2 do
+            if stopPurchaseFlag then break end
+            local items = sendPurchaseAndCollect()
+            if items then
+                for _, it in ipairs(items) do table.insert(allItems, it) end
+            else
+                break
+            end
+            task.wait(0.01)
+        end
+        
+        for _, item in ipairs(allItems) do
+            if stopPurchaseFlag then break end
+            if item and item.Parent then
+                if not item.PrimaryPart then
+                    local part = item:FindFirstChild("Main") or item:FindFirstChild("WoodSection") or item:FindFirstChildWhichIsA("BasePart")
+                    if part then item.PrimaryPart = part end
+                end
+                duckDragToPosition(item, originalPos, nil, false)
+                task.wait(0.05)
+            end
+        end
+        successCycles = successCycles + 1
+        
+        if i < buyAmount and not stopPurchaseFlag then
+            local refreshed = waitForItemRefresh(shopItems, selectedItemName, 30)
+            if not refreshed then break end
+        end
+    end
+    
+    duckUnlockPlayer()
+    duckSafeTeleport(originalPos)
+    if stopPurchaseFlag then stopPurchaseFlag = false end
+    return successCycles == buyAmount
+end
+
+TabBuy:Paragraph({ Title = "【 全商店购买（中文） 】" })
+
+local currentStoreDropdown
+local selectedEntry = nil
+
+local function refreshItemList()
+    allStores = {}
+    for _, store in pairs(Workspace:WaitForChild("Stores"):GetChildren()) do
+        local shopItems = store:FindFirstChild("ShopItems")
+        if shopItems and #shopItems:GetChildren() > 0 then
+            local storeName = store.Name
+            local npcInfo = npcMapping[storeName]
+            if not npcInfo then
+                npcInfo = { name = storeName, id = nil, path = storeName }
+            end
+            table.insert(allStores, { name = storeName, object = store, shopItems = shopItems, npc = npcInfo })
+        end
+    end
+    table.sort(allStores, function(a, b) return a.name < b.name end)
+
+    local allItemsList = {}
+    for _, store in ipairs(allStores) do
+        if store.shopItems then
+            for _, item in pairs(store.shopItems:GetChildren()) do
+                table.insert(allItemsList, { 
+                    display = getCNName(store.name) .. " - " .. getCNName(item.Name), 
+                    store = store, 
+                    item = item.Name 
+                })
+            end
+        end
+    end
+    table.sort(allItemsList, function(a, b) return a.display < b.display end)
+
+    local displayOptions = {}
+    local itemMap = {}
+    for _, entry in ipairs(allItemsList) do
+        table.insert(displayOptions, entry.display)
+        itemMap[entry.display] = entry
+    end
+
+    if #displayOptions > 0 then
+        selectedEntry = itemMap[displayOptions[1]]
+    end
+    
+    return displayOptions, itemMap
+end
+
+local displayOptions, itemMap = refreshItemList()
+
+if #displayOptions > 0 then
+    local selectedDisplay = displayOptions[1]
+    local dd = TabBuy:Dropdown({ Title = "选择商品", Values = displayOptions, Value = selectedDisplay, Callback = function(sel)
+        selectedDisplay = sel
+        selectedEntry = itemMap[sel]
+    end })
+    
+    local buyAmount = 1
+    TabBuy:Input({ Title = "循环次数", Value = "1", Callback = function(v)
+        local num = tonumber(v)
+        if num and num > 0 then buyAmount = num else buyAmount = 1 end
+    end })
+    
+    TabBuy:Button({ Title = "刷新商品列表 (跑图加载后点我)", Callback = function()
+        local newOpts, newMap = refreshItemList()
+        if dd and dd.Refresh then
+            dd:Refresh(newOpts)
+        else
+            Notify("刷新成功", "已更新商品列表，请重新选择", 5)
+        end
+    end })
+    
+    TabBuy:Button({ Title = "开始购买选中商品", Callback = function()
+        if not selectedEntry then return end
+        stopPurchaseFlag = false
+        task.spawn(function() purchaseCycle(selectedEntry.store, selectedEntry.item, buyAmount, false) end)
+    end })
+    
+    TabBuy:Button({ Title = "停止全商店购买", Callback = function()
+        stopPurchaseFlag = true
+        Notify("系统", "已发送停止信号", 3)
+    end })
+end
 local evilStopFlag = false
 local evilAutoRunning = false
 local evilCombineCount = 1
