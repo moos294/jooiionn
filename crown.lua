@@ -1,6 +1,6 @@
 local player = game.Players.LocalPlayer
 
-local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/moos294/ghghjj/refs/heads/main/1794604968783_OrigamiUI_Lite.lua"))()
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/moos294/ghghjj/refs/heads/main/UI.lua"))()
 local WindUI = UI.WindUI
 local TabHome = UI.Tabs.TabHome
 local TabTree = UI.Tabs.TabTree
