@@ -1,7 +1,7 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "封存木材 V1.4",
+    Title = "封存木材 V1.3",
     Icon = "rbxassetid://10882439086",
     Author = "封存NB",
     Size = UDim2.fromOffset(380, 300),
@@ -13,11 +13,12 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:EditOpenButton({
-    Title = "",
+    Title = "存",
     Icon = "",
     Enabled = true,
     Draggable = true,
-    CornerRadius = UDim.new(0, 8),
+    CornerRadius = UDim.new(0, 10),
+    StrokeThickness = 0,
 })
 
 task.spawn(function()
@@ -29,15 +30,15 @@ task.spawn(function()
         openBtn.Size = UDim2.new(0, 45, 0, 45)
         
         for _, child in pairs(openBtn:GetDescendants()) do
-            if child:IsA("TextLabel") or child:IsA("ImageLabel") or child:IsA("Frame") or child:IsA("TextButton") then
-                if child.Name ~= "CustomImage" and child.Name ~= "CustomStroke" then
+            if child:IsA("TextLabel") or child:IsA("ImageLabel") or child:IsA("Frame") then
+                if child.Name ~= "UserImage" then
                     child.Visible = false
                 end
             end
         end
 
         local img = Instance.new("ImageLabel")
-        img.Name = "CustomImage"
+        img.Name = "UserImage"
         img.Parent = openBtn
         img.Size = UDim2.new(1, 0, 1, 0)
         img.BackgroundTransparency = 1
@@ -46,31 +47,33 @@ task.spawn(function()
         img.ZIndex = 1
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
+        corner.CornerRadius = UDim.new(0, 10)
         corner.Parent = img
 
+        local glass = Instance.new("ImageLabel")
+        glass.Parent = img
+        glass.Size = UDim2.new(1, 0, 1, 0)
+        glass.BackgroundTransparency = 1
+        glass.Image = "rbxassetid://9968344227" 
+        glass.ImageTransparency = 0.7
+        glass.ScaleType = Enum.ScaleType.Tile
+        glass.TileSize = UDim2.new(0, 50, 0, 50)
+        glass.ZIndex = 2
+
         local stroke = Instance.new("UIStroke")
-        stroke.Name = "CustomStroke"
-        stroke.Thickness = 2.5
+        stroke.Thickness = 2
         stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Color = Color3.fromRGB(255, 255, 255)
+        stroke.Transparency = 0.2
         stroke.Parent = img
         
         local gradient = Instance.new("UIGradient")
         gradient.Color = ColorSequence.new{
             ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
         }
+        gradient.Rotation = 45
         gradient.Parent = stroke
-        
-        local rotation = 0
-        task.spawn(function()
-            while img.Parent do
-                rotation = rotation + 1
-                gradient.Rotation = rotation
-                task.wait(0.02)
-            end
-        end)
     end
 end)
 
