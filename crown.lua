@@ -51,11 +51,11 @@ end
 
 CleanupAll()
 
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/moos294/ghghjj/main/crown.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "封存木材",
+    Title = "封存木材 V1.3",
     Icon = "rbxassetid://10882439086",
-    Author = "封存NBV0.3",
+    Author = "封存NB",
     Size = UDim2.fromOffset(420, 380),
     Transparent = true,
     Theme = "Dark"
@@ -2615,241 +2615,184 @@ local function giveSortTool()
     currentSortTool.Parent = player.Backpack
 end
 TabExtra:Button({ Title = "获取建筑整理工具", Callback = function() giveSortTool() end })
+TabExtra:Paragraph({ Title = "【 玩家追踪与反挂机 】", Color = Color3.fromRGB(0, 255, 255) })
 
-TabExtra:Paragraph({ Title = "【 复制/卡斧头 】", Desc = "同时开启，疯狂丢捡", Color = Color3.fromRGB(255, 0, 0) })
-local autoDropAxe, autoPickAxe = false, false
-local function droptool(cframe)
-    local tool=player.Character:FindFirstChildOfClass("Tool")
-    if tool then tool.Parent=Workspace; tool:SetPrimaryPartCFrame(cframe) end
+local selectedPlayerName = player.Name
+local playerDropdownOptions = {}
+local currentPlayerDropdown = nil
+
+for _, p in ipairs(game.Players:GetPlayers()) do
+    table.insert(playerDropdownOptions, p.Name)
 end
-TabExtra:Toggle({ Title = "自动扔斧头", Default = false, Callback = function(state) autoDropAxe = state; if state then task.spawn(function() while autoDropAxe do task.wait(); if autoDropAxe then droptool(player.Character.HumanoidRootPart.CFrame) end end end) end end })
-TabExtra:Toggle({ Title = "自动捡斧头", Default = false, Callback = function(state) autoPickAxe = state; if state then task.spawn(function() while autoPickAxe do task.wait(0.1); for _, b in pairs(Workspace.PlayerModels:GetChildren()) do if b:FindFirstChild("Owner") and b.Owner.Value == player then if b:FindFirstChild("Type") and b.Type.Value == "Tool" then RS.Interaction.ClientInteracted:FireServer(b, 'Pick up tool') end end end end end) end end })
-local TabBlueprint = Window:Tab({ Title = "蓝图保存", Icon = "rbxassetid://10734945123" })
-local HttpService = game:GetService("HttpService")
 
-local SAVE_DIR = "/storage/emulated/0/Delta/Workspace/"
-local blueprintList = {}
-local selectedBlueprint = "无存档"
-local blueprintDropdown = nil
-local customFileName = "我的建筑1"
-
-local function refreshBlueprintList()
-    blueprintList = {}
-    if listfiles then
-        local success, files = pcall(listfiles, SAVE_DIR)
-        if success and type(files) == "table" then
-            for _, file in ipairs(files) do
-                if string.sub(file, -5) == ".json" and string.find(file, "BP_") then
-                    -- 提取纯文件名（去路径、去前缀、去后缀）
-                    local fileName = string.match(file, "([^/\\]+)$") or file
-                    local cleanName = string.gsub(fileName, "BP_", "")
-                    cleanName = string.gsub(cleanName, ".json", "")
-                    table.insert(blueprintList, cleanName)
-                end
-            end
-        end
+local function refreshPlayerList()
+    playerDropdownOptions = {}
+    for _, p in ipairs(game.Players:GetPlayers()) do
+        table.insert(playerDropdownOptions, p.Name)
     end
-    
-    if #blueprintList == 0 then
-        blueprintList = {"无存档"}
-        selectedBlueprint = "无存档"
-    else
-        table.sort(blueprintList)
-        if not table.find(blueprintList, selectedBlueprint) then
-            selectedBlueprint = blueprintList[1]
+    if currentPlayerDropdown then
+        currentPlayerDropdown:SetOptions(playerDropdownOptions)
+        if not table.find(playerDropdownOptions, selectedPlayerName) then
+            selectedPlayerName = player.Name
+            currentPlayerDropdown:SetValue(selectedPlayerName)
         end
-    end
-    
-    if blueprintDropdown then
-        blueprintDropdown:SetOptions(blueprintList)
-        blueprintDropdown:SetValue(selectedBlueprint)
     end
 end
 
-local function scanBuild(saveName)
-    if not saveName or saveName == "" then
-        WindUI:Notify({ Title = "错误", Content = "请输入有效的存档名称", Duration = 3 })
-        return 
+currentPlayerDropdown = TabExtra:Dropdown({
+    Title = "选择目标玩家",
+    Values = playerDropdownOptions,
+    Value = selectedPlayerName,
+    Callback = function(option)
+        selectedPlayerName = option
     end
+})
 
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then 
-        WindUI:Notify({ Title = "错误", Content = "找不到角色位置", Duration = 3 })
-        return 
+TabExtra:Button({
+    Title = "刷新玩家列表",
+    Callback = function()
+        refreshPlayerList()
+        WindUI:Notify({ Title = "刷新成功", Content = "玩家列表已更新", Duration = 3 })
     end
-    
-    local myPos = hrp.Position
-    local dataToSave = {}
-    local count = 0
-    
-    WindUI:Notify({ Title = "扫描中", Content = "正在提取领地建筑数据...", Duration = 3 })
-    task.wait(0.5)
+})
 
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Anchored then
-            local isMine = false
-            local parentModel = obj:FindFirstAncestorOfClass("Model")
-            
-            if parentModel and parentModel:FindFirstChild("Owner") and parentModel.Owner.Value == player then
-                isMine = true
-            elseif (obj.Position - myPos).Magnitude < 200 then
-                isMine = true
-            end
-            
-            if isMine then
-                local cf = obj.CFrame
-                table.insert(dataToSave, {
-                    posX = cf.X, posY = cf.Y, posZ = cf.Z,
-                    rot = {cf:GetComponents()},
-                    sizeX = obj.Size.X, sizeY = obj.Size.Y, sizeZ = obj.Size.Z,
-                    colorR = obj.Color.R, colorG = obj.Color.G, colorB = obj.Color.B,
-                    material = obj.Material.Name
-                })
-                count = count + 1
-            end
-        end
-    end
-    
-    if count > 0 then
-        local jsonData = HttpService:JSONEncode(dataToSave)
-        local fileName = "BP_" .. saveName .. ".json"
-        local fullPath = SAVE_DIR .. fileName
-        
-        if writefile then
-            local success, err = pcall(writefile, fullPath, jsonData)
-            if success then
-                WindUI:Notify({ 
-                    Title = "✅ 保存成功", 
-                    Content = "已保存 " .. count .. " 个方块。\n\n文件绝对路径:\n" .. fullPath, 
-                    Duration = 10 
-                })
-                refreshBlueprintList()
-            else
-                WindUI:Notify({ Title = "保存失败", Content = "无法写入文件: " .. tostring(err), Duration = 5 })
+TabExtra:Button({
+    Title = "传送到目标玩家身边",
+    Callback = function()
+        local target = game.Players:FindFirstChild(selectedPlayerName)
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local cf = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = cf
             end
         else
-            WindUI:Notify({ Title = "执行器不支持", Content = "当前执行器不支持 writefile", Duration = 5 })
+            WindUI:Notify({ Title = "错误", Content = "找不到玩家或玩家角色已死亡", Duration = 3 })
         end
-    else
-        WindUI:Notify({ Title = "扫描失败", Content = "附近没有找到建筑", Duration = 3 })
     end
-end
+})
 
-local function generateBuild(saveName)
-    if saveName == "无存档" then
-        WindUI:Notify({ Title = "错误", Content = "当前没有可用的存档", Duration = 3 })
-        return
-    end
-
-    local fileName = "BP_" .. saveName .. ".json"
-    local fullPath = SAVE_DIR .. fileName
-    
-    if not isfile or not isfile(fullPath) then
-        WindUI:Notify({ Title = "错误", Content = "找不到文件:\n" .. fullPath, Duration = 5 })
-        return
-    end
-    
-    local fileData = readfile(fullPath)
-    local success, parsedData = pcall(function() return HttpService:JSONDecode(fileData) end)
-    
-    if not success or not parsedData then
-        WindUI:Notify({ Title = "错误", Content = "文件损坏或格式错误", Duration = 3 })
-        return
-    end
-
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local myPos = hrp.Position
-    
-    WindUI:Notify({ Title = "生成中", Content = "正在生成蓝图，请稍候...", Duration = 3 })
-    task.wait(0.5)
-    
-    task.spawn(function()
-        local generated = 0
-        for _, data in ipairs(parsedData) do
-            local pos = Vector3.new(data.posX, data.posY, data.posZ)
-            local dist = (pos - myPos).Magnitude
-            if dist > 500 then
-                pos = myPos + (pos - Vector3.new(data.posX, 0, data.posZ))
-            end
-
-            local cf = CFrame.new(pos.X, pos.Y, pos.Z, 
-                data.rot[2], data.rot[5], data.rot[8], 
-                data.rot[3], data.rot[6], data.rot[9], 
-                data.rot[4], data.rot[7], data.rot[10])
-
-            local part = Instance.new("Part")
-            part.Name = "BuildBlueprint"
-            part.Size = Vector3.new(data.sizeX, data.sizeY, data.sizeZ)
-            part.CFrame = cf
-            part.Color = Color3.new(data.colorR, data.colorG, data.colorB)
-            part.Material = Enum.Material[data.material] or Enum.Material.Wood
-            part.Transparency = 0.5
-            part.CanCollide = false
-            part.Anchored = true
-            part.Parent = Workspace
-            
-            generated = generated + 1
-            if generated % 50 == 0 then task.wait() end
+local isLoopTeleport = false
+TabExtra:Toggle({
+    Title = "循环锁定传送",
+    Default = false,
+    Callback = function(state)
+        isLoopTeleport = state
+        if state then
+            task.spawn(function()
+                while isLoopTeleport do
+                    local target = game.Players:FindFirstChild(selectedPlayerName)
+                    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                        end
+                    end
+                    task.wait()
+                end
+            end)
         end
-        WindUI:Notify({ Title = "生成完成", Content = "已生成 " .. generated .. " 个蓝图方块", Duration = 5 })
-    end)
-end
+    end
+})
 
-local function clearBlueprint()
-    local count = 0
-    for _, obj in pairs(Workspace:GetChildren()) do
-        if obj.Name == "BuildBlueprint" then
-            obj:Destroy()
+TabExtra:Button({
+    Title = "开启反挂机防踢",
+    Desc = "解除Roblox的20分钟挂机踢出限制",
+    Callback = function()
+        local count = 0
+        for _, connection in ipairs(getconnections(game:GetService("Players").LocalPlayer.Idled)) do
+            pcall(function() connection:Disable() end)
+            pcall(function() connection:Disconnect() end)
             count = count + 1
         end
+        WindUI:Notify({ Title = "成功", Content = "已处理 " .. count .. " 个挂机检测连接", Duration = 3 })
     end
-    WindUI:Notify({ Title = "清理完成", Content = "已删除 " .. count .. " 个蓝图方块", Duration = 3 })
-end
-
-TabBlueprint:Paragraph({ Title = "【 建筑蓝图提取 】", Desc = "扫描建筑保存为文件，可在其他存档生成。", Color = Color3.fromRGB(255, 105, 180) })
-TabBlueprint:Paragraph({ Title = "📁 当前指定保存目录", Desc = SAVE_DIR, Color = Color3.fromRGB(0, 255, 0) })
-
-TabBlueprint:Input({ 
-    Title = "自定义文件名称", 
-    Value = customFileName, 
-    Callback = function(v) 
-        customFileName = v 
-    end 
 })
 
-TabBlueprint:Button({ 
-    Title = "保存当前建筑", 
-    Callback = function() 
-        scanBuild(customFileName) 
-    end 
+TabExtra:Paragraph({ Title = "【 基础属性与跳跃增强 】", Color = Color3.fromRGB(255, 150, 0) })
+
+local currentWalkSpeed = 16
+local currentJumpPower = 50
+local currentGravity = 196.2
+
+TabExtra:Slider({
+    Title = "设置玩家速度 (WalkSpeed)",
+    Value = { Min = 16, Max = 500, Default = 16 },
+    Callback = function(val)
+        currentWalkSpeed = val
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = val
+        end
+    end
 })
 
-TabBlueprint:Paragraph({ Title = "【 选择并加载蓝图 】", Desc = "点击下方刷新列表，选择后生成", Color = Color3.fromRGB(0, 255, 255) })
-
-blueprintDropdown = TabBlueprint:Dropdown({ 
-    Title = "选择建筑存档", 
-    Values = {"无存档"}, 
-    Value = "无存档", 
-    Callback = function(v) selectedBlueprint = v end 
+TabExtra:Slider({
+    Title = "设置跳跃高度 (JumpPower)",
+    Value = { Min = 50, Max = 500, Default = 50 },
+    Callback = function(val)
+        currentJumpPower = val
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = val
+            player.Character.Humanoid.UseJumpPower = true
+        end
+    end
 })
 
-TabBlueprint:Button({ 
-    Title = "刷新存档列表", 
-    Callback = function() 
-        refreshBlueprintList() 
-        WindUI:Notify({ Title = "刷新成功", Content = "已找到 " .. #blueprintList .. " 个存档", Duration = 3 })
-    end 
+TabExtra:Slider({
+    Title = "设置世界重力 (Gravity)",
+    Value = { Min = 0, Max = 300, Default = 196.2 },
+    Callback = function(val)
+        currentGravity = val
+        Workspace.Gravity = val
+    end
 })
 
-TabBlueprint:Button({ 
-    Title = "生成所选蓝图", 
-    Callback = function() generateBuild(selectedBlueprint) end 
+TabExtra:Button({
+    Title = "重置属性为默认",
+    Callback = function()
+        currentWalkSpeed = 16
+        currentJumpPower = 50
+        currentGravity = 196.2
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = 16
+            player.Character.Humanoid.JumpPower = 50
+        end
+        Workspace.Gravity = 196.2
+        WindUI:Notify({ Title = "属性重置", Content = "速度、跳跃、重力已恢复默认", Duration = 3 })
+    end
 })
 
-TabBlueprint:Button({ 
-    Title = "一键清理生成的蓝图", 
-    Callback = function() clearBlueprint() end 
+local UserInputService = game:GetService("UserInputService")
+local isInfJump = false
+local infJumpDebounce = false
+
+TabExtra:Toggle({
+    Title = "开启无限跳跃 (空中连跳)",
+    Default = false,
+    Callback = function(state)
+        isInfJump = state
+        WindUI:Notify({ Title = "状态更新", Content = state and "无限跳跃已开启" or "无限跳跃已关闭", Duration = 2 })
+    end
 })
 
-refreshBlueprintList()
+UserInputService.JumpRequest:Connect(function()
+    if isInfJump and not infJumpDebounce then
+        infJumpDebounce = true
+        if player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+        task.wait(0.1)
+        infJumpDebounce = false
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if hum then
+        hum.WalkSpeed = currentWalkSpeed
+        hum.JumpPower = currentJumpPower
+        hum.UseJumpPower = true
+    end
+end)
