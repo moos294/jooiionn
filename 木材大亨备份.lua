@@ -2543,3 +2543,57 @@ do
         end
     end)
 end
+do
+    local RS = game:GetService("ReplicatedStorage")
+
+    TabHome:Paragraph({ Title = "【 染料与刷物品 原生提取版 】" })
+
+    TabHome:Button({ Title = "获取 染料工具", Callback = function()
+        local backpack = player:FindFirstChild("Backpack")
+        if not backpack then return end
+        
+        local paintTool = RS:FindFirstChild("PaintBucket", true) or game.Workspace:FindFirstChild("PaintBucket", true)
+        if paintTool then
+            local newTool = paintTool:Clone()
+            newTool.Parent = backpack
+            Notify("成功", "染料工具已放入背包", 3)
+        else
+            Notify("失败", "未找到染料工具路径", 3)
+        end
+    end })
+
+    _G.RawSpawnItem = "Wood"
+    TabHome:Input({ Title = "输入物品英文名", Value = "Wood", Callback = function(v)
+        _G.RawSpawnItem = v
+    end })
+
+    TabHome:Button({ Title = "刷出该物品", Callback = function()
+        local name = _G.RawSpawnItem or "Wood"
+        local item = RS:FindFirstChild(name, true) or game.Workspace:FindFirstChild(name, true)
+        
+        if not item then
+            Notify("失败", "找不到该物品路径: " .. name, 3)
+            return
+        end
+
+        local clone = item:Clone()
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        
+        if hrp and (clone:IsA("Model") or clone:IsA("BasePart")) then
+            if clone:IsA("Model") then
+                if not clone.PrimaryPart then clone.PrimaryPart = clone:FindFirstChildWhichIsA("BasePart") end
+                if clone.PrimaryPart then clone:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(0, 0, -5)) end
+            else
+                clone.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+            end
+            clone.Parent = game.Workspace
+            Notify("成功", "物品已生成", 3)
+        elseif clone:IsA("Tool") then
+            local backpack = player:FindFirstChild("Backpack")
+            if backpack then
+                clone.Parent = backpack
+                Notify("成功", "工具已放入背包", 3)
+            end
+        end
+    end })
+end
