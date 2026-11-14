@@ -1261,11 +1261,20 @@ local function purchaseCycle(storeInfo, selectedItemName, buyAmount, doubleConfi
     local store = storeInfo.object
     local shopItems = storeInfo.shopItems
     local npcInfo = storeInfo.npc
-    if not npcInfo or not npcInfo.id then return false end
+    if not npcInfo or not npcInfo.id then
+        Notify("购买失败", "缺少 NPC ID，请点击刷新商品列表", 3)
+        return false
+    end
     local npcChar = store:FindFirstChild(npcInfo.path)
-    if not npcChar then return false end
+    if not npcChar then
+        Notify("购买失败", "找不到NPC实体: " .. tostring(npcInfo.path), 3)
+        return false
+    end
     local counter = store:FindFirstChild("Counter")
-    if not counter or not counter:IsA("BasePart") then return false end
+    if not counter or not counter:IsA("BasePart") then
+        Notify("购买失败", "商店缺少 Counter 部件", 3)
+        return false
+    end
     local NPCDialog = REPLICATED_STORAGE:WaitForChild("NPCDialog")
     
     local function sendPurchaseAndCollect()
@@ -1424,11 +1433,22 @@ if #displayOptions > 0 then
         end
     end })
     
-    TabBuy:Button({ Title = "开始购买选中商品", Callback = function()
-        if not selectedEntry then return end
-        stopPurchaseFlag = false
-        task.spawn(function() purchaseCycle(selectedEntry.store, selectedEntry.item, buyAmount, false) end)
-    end })
+TabBuy:Button({ Title = "开始购买选中商品", Callback = function()
+    if not selectedEntry then
+        Notify("提示", "请先在下拉框选择商品", 3)
+        return
+    end
+    if selectedEntry.store and selectedEntry.store.npc and not selectedEntry.store.npc.id then
+        Notify("提示", "正在获取 NPC ID，请稍后...", 3)
+        local ids = GetAllCashierIds()
+        for storeName, info in pairs(storeInfoMapping) do
+            local npc = npcMapping[storeName]
+            if npc and ids[info.name] then npc.id = ids[info.name] end
+        end
+    end
+    stopPurchaseFlag = false
+    task.spawn(function() purchaseCycle(selectedEntry.store, selectedEntry.item, buyAmount, false) end)
+end })
     
     TabBuy:Button({ Title = "停止全商店购买", Callback = function()
         stopPurchaseFlag = true
@@ -2440,4 +2460,83 @@ do
             warn("[娱乐区] 注册失败: " .. tostring(err))
         end
     end
+end
+do
+    local _gpOriginal = {}
+    local _gpEnabled = false
+
+    local function _saveGpOriginal()
+        _gpOriginal = {}
+        local gp = player:FindFirstChild("Gamepasses")
+        if not gp then
+            Notify("通行证", "未找到 Gamepasses 文件夹，可能未加载", 3)
+            return false
+        end
+        for _, v in ipairs(gp:GetDescendants()) do
+            if v:IsA("BoolValue") or v:IsA("IntValue") or v:IsA("NumberValue") then
+                _gpOriginal[v] = v.Value
+            end
+        end
+        return true
+    end
+
+    local function _applyGpUnlock()
+        local gp = player:FindFirstChild("Gamepasses")
+        if not gp then return 0 end
+        local count = 0
+        for _, v in ipairs(gp:GetDescendants()) do
+            if v:IsA("BoolValue") then
+                if not v.Value then v.Value = true end
+                count = count + 1
+            elseif v:IsA("IntValue") or v:IsA("NumberValue") then
+                v.Value = 1
+                count = count + 1
+            end
+        end
+        return count
+    end
+
+    TabHome:Paragraph({ Title = "【 通行证解锁 (防服务器重置版) 】" })
+
+    TabHome:Toggle({ Title = "解锁所有通行证", Value = false, Callback = function(state)
+        _gpEnabled = state
+        if state then
+            if next(_gpOriginal) == nil then _saveGpOriginal() end
+            local n = _applyGpUnlock()
+            Notify("通行证", "已解锁 " .. tostring(n) .. " 项并锁定", 3)
+        else
+            Notify("通行证", "已停止锁定", 2)
+        end
+    end })
+
+    TabHome:Button({ Title = "恢复通行证原始值", Callback = function()
+        _gpEnabled = false
+        local n = 0
+        for obj, val in pairs(_gpOriginal) do
+            if obj and obj.Parent then
+                pcall(function() obj.Value = val end)
+                n = n + 1
+            end
+        end
+        Notify("通行证", "已恢复 " .. tostring(n) .. " 项", 3)
+    end })
+
+    TabHome:Button({ Title = "重新保存当前值为原始", Callback = function()
+        if _saveGpOriginal() then
+            Notify("通行证", "已将当前值保存为原始值", 3)
+        end
+    end })
+
+    RunService.RenderStepped:Connect(function()
+        if not _gpEnabled then return end
+        local gp = player:FindFirstChild("Gamepasses")
+        if not gp then return end
+        for _, v in ipairs(gp:GetDescendants()) do
+            if v:IsA("BoolValue") and not v.Value then
+                v.Value = true
+            elseif v:IsA("IntValue") or v:IsA("NumberValue") then
+                v.Value = 1
+            end
+        end
+    end)
 end
