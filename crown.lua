@@ -39,6 +39,23 @@ local TabCraft = Window:Tab({ Title = "快速合成剑" })
 local TabTP = Window:Tab({ Title = "传送" })
 local TabExtra = Window:Tab({ Title = "其他功能" })
 
+local myBg = "https://raw.githubusercontent.com/moos294/ghghjj/refs/heads/main/bg.jpg"
+
+if myBg and myBg ~= "" then
+    task.spawn(function()
+        task.wait(0.5)
+        for _, v in ipairs(UI.Gui:GetDescendants()) do
+            if v:IsA("ImageLabel") then
+                v.Image = myBg
+                v.ImageTransparency = 0
+            end
+            if v.Name == "Dim" then
+                v.BackgroundTransparency = 0.65
+            end
+        end
+    end)
+end
+
 local function Notify(title, content, duration)
     WindUI:Notify({Title = title, Content = content, Duration = duration or 3})
 end
@@ -57,38 +74,42 @@ TabHome:Paragraph({ Title = "【 属性修改 】" })
 
 local currentSpeed = 16
 local currentJump = 50
+local inputSpeed = "16"
+local inputJump = "50"
 
-TabHome:Button({ Title = "设置速度: 50 (点我)", Callback = function()
-    currentSpeed = 50
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = 50
-    end
-    Notify("成功", "速度已调整为 50")
+TabHome:Input({ Title = "输入速度数值", Value = "16", Callback = function(v)
+    inputSpeed = v
 end })
 
-TabHome:Button({ Title = "设置速度: 100 (点我)", Callback = function()
-    currentSpeed = 100
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = 100
+TabHome:Button({ Title = "设置速度", Callback = function()
+    local num = tonumber(inputSpeed)
+    if num and num > 0 then
+        currentSpeed = num
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = num
+        end
+        Notify("成功", "移动速度已设为 " .. tostring(num))
+    else
+        Notify("失败", "请输入正确的数字")
     end
-    Notify("成功", "速度已调整为 100")
 end })
 
-TabHome:Button({ Title = "设置速度: 200 (点我)", Callback = function()
-    currentSpeed = 200
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = 200
-    end
-    Notify("成功", "速度已调整为 200")
+TabHome:Input({ Title = "输入跳跃数值", Value = "50", Callback = function(v)
+    inputJump = v
 end })
 
-TabHome:Button({ Title = "设置跳跃: 200 (点我)", Callback = function()
-    currentJump = 200
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.JumpPower = 200
-        player.Character.Humanoid.UseJumpPower = true
+TabHome:Button({ Title = "设置跳跃", Callback = function()
+    local num = tonumber(inputJump)
+    if num and num > 0 then
+        currentJump = num
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = num
+            player.Character.Humanoid.UseJumpPower = true
+        end
+        Notify("成功", "跳跃力已设为 " .. tostring(num))
+    else
+        Notify("失败", "请输入正确的数字")
     end
-    Notify("成功", "跳跃力已调整为 200")
 end })
 
 local infJump = false
@@ -97,8 +118,12 @@ TabHome:Toggle({ Title = "无限跳跃", Value = false, Callback = function(s) i
 RunService.RenderStepped:Connect(function()
     if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
         local hum = player.Character.Humanoid
-        if hum.WalkSpeed ~= currentSpeed and currentSpeed > 16 then
+        if currentSpeed > 16 and hum.WalkSpeed ~= currentSpeed then
             hum.WalkSpeed = currentSpeed
+        end
+        if currentJump > 50 and hum.JumpPower ~= currentJump then
+            hum.JumpPower = currentJump
+            hum.UseJumpPower = true
         end
     end
 end)
