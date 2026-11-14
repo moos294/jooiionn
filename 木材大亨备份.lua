@@ -430,42 +430,62 @@ local function dragToPosition(model, targetCF, callback, waitFinish)
 end
 
 local function loadWeaponConfig(weaponName)
-    if weaponName == "OlReliable" or weaponName == "OIReliable" then
-        local override = nil
-        local wsTool = Workspace:FindFirstChild(player.Name)
+    local override = nil
+    local wsPlayer = Workspace:FindFirstChild(player.Name)
+    if wsPlayer then
+        local wsTool = wsPlayer:FindFirstChild("Tool")
         if wsTool then
-            wsTool = wsTool:FindFirstChild("Tool")
-            if wsTool then
-                local toolName = wsTool:FindFirstChild("ToolName")
-                if toolName and (tostring(toolName.Value) == "OlReliable" or tostring(toolName.Value) == "OIReliable") then
-                    override = wsTool:FindFirstChild("AxeClassDamageOverride")
-                end
+            local tn = wsTool:FindFirstChild("ToolName")
+            if tn and tostring(tn.Value) == tostring(weaponName) then
+                override = wsTool:FindFirstChild("AxeClassDamageOverride")
             end
         end
-        if not override then
-            local backpack = player:FindFirstChild("Backpack")
-            if backpack then
-                for _, tool in pairs(backpack:GetChildren()) do
-                    if tool:IsA("Tool") then
-                        local toolName = tool:FindFirstChild("ToolName")
-                        if toolName and (tostring(toolName.Value) == "OlReliable" or tostring(toolName.Value) == "OIReliable") then
-                            override = tool:FindFirstChild("AxeClassDamageOverride")
-                            if override then break end
-                        end
+    end
+    if not override then
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            for _, tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") then
+                    local tn = tool:FindFirstChild("ToolName")
+                    if tn and tostring(tn.Value) == tostring(weaponName) then
+                        override = tool:FindFirstChild("AxeClassDamageOverride")
+                        if override then break end
                     end
                 end
             end
         end
-        if override then
-            local config = {Damage = nil, SwingCooldown = nil, Range = nil, SpecialTrees = {}}
-            for key, value in pairs(override:GetAttributes()) do
-                if key == "Damage" then config.Damage = value
-                elseif key == "SwingCooldown" then config.SwingCooldown = value
-                elseif key == "Range" then config.Range = value
-                else config.SpecialTrees[key] = {Damage = value} end
+    end
+    if not override then
+        local char = player.Character
+        if char then
+            for _, tool in pairs(char:GetChildren()) do
+                if tool:IsA("Tool") then
+                    local tn = tool:FindFirstChild("ToolName")
+                    if tn and tostring(tn.Value) == tostring(weaponName) then
+                        override = tool:FindFirstChild("AxeClassDamageOverride")
+                        if override then break end
+                    end
+                end
             end
-            if config.Damage or config.SwingCooldown or next(config.SpecialTrees) then return config end
         end
+    end
+    if override then
+        local config = {Damage = nil, SwingCooldown = nil, Range = nil, SpecialTrees = {}}
+        for key, value in pairs(override:GetAttributes()) do
+            if key == "Damage" then config.Damage = value
+            elseif key == "SwingCooldown" then config.SwingCooldown = value
+            elseif key == "Range" then config.Range = value
+            else config.SpecialTrees[key] = {Damage = value} end
+        end
+        for _, child in pairs(override:GetChildren()) do
+            if child:IsA("NumberValue") or child:IsA("IntValue") then
+                if child.Name == "Damage" then config.Damage = child.Value
+                elseif child.Name == "SwingCooldown" then config.SwingCooldown = child.Value
+                elseif child.Name == "Range" then config.Range = child.Value
+                else config.SpecialTrees[child.Name] = {Damage = child.Value} end
+            end
+        end
+        if config.Damage or config.SwingCooldown or next(config.SpecialTrees) then return config end
     end
     return nil
 end
@@ -2545,55 +2565,165 @@ do
 end
 do
     local RS = game:GetService("ReplicatedStorage")
+    local CN_Map = {
+        ["Wood"] = "木头", ["Plank"] = "木板", ["Log"] = "原木", ["Blueprint"] = "蓝图",
+        ["Axe"] = "斧头", ["Sawmill"] = "锯木机", ["Car"] = "汽车", ["Bucket"] = "水桶",
+        ["Sapling"] = "树苗", ["Crate"] = "板条箱", ["Sign"] = "告示牌", ["Lantern"] = "灯笼",
+        ["Paint"] = "染料", ["Paintbrush"] = "刷子", ["Duck"] = "鸭子", ["Gift"] = "礼物",
+        ["Chair"] = "椅子", ["Table"] = "桌子", ["Bed"] = "床", ["Shelf"] = "架子", ["Lamp"] = "台灯",
+        ["Chest"] = "箱子", ["Door"] = "门", ["Window"] = "窗户", ["Rug"] = "地毯", ["Sofa"] = "沙发",
+        ["Couch"] = "沙发", ["Stool"] = "凳子", ["Cabinet"] = "柜子", ["Drawer"] = "抽屉"
+    }
 
-    TabHome:Paragraph({ Title = "【 染料与刷物品 原生提取版 】" })
+    local function getCNName(enName)
+        if CN_Map[enName] then return CN_Map[enName] end
+        for k, v in pairs(CN_Map) do
+            if string.find(string.lower(enName), string.lower(k)) then
+                return v .. " (" .. enName .. ")"
+            end
+        end
+        return enName
+    end
+
+    local ScannedItems = {}
+    local ScannedMap = {}
+    local selectedItemName = "Wood"
+    local selectorGenerated = false
+
+    TabHome:Paragraph({ Title = "【 强制全图扫描与刷取 】" })
 
     TabHome:Button({ Title = "获取 染料工具", Callback = function()
         local backpack = player:FindFirstChild("Backpack")
         if not backpack then return end
         
-        local paintTool = RS:FindFirstChild("PaintBucket", true) or game.Workspace:FindFirstChild("PaintBucket", true)
-        if paintTool then
-            local newTool = paintTool:Clone()
-            newTool.Parent = backpack
-            Notify("成功", "染料工具已放入背包", 3)
+        local foundTool = nil
+        local keywords = {"paint", "brush", "dye", "color", "bucket"}
+        
+        for _, v in ipairs(RS:GetDescendants()) do
+            if v:IsA("Tool") then
+                local lowerName = string.lower(v.Name)
+                for _, kw in ipairs(keywords) do
+                    if string.find(lowerName, kw) then
+                        foundTool = v
+                        break
+                    end
+                end
+                if foundTool then break end
+            end
+        end
+        
+        if foundTool then
+            local clone = foundTool:Clone()
+            clone.Parent = backpack
+            Notify("成功", "已获取: " .. foundTool.Name, 3)
         else
-            Notify("失败", "未找到染料工具路径", 3)
+            local tool = Instance.new("Tool")
+            tool.Name = "Paintbrush"
+            tool.RequiresHandle = false
+            local colorVal = Instance.new("StringValue")
+            colorVal.Name = "Color"
+            colorVal.Value = "Really Red"
+            colorVal.Parent = tool
+            tool.Parent = backpack
+            Notify("成功", "未扫到实体，已手搓染料工具", 3)
         end
     end })
 
-    _G.RawSpawnItem = "Wood"
-    TabHome:Input({ Title = "输入物品英文名", Value = "Wood", Callback = function(v)
-        _G.RawSpawnItem = v
+    TabHome:Button({ Title = "1. 强制扫描所有物品", Callback = function()
+        Notify("扫描", "正在深挖游戏资源，请稍候...", 3)
+        task.spawn(function()
+            ScannedItems = {}
+            ScannedMap = {}
+            local seen = {}
+            
+            local stores = game.Workspace:FindFirstChild("Stores")
+            if stores then
+                for _, store in pairs(stores:GetChildren()) do
+                    local shopItems = store:FindFirstChild("ShopItems")
+                    if shopItems then
+                        for _, item in pairs(shopItems:GetChildren()) do
+                            seen[item.Name] = true
+                        end
+                    end
+                end
+            end
+            
+            local playerModels = game.Workspace:FindFirstChild("PlayerModels")
+            if playerModels then
+                for _, item in pairs(playerModels:GetChildren()) do
+                    if item.Name ~= "" and #item.Name < 40 then
+                        seen[item.Name] = true
+                    end
+                end
+            end
+
+            for _, v in ipairs(RS:GetDescendants()) do
+                if v:IsA("Tool") or v:IsA("Model") then
+                    if v.Name ~= "" and #v.Name < 40 then
+                        seen[v.Name] = true
+                    end
+                end
+            end
+
+            for k, _ in pairs(seen) do
+                table.insert(ScannedItems, getCNName(k))
+                ScannedMap[getCNName(k)] = k
+            end
+            table.sort(ScannedItems)
+
+            if #ScannedItems == 0 then
+                Notify("扫描", "未扫描到物品", 3)
+                return
+            end
+            
+            Notify("扫描完成", "共发现 " .. #ScannedItems .. " 个物品，请点下方生成列表", 5)
+        end)
     end })
 
-    TabHome:Button({ Title = "刷出该物品", Callback = function()
-        local name = _G.RawSpawnItem or "Wood"
-        local item = RS:FindFirstChild(name, true) or game.Workspace:FindFirstChild(name, true)
-        
-        if not item then
-            Notify("失败", "找不到该物品路径: " .. name, 3)
+    TabHome:Button({ Title = "2. 生成物品选择器", Callback = function()
+        if #ScannedItems == 0 then
+            Notify("失败", "请先点击上方按钮进行扫描", 3)
             return
         end
-
-        local clone = item:Clone()
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        
-        if hrp and (clone:IsA("Model") or clone:IsA("BasePart")) then
-            if clone:IsA("Model") then
-                if not clone.PrimaryPart then clone.PrimaryPart = clone:FindFirstChildWhichIsA("BasePart") end
-                if clone.PrimaryPart then clone:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(0, 0, -5)) end
-            else
-                clone.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
-            end
-            clone.Parent = game.Workspace
-            Notify("成功", "物品已生成", 3)
-        elseif clone:IsA("Tool") then
-            local backpack = player:FindFirstChild("Backpack")
-            if backpack then
-                clone.Parent = backpack
-                Notify("成功", "工具已放入背包", 3)
-            end
+        if selectorGenerated then
+            Notify("提示", "选择器已生成，请直接在上面操作", 3)
+            return
         end
+        selectorGenerated = true
+
+        TabHome:Dropdown({ 
+            Title = "选择物品", 
+            Values = ScannedItems, 
+            Value = ScannedItems[1], 
+            Callback = function(opt)
+                selectedItemName = ScannedMap[opt] or opt
+            end 
+        })
+
+        TabHome:Button({ Title = "刷出选中的物品", Callback = function()
+            local item = RS:FindFirstChild(selectedItemName, true) or game.Workspace:FindFirstChild(selectedItemName, true)
+            if not item then
+                Notify("失败", "找不到路径: " .. selectedItemName, 3)
+                return
+            end
+            local clone = item:Clone()
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp and (clone:IsA("Model") or clone:IsA("BasePart")) then
+                if clone:IsA("Model") then
+                    if not clone.PrimaryPart then clone.PrimaryPart = clone:FindFirstChildWhichIsA("BasePart") end
+                    if clone.PrimaryPart then clone:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(0, 0, -5)) end
+                else
+                    clone.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+                end
+                clone.Parent = game.Workspace
+                Notify("成功", "已生成物品", 3)
+            elseif clone:IsA("Tool") then
+                local bp = player:FindFirstChild("Backpack")
+                if bp then
+                    clone.Parent = bp
+                    Notify("成功", "已放入背包", 3)
+                end
+            end
+        end })
     end })
 end
