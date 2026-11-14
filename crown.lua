@@ -1,3 +1,13 @@
+local testGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local testLabel = Instance.new("TextLabel", testGui)
+testLabel.Size = UDim2.new(1, 0, 0, 100)
+testLabel.Position = UDim2.new(0, 0, 0.5, -50)
+testLabel.BackgroundColor3 = Color3.new(0,0,0)
+testLabel.TextColor3 = Color3.new(1,1,0)
+testLabel.TextScaled = true
+testLabel.Font = Enum.Font.GothamBold
+testLabel.Text = "【探针1】代码开始运行了！如果在游戏里看到这行字，说明没语法错误。"
+task.wait(2)
 local player = game.Players.LocalPlayer
 local Workspace = workspace
 local RS = game:GetService("ReplicatedStorage")
@@ -1969,3 +1979,5 @@ TabExtra:Dropdown({ Title = "选择汽车传送地点", Values = teleList, Value
     end
     if cf then carTeleport(cf) end
 end })
+testLabel.Text = "【探针2】所有代码加载完毕！如果UI没出来，说明UI链接挂了。"
+task.delay(10, function() testGui:Destroy() end)
