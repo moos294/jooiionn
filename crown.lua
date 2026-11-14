@@ -1,4 +1,4 @@
-local testGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local testGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
 local testLabel = Instance.new("TextLabel", testGui)
 testLabel.Size = UDim2.new(1, 0, 0, 100)
 testLabel.Position = UDim2.new(0, 0, 0.5, -50)
