@@ -38,6 +38,177 @@ local TabBuy = Window:Tab({ Title = "自动购买" })
 local TabCraft = Window:Tab({ Title = "快速合成剑" })
 local TabTP = Window:Tab({ Title = "传送" })
 local TabExtra = Window:Tab({ Title = "其他功能" })
+local TabFun = Window:Tab({ Title = "娱乐区" })
+
+do
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+    local HINT_IMAGE = "rbxassetid://75190293433051"
+    local ACCENT = Color3.fromRGB(96, 165, 250)
+    local DANGER = Color3.fromRGB(255, 110, 110)
+
+    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "OrigamiHint"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 200
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = pg
+
+    local holder = Instance.new("CanvasGroup")
+    holder.Name = "Hint"
+    holder.AnchorPoint = Vector2.new(0.5, 0)
+    holder.Position = UDim2.new(0.5, 0, 0.14, 0)
+    holder.Size = UDim2.fromOffset(330, 86)
+    holder.BackgroundTransparency = 1
+    holder.GroupTransparency = 1
+    holder.Visible = false
+    holder.Parent = gui
+
+    local scale = Instance.new("UIScale")
+    scale.Scale = 0.92
+    scale.Parent = holder
+
+    local card = Instance.new("Frame")
+    card.Size = UDim2.fromScale(1, 1)
+    card.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
+    card.BackgroundTransparency = 0.82
+    card.BorderSizePixel = 0
+    card.ClipsDescendants = true
+    card.Parent = holder
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = card
+
+    local img = Instance.new("ImageLabel")
+    img.Size = UDim2.fromScale(1, 1)
+    img.BackgroundTransparency = 1
+    img.Image = HINT_IMAGE
+    img.ScaleType = Enum.ScaleType.Crop
+    img.ImageTransparency = 0.72
+    img.Parent = card
+
+    local imgCorner = Instance.new("UICorner")
+    imgCorner.CornerRadius = UDim.new(0, 14)
+    imgCorner.Parent = img
+
+    local veil = Instance.new("Frame")
+    veil.Size = UDim2.fromScale(1, 1)
+    veil.BackgroundColor3 = Color3.fromRGB(8, 10, 14)
+    veil.BackgroundTransparency = 0.5
+    veil.BorderSizePixel = 0
+    veil.Parent = card
+
+    local veilCorner = Instance.new("UICorner")
+    veilCorner.CornerRadius = UDim.new(0, 14)
+    veilCorner.Parent = veil
+
+    local bar = Instance.new("Frame")
+    bar.Position = UDim2.fromOffset(0, 0)
+    bar.Size = UDim2.new(0, 4, 1, 0)
+    bar.BackgroundColor3 = ACCENT
+    bar.BorderSizePixel = 0
+    bar.ZIndex = 2
+    bar.Parent = card
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.new(1, 1, 1)
+    stroke.Transparency = 0.78
+    stroke.Thickness = 1
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = card
+
+    local title = Instance.new("TextLabel")
+    title.Position = UDim2.fromOffset(20, 18)
+    title.Size = UDim2.new(1, -36, 0, 28)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 17
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    title.TextStrokeTransparency = 0.42
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.TextTruncate = Enum.TextTruncate.AtEnd
+    title.Text = ""
+    title.ZIndex = 3
+    title.Parent = card
+
+    local sub = Instance.new("TextLabel")
+    sub.Position = UDim2.fromOffset(20, 48)
+    sub.Size = UDim2.new(1, -36, 0, 18)
+    sub.BackgroundTransparency = 1
+    sub.Font = Enum.Font.GothamMedium
+    sub.TextSize = 12
+    sub.TextColor3 = Color3.fromRGB(205, 214, 232)
+    sub.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    sub.TextStrokeTransparency = 0.55
+    sub.TextXAlignment = Enum.TextXAlignment.Left
+    sub.Text = "封存木材 · 娱乐区"
+    sub.ZIndex = 3
+    sub.Parent = card
+
+    local token = 0
+
+    local function Hint(name, state)
+        token += 1
+        local my = token
+
+        bar.BackgroundColor3 = state and ACCENT or DANGER
+        title.Text = (state and "已开启 · " or "已关闭 · ") .. tostring(name)
+
+        holder.Visible = true
+        scale.Scale = 0.92
+        holder.GroupTransparency = 1
+
+        TweenService:Create(holder, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 0 }):Play()
+        TweenService:Create(scale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+        task.delay(1.5, function()
+            if my ~= token then
+                return
+            end
+            TweenService:Create(holder, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { GroupTransparency = 1 }):Play()
+            TweenService:Create(scale, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.96 }):Play()
+            task.delay(0.3, function()
+                if my ~= token then
+                    return
+                end
+                holder.Visible = false
+            end)
+        end)
+    end
+
+    local function wrapToggle(tab)
+        if not tab or type(tab.Toggle) ~= "function" then
+            return
+        end
+        local orig = tab.Toggle
+        tab.Toggle = function(self, args)
+            if type(args) == "table" then
+                local cb = args.Callback
+                args.Callback = function(state)
+                    if type(cb) == "function" then
+                        local ok, err = pcall(cb, state)
+                        if not ok then
+                            warn("[娱乐区] " .. tostring(err))
+                        end
+                    end
+                    Hint(args.Title or "功能", state)
+                end
+            end
+            return orig(self, args)
+        end
+    end
+
+    for _, t in ipairs({ TabHome, TabTree, TabBuy, TabCraft, TabTP, TabExtra, TabFun }) do
+        wrapToggle(t)
+    end
+
+    _G.OrigamiHint = Hint
+end
 
 local myBg = "rbxassetid://75190293433051"
 
@@ -1997,3 +2168,276 @@ TabExtra:Toggle({ Title = "礼物鸭蓝色轮廓透视", Value = false, Callback
         duckHighlights = {}
     end
 end })
+
+do
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local RS2 = RunService
+
+    local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
+    local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+    local FEATHER_LEN = { 0.95, 1.22, 1.46, 1.58, 1.44, 1.18, 0.88 }
+    local WHITE = Color3.fromRGB(255, 255, 255)
+    local BLACK = Color3.fromRGB(16, 15, 20)
+    local HALO = Color3.fromRGB(255, 228, 158)
+    local HORN = Color3.fromRGB(28, 22, 26)
+    local DEMON = Color3.fromRGB(150, 70, 255)
+
+    local function newPart(parent, size, color, transparency, material)
+        local p = Instance.new("Part")
+        p.Size = size
+        p.Color = color
+        p.Material = material or Enum.Material.Neon
+        p.Transparency = transparency or 0
+        p.Anchored = false
+        p.CanCollide = false
+        p.CanTouch = false
+        p.CanQuery = false
+        p.CastShadow = false
+        p.Massless = true
+        p.TopSurface = Enum.SurfaceType.Smooth
+        p.BottomSurface = Enum.SurfaceType.Smooth
+        p.Parent = parent
+        return p
+    end
+
+    local function weldTo(p0, p1, c0)
+        local w = Instance.new("Weld")
+        w.Part0 = p0
+        w.Part1 = p1
+        w.C0 = c0 or CFrame.new()
+        w.Parent = p0
+        return w
+    end
+
+    local builders = {}
+
+    builders.Angel = function(char, folder)
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local head = char:FindFirstChild("Head")
+        if not root or not head then
+            return nil
+        end
+
+        local rim = Instance.new("Highlight")
+        rim.Adornee = char
+        rim.FillTransparency = 1
+        rim.OutlineTransparency = 0
+        rim.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        rim.Parent = folder
+
+        local wingWelds = {}
+
+        for side = -1, 1, 2 do
+            local dark = (side == 1)
+            local color = dark and BLACK or WHITE
+            local mat = dark and Enum.Material.SmoothPlastic or Enum.Material.Neon
+
+            local wingRoot = newPart(folder, Vector3.new(0.3, 0.3, 0.3), color, 1, mat)
+            wingRoot.CFrame = root.CFrame
+            local base = CFrame.new(side * 0.18, 0.42, 0.42)
+            local w = weldTo(root, wingRoot, base)
+
+            for i = 1, #FEATHER_LEN do
+                local len = FEATHER_LEN[i]
+                local ang = 14 + i * 13
+                local f = newPart(folder, Vector3.new(0.07, len, 0.36 + (i % 2) * 0.12), color, 0.18 + i * 0.035, mat)
+                f.CFrame = root.CFrame
+                local c0 = CFrame.new(0, 0, 0.04 + i * 0.02)
+                    * CFrame.Angles(0, math.rad(side * 12), math.rad(-side * ang))
+                    * CFrame.new(0, len * 0.5, 0)
+                weldTo(wingRoot, f, c0)
+
+                if i == 7 then
+                    local a0 = Instance.new("Attachment")
+                    a0.Position = Vector3.new(0, len * 0.45, 0)
+                    a0.Parent = f
+                    local a1 = Instance.new("Attachment")
+                    a1.Position = Vector3.new(0, -len * 0.45, 0)
+                    a1.Parent = f
+                    local tr = Instance.new("Trail")
+                    tr.Attachment0 = a0
+                    tr.Attachment1 = a1
+                    tr.Lifetime = 0.28
+                    tr.MinLength = 0.1
+                    tr.LightEmission = 0.6
+                    tr.Color = ColorSequence.new(dark and DEMON or Color3.fromRGB(200, 226, 255))
+                    tr.Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.25),
+                        NumberSequenceKeypoint.new(1, 1),
+                    })
+                    tr.Parent = f
+                end
+            end
+
+            wingWelds[#wingWelds + 1] = { weld = w, base = base, side = side }
+        end
+
+        local haloRoot = newPart(folder, Vector3.new(0.2, 0.2, 0.2), HALO, 1, Enum.Material.Neon)
+        haloRoot.CFrame = head.CFrame
+        local haloWeld = weldTo(head, haloRoot, CFrame.new(0, 0.95, 0))
+
+        for k = 0, 6 do
+            local th = math.rad(90 + k * 30)
+            local bar = newPart(folder, Vector3.new(0.44, 0.07, 0.07), HALO, 0.12, Enum.Material.Neon)
+            bar.CFrame = head.CFrame
+            weldTo(haloRoot, bar, CFrame.new(math.cos(th) * 0.56, 0, math.sin(th) * 0.56) * CFrame.Angles(0, -th, 0))
+        end
+
+        local h1 = newPart(folder, Vector3.new(0.2, 0.44, 0.2), HORN, 0.05, Enum.Material.SmoothPlastic)
+        h1.CFrame = head.CFrame
+        weldTo(head, h1, CFrame.new(0.3, 0.5, 0.02) * CFrame.Angles(0, 0, math.rad(-28)) * CFrame.new(0, 0.2, 0))
+
+        local h2 = newPart(folder, Vector3.new(0.13, 0.36, 0.13), HORN, 0.05, Enum.Material.SmoothPlastic)
+        h2.CFrame = head.CFrame
+        weldTo(h1, h2, CFrame.new(0, 0.4, 0) * CFrame.Angles(0, 0, math.rad(-22)) * CFrame.new(0, 0.17, 0))
+
+        local spark = Instance.new("Attachment")
+        spark.Position = Vector3.new(0, 1.0, 0)
+        spark.Parent = head
+
+        local pe = Instance.new("ParticleEmitter")
+        pe.Texture = SPARKLE
+        pe.Rate = 14
+        pe.Lifetime = NumberRange.new(0.7, 1.3)
+        pe.Speed = NumberRange.new(0.4, 1.2)
+        pe.SpreadAngle = Vector2.new(180, 180)
+        pe.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.55),
+            NumberSequenceKeypoint.new(1, 0),
+        })
+        pe.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.1),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        pe.Color = ColorSequence.new(HALO)
+        pe.LightEmission = 1
+        pe.Parent = spark
+
+        local smokeAt = Instance.new("Attachment")
+        smokeAt.Position = Vector3.new(0.35, 0.6, 0.35)
+        smokeAt.Parent = head
+
+        local sm = Instance.new("ParticleEmitter")
+        sm.Texture = SMOKE
+        sm.Rate = 9
+        sm.Lifetime = NumberRange.new(0.9, 1.6)
+        sm.Speed = NumberRange.new(0.2, 0.7)
+        sm.SpreadAngle = Vector2.new(180, 180)
+        sm.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.5),
+            NumberSequenceKeypoint.new(1, 1.4),
+        })
+        sm.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.55),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        sm.Color = ColorSequence.new(DEMON)
+        sm.LightEmission = 0.35
+        sm.Parent = smokeAt
+
+        local tt = 0
+        local rimAcc = 0
+
+        local conn = RS2.RenderStepped:Connect(function(dt)
+            tt += dt
+            rimAcc += dt
+
+            local flap = math.sin(tt * 2.2) * 24
+            for _, wd in ipairs(wingWelds) do
+                wd.weld.C0 = wd.base * CFrame.Angles(0, 0, math.rad(-wd.side * flap))
+            end
+
+            haloWeld.C0 = CFrame.new(0, 0.95, 0) * CFrame.Angles(0, math.rad(tt * 65), 0)
+
+            if rimAcc >= 0.08 then
+                rimAcc = 0
+                rim.OutlineColor = Color3.fromHSV((tt * 0.13) % 1, 0.72, 1)
+                pe.Rate = 12 + math.sin(tt * 3) * 5
+                sm.Rate = 8 + math.sin(tt * 2.4 + 1) * 3
+            end
+        end)
+
+        return function()
+            conn:Disconnect()
+        end
+    end
+
+    local enabled = {}
+    local cleanups = {}
+    local currentChar = nil
+
+    local function rebuild()
+        for key, fn in pairs(cleanups) do
+            pcall(fn)
+            cleanups[key] = nil
+        end
+
+        local char = currentChar
+        if not char or not char.Parent then
+            return
+        end
+
+        local holder = char:FindFirstChild("OrigamiFX")
+        if not holder then
+            holder = Instance.new("Folder")
+            holder.Name = "OrigamiFX"
+            holder.Parent = char
+        end
+
+        for _, child in ipairs(holder:GetChildren()) do
+            child:Destroy()
+        end
+
+        for key, on in pairs(enabled) do
+            if on and builders[key] then
+                local sub = Instance.new("Folder")
+                sub.Name = key
+                sub.Parent = holder
+                local ok, fn = pcall(builders[key], char, sub)
+                if ok and fn then
+                    cleanups[key] = fn
+                end
+            end
+        end
+    end
+
+    local function setFx(key, on)
+        enabled[key] = on and true or false
+        rebuild()
+    end
+
+    local function bind(char)
+        currentChar = char
+        task.wait(0.25)
+        if currentChar ~= char then
+            return
+        end
+        rebuild()
+    end
+
+    local lp = Players.LocalPlayer
+
+    if lp.Character then
+        task.spawn(bind, lp.Character)
+    end
+
+    lp.CharacterAdded:Connect(bind)
+
+    if TabFun and TabFun.Toggle then
+        local ok, err = pcall(function()
+            TabFun:Paragraph({ Title = "【 人物特效 】" })
+            TabFun:Toggle({
+                Title = "天使恶魔（左天使 / 右恶魔）",
+                Value = false,
+                Callback = function(on)
+                    setFx("Angel", on)
+                end,
+            })
+            TabFun:Paragraph({ Title = "【 预留位置，以后加新特效往这里继续加 】" })
+        end)
+        if not ok then
+            warn("[娱乐区] 注册失败: " .. tostring(err))
+        end
+    end
+end
