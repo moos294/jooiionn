@@ -39,7 +39,7 @@ local TabCraft = Window:Tab({ Title = "快速合成剑" })
 local TabTP = Window:Tab({ Title = "传送" })
 local TabExtra = Window:Tab({ Title = "其他功能" })
 
-local myBg = "https://raw.githubusercontent.com/moos294/ghghjj/refs/heads/main/bg.jpg"
+local myBg = "rbxassetid://75190293433051"
 
 if myBg and myBg ~= "" then
     task.spawn(function()
