@@ -39,6 +39,27 @@ local TabCraft = Window:Tab({ Title = "快速合成剑" })
 local TabTP = Window:Tab({ Title = "传送" })
 local TabExtra = Window:Tab({ Title = "其他功能" })
 
+local myBg = nil
+pcall(function()
+    if isfile("bg.jpg") then
+        myBg = getcustomasset("bg.jpg")
+    elseif isfile("bg.png") then
+        myBg = getcustomasset("bg.png")
+    end
+end)
+
+if myBg then
+    local bgLabel = UI.Gui.Panel:FindFirstChild("Bg")
+    if bgLabel then
+        bgLabel.Image = myBg
+    end
+    
+    local miniIcon = UI.Gui.Mini and UI.Gui.Mini:FindFirstChild("Hover") and UI.Gui.Mini.Hover:FindFirstChild("Icon")
+    if miniIcon then
+        miniIcon.Image = myBg
+        miniIcon.ImageTransparency = 0
+    end
+end
 local function Notify(title, content, duration)
     WindUI:Notify({Title = title, Content = content, Duration = duration or 3})
 end
