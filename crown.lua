@@ -1571,7 +1571,7 @@ TabBuy:Button({ Title = "一键购买材料拉回脚下", Callback = function()
             end
         end
     end)
-end)
+end })
 TabCraft:Paragraph({ Title = "【 三叉戟合成 】" })
 local Pos_Heaven = CFrame.new(-360.262, 14.753, -1333.273)
 local Pos_Star = CFrame.new(-372.022, 15.158, -1330.268)
