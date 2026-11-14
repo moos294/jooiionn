@@ -1,13 +1,3 @@
-local testGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
-local testLabel = Instance.new("TextLabel", testGui)
-testLabel.Size = UDim2.new(1, 0, 0, 100)
-testLabel.Position = UDim2.new(0, 0, 0.5, -50)
-testLabel.BackgroundColor3 = Color3.new(0,0,0)
-testLabel.TextColor3 = Color3.new(1,1,0)
-testLabel.TextScaled = true
-testLabel.Font = Enum.Font.GothamBold
-testLabel.Text = "【探针1】代码开始运行了！如果在游戏里看到这行字，说明没语法错误。"
-task.wait(2)
 local player = game.Players.LocalPlayer
 local Workspace = workspace
 local RS = game:GetService("ReplicatedStorage")
@@ -1902,6 +1892,7 @@ local function syncDuckHighlights()
         end
     end
 end
+
 TabExtra:Toggle({ Title = "礼物鸭蓝色轮廓透视", Value = false, Callback = function(state)
     duckOutlineEnabled = state
     if state then
@@ -1917,67 +1908,3 @@ TabExtra:Toggle({ Title = "礼物鸭蓝色轮廓透视", Value = false, Callback
         duckHighlights = {}
     end
 end })
-
-TabExtra:Paragraph({ Title = "【 汽车传送 】" })
-local function carTeleport(cf)
-    if player.Character then
-        local Character = player.Character
-        if Character.Humanoid.SeatPart ~= nil then
-            local Car = Character.Humanoid.SeatPart.Parent
-            task.spawn(function()
-                for i = 1, 5 do
-                    task.wait()
-                    Car:SetPrimaryPartCFrame(cf * CFrame.Angles(math.rad(Character.HumanoidRootPart.Orientation.x), math.rad(Character.HumanoidRootPart.Orientation.y), 0))
-                    RS.Interaction.ClientRequestOwnership:FireServer(Car.Main)
-                    RS.Interaction.ClientIsDragging:FireServer(Car.Main)
-                end
-            end)
-        end
-    end
-end
-local teleList = {
-    "恶魔鸭合成地点", "裂纹木所在地", "回家", "连接逻辑店", "土地商店", "会员商店", "画店", "桥对岸", "沙滩", "火木", "雪山", "洞穴", "码头", "黑市", "糖果原", "雪地入口", "盖克斯航运", "玻璃冰木入口", "云层", "山边商品", "章鱼哥祭坛", "沼泽商店", "石头商店", "沼泽", "冰胡", "星星岛", "辐射商店", "核污染区", "种子商人", "鲍勃的店", "家具店", "车店", "罗布克斯商店", "肯德坤专卖店", "秋季商店"
-}
-TabExtra:Dropdown({ Title = "选择汽车传送地点", Values = teleList, Value = "恶魔鸭合成地点", Callback = function(val)
-    local cf = nil
-    if val == "回家" then
-        for _, v in pairs(workspace.Properties:GetChildren()) do
-            if v.Owner.Value == player then cf = v.OriginSquare.CFrame + Vector3.new(0, 10, 0) break end
-        end
-    elseif val == "连接逻辑店" then cf = CFrame.new(4607, 9, -740)
-    elseif val == "土地商店" then cf = CFrame.new(230, 5, -99)
-    elseif val == "会员商店" then cf = CFrame.new(907, 4, -115)
-    elseif val == "画店" then cf = CFrame.new(5207, -156, 719)
-    elseif val == "桥对岸" then cf = CFrame.new(109, 5, -1166)
-    elseif val == "沙滩" then cf = CFrame.new(2549, 5, -42)
-    elseif val == "火木" then cf = CFrame.new(-1585, 625, 1140)
-    elseif val == "雪山" then cf = CFrame.new(1451.66248, 412.208405, 3183.47607)
-    elseif val == "洞穴" then cf = CFrame.new(3581, -177, 430)
-    elseif val == "码头" then cf = CFrame.new(1122, 1, -203)
-    elseif val == "黑市" then cf = CFrame.new(-15, 61, 1365)
-    elseif val == "糖果原" then cf = CFrame.new(-561, 272, 2312)
-    elseif val == "雪地入口" then cf = CFrame.new(888, 61, 1188)
-    elseif val == "盖克斯航运" then cf = CFrame.new(1894, -2, 1581)
-    elseif val == "玻璃冰木入口" then cf = CFrame.new(1929, 256, 2918)
-    elseif val == "云层" then cf = CFrame.new(2060, 495, 2967)
-    elseif val == "山边商品" then cf = CFrame.new(-640, 160, 374)
-    elseif val == "章鱼哥祭坛" then cf = CFrame.new(-1622, 196, 941)
-    elseif val == "沼泽商店" then cf = CFrame.new(-1274, 133, -1443)
-    elseif val == "石头商店" then cf = CFrame.new(-2395, 302, -1899)
-    elseif val == "沼泽" then cf = CFrame.new(-999, 133, -1191)
-    elseif val == "冰胡" then cf = CFrame.new(-2149, 321, 743)
-    elseif val == "星星岛" then cf = CFrame.new(-612, 46, -3169)
-    elseif val == "辐射商店" then cf = CFrame.new(172, 12, -2627)
-    elseif val == "核污染区" then cf = CFrame.new(207, 15, -2752)
-    elseif val == "种子商人" then cf = CFrame.new(-15, 18, -2680)
-    elseif val == "鲍勃的店" then cf = CFrame.new(245, 9, -2541)
-    elseif val == "家具店" then cf = CFrame.new(490, 4, -1690)
-    elseif val == "车店" then cf = CFrame.new(512, 4, -1490)
-    elseif val == "罗布克斯商店" then cf = CFrame.new(652, 4, -1565)
-    elseif val == "肯德坤专卖店" then cf = CFrame.new(100, 4, -455)
-    elseif val == "秋季商店" then cf = CFrame.new(6004, 4, 33)
-    end
-    if cf then carTeleport(cf) end
-end })
-testLabel.Text = "【探针2】所有代码加载完毕！如果UI没出来，说明UI链接挂了。"
-task.delay(10, function() testGui:Destroy() end)
