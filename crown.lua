@@ -126,48 +126,6 @@ TabHome:Button({ Title = "开启反挂机防踢", Callback = function()
     end
     Notify("成功", "已处理挂机检测连接")
 end })
-
-local targetTree = "Generic"
-local playerPos = {nil, nil, nil}
-local tree_list = {"普通木 (Generic)", "幻影木 (LoneCave)", "电木 (Electric)", "胡桃木 (Walnut)", "星木 (Star)", "樱桃木 (Cherry)", "桦木 (Birch)", "冰霜木 (Frost)", "大理石木 (Marble)", "火山木 (Volcano)", "金色沼泽木 (GoldSwampy)", "普通金木 (GenericGold)", "巨型橡木 (GreatOak)", "石头木 (Stone)", "辐射木 (Radioactive)", "洞穴木 (Cavern)", "岩浆木 (Magma)", "蓝木 (CaveCrawler)", "灵魂木 (Spirit)", "烈焰木 (Flame)", "星辰木 (Celestial)", "橡木 (Oak)", "绿色沼泽木 (GreenSwampy)", "沙子木 (Sand)", "松木 (Pine)", "玻璃木 (Glass)", "彩虹木 (Rainbow)", "冰木 (Ice)"}
-
-TabTP:Dropdown({ Title = "选择树木种类", Values = tree_list, Value = "普通木 (Generic)", Callback = function(option) local m = string.match(option, "%((.+)%)"); if m then targetTree = m else targetTree = option end end })
-TabTP:Button({ Title = "传送到树旁", Callback = function()
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    local targetWood = nil
-    for _, v in next, Workspace:GetDescendants() do
-        if v.Name == "TreeRegion" then
-            for _, m in next, v:GetChildren() do
-                if m:FindFirstChild("CutEvent") and not m:FindFirstChild("RootCut") then
-                    if m:FindFirstChild("TreeClass") and m.TreeClass.Value == targetTree then 
-                        if m:FindFirstChild("Owner") and (m.Owner.Value == nil or m.Owner.Value == player) then targetWood = m break end
-                    end
-                end
-            end
-        end
-        if targetWood then break end
-    end
-    if targetWood and targetWood:FindFirstChild("WoodSection") then
-        player.Character.HumanoidRootPart.CFrame = targetWood.WoodSection.CFrame + Vector3.new(0, 2.5, 3.5)
-        Notify("成功", "传送成功")
-    else Notify("错误", "没找到这种树") end
-end })
-
-TabTP:Paragraph({ Title = "【 自定义传送点 】" })
-for i = 1, 3 do
-    TabTP:Button({ Title = "保存当前位置为 传送点"..i, Callback = function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            playerPos[i] = player.Character.HumanoidRootPart.CFrame
-            Notify("成功", "已保存传送点"..i)
-        end
-    end })
-    TabTP:Button({ Title = "传送到 传送点"..i, Callback = function()
-        if playerPos[i] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = playerPos[i]
-            Notify("成功", "已回到传送点"..i)
-        else Notify("错误", "未保存传送点"..i) end
-    end })
-end
 local function CleanupAll()
     for i = 1, 3 do
         local bringPoint = Workspace:FindFirstChild("BRING"..i)
@@ -424,7 +382,7 @@ TabTree:Button({ Title = "开始带来树", Callback = function()
             task.wait(0.01)
         end
         isTreeRunning = false
-        Notify("自动砍树", string.format("结束 成功 %d 次，失败 %d 次", successCount, failCount))
+        Notify("自动砍树", string.format("结束 成功 %d 次,失败 %d 次", successCount, failCount))
     end)
 end })
 TabTree:Button({ Title = "停止任务", Callback = function() isTreeRunning = false end })
@@ -783,7 +741,7 @@ local function duckGetNpcId()
 end
 
 local function duckBuyCrate()
-    local fineFinds = Workspace.Stores:FindFirstChild("FineFinds")
+    local fineFinds = Workspace:FindFirstChild("Stores") and Workspace.Stores:FindFirstChild("FineFinds")
     if not fineFinds then return nil, "找不到商店" end
     local npcChar = fineFinds:FindFirstChild("Manachron")
     if not npcChar then return nil, "找不到NPC" end
@@ -1162,15 +1120,18 @@ local selectedEntry = nil
 
 local function refreshItemList()
     allStores = {}
-    for _, store in pairs(Workspace:WaitForChild("Stores"):GetChildren()) do
-        local shopItems = store:FindFirstChild("ShopItems")
-        if shopItems and #shopItems:GetChildren() > 0 then
-            local storeName = store.Name
-            local npcInfo = npcMapping[storeName]
-            if not npcInfo then
-                npcInfo = { name = storeName, id = nil, path = storeName }
+    local storesFolder = Workspace:FindFirstChild("Stores")
+    if storesFolder then
+        for _, store in pairs(storesFolder:GetChildren()) do
+            local shopItems = store:FindFirstChild("ShopItems")
+            if shopItems and #shopItems:GetChildren() > 0 then
+                local storeName = store.Name
+                local npcInfo = npcMapping[storeName]
+                if not npcInfo then
+                    npcInfo = { name = storeName, id = nil, path = storeName }
+                end
+                table.insert(allStores, { name = storeName, object = store, shopItems = shopItems, npc = npcInfo })
             end
-            table.insert(allStores, { name = storeName, object = store, shopItems = shopItems, npc = npcInfo })
         end
     end
     table.sort(allStores, function(a, b) return a.name < b.name end)
@@ -1223,7 +1184,7 @@ if #displayOptions > 0 then
         if dd and dd.Refresh then
             dd:Refresh(newOpts)
         else
-            Notify("刷新成功", "已更新商品列表，请重新选择", 5)
+            Notify("刷新成功", "已更新商品列表,请重新选择", 5)
         end
     end })
     
@@ -1243,12 +1204,15 @@ local evilAutoRunning = false
 local evilCombineCount = 1
 local allStoresEvil = {}
 
-for _, store in pairs(Workspace:WaitForChild("Stores"):GetChildren()) do
-    local shopItems = store:FindFirstChild("ShopItems")
-    if shopItems and #shopItems:GetChildren() > 0 then
-        local storeName = store.Name
-        local npcInfo = npcMapping[storeName]
-        if npcInfo then table.insert(allStoresEvil, {name = storeName, object = store, shopItems = shopItems, npc = npcInfo}) end
+local storesFolderEvil = Workspace:FindFirstChild("Stores")
+if storesFolderEvil then
+    for _, store in pairs(storesFolderEvil:GetChildren()) do
+        local shopItems = store:FindFirstChild("ShopItems")
+        if shopItems and #shopItems:GetChildren() > 0 then
+            local storeName = store.Name
+            local npcInfo = npcMapping[storeName]
+            if npcInfo then table.insert(allStoresEvil, {name = storeName, object = store, shopItems = shopItems, npc = npcInfo}) end
+        end
     end
 end
 
@@ -1370,6 +1334,7 @@ local function findItemByKey(key, allowFuzzy)
     end
     return nil
 end
+
 local function waitItemReady(item, timeout)
     timeout = timeout or 3
     local waited = 0
@@ -1395,7 +1360,6 @@ local function openItem(item)
     end
     return false
 end
-
 local function waitEvilDuckAppear(timeout, preSet)
     local deadline = os.clock() + (timeout or 15)
     while os.clock() < deadline do
@@ -1815,7 +1779,7 @@ TabCraft:Dropdown({ Title = "选择材料位置", Values = {"天堂剑", "地狱
 end })
 TabCraft:Button({ Title = "获取【月牙空投工具】", Callback = function()
     if not IsEvening() then 
-        Notify("拒绝提供工具", "当前不是傍晚，无法获取")
+        Notify("拒绝提供工具", "当前不是傍晚无法获取")
         return
     end
     local tool = Instance.new("Tool", player.Backpack)
@@ -1823,7 +1787,7 @@ TabCraft:Button({ Title = "获取【月牙空投工具】", Callback = function(
     tool.RequiresHandle = false
     tool.Activated:Connect(function()
         if not IsEvening() then 
-            Notify("时间过了", "祭坛已消失，无法放入")
+            Notify("时间过了", "祭坛已消失,无法放入")
             return
         end
         local t = Mouse.Target
@@ -1853,6 +1817,7 @@ TabCraft:Button({ Title = "获取【月神剑空投工具】", Callback = functi
         end
     end)
 end })
+
 TabExtra:Paragraph({ Title = "【 环境修改 】" })
 local awaysday = false
 local awaysdnight = false
