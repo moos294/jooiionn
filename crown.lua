@@ -39,27 +39,6 @@ local TabCraft = Window:Tab({ Title = "快速合成剑" })
 local TabTP = Window:Tab({ Title = "传送" })
 local TabExtra = Window:Tab({ Title = "其他功能" })
 
-local myBg = nil
-pcall(function()
-    if isfile("bg.jpg") then
-        myBg = getcustomasset("bg.jpg")
-    elseif isfile("bg.png") then
-        myBg = getcustomasset("bg.png")
-    end
-end)
-
-if myBg then
-    local bgLabel = UI.Gui.Panel:FindFirstChild("Bg")
-    if bgLabel then
-        bgLabel.Image = myBg
-    end
-    
-    local miniIcon = UI.Gui.Mini and UI.Gui.Mini:FindFirstChild("Hover") and UI.Gui.Mini.Hover:FindFirstChild("Icon")
-    if miniIcon then
-        miniIcon.Image = myBg
-        miniIcon.ImageTransparency = 0
-    end
-end
 local function Notify(title, content, duration)
     WindUI:Notify({Title = title, Content = content, Duration = duration or 3})
 end
@@ -75,15 +54,55 @@ local function DragModel(m, cf)
 end
 
 TabHome:Paragraph({ Title = "【 属性修改 】" })
-TabHome:Input({ Title = "移动速度", Value = "16", Callback = function(v)
-    if player.Character and player.Character:FindFirstChild("Humanoid") then player.Character.Humanoid.WalkSpeed = tonumber(v) or 16 end
+
+local currentSpeed = 16
+local currentJump = 50
+
+TabHome:Button({ Title = "设置速度: 50 (点我)", Callback = function()
+    currentSpeed = 50
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = 50
+    end
+    Notify("成功", "速度已调整为 50")
 end })
-TabHome:Input({ Title = "跳跃高度", Value = "50", Callback = function(v)
-    if player.Character and player.Character:FindFirstChild("Humanoid") then player.Character.Humanoid.JumpPower = tonumber(v) or 50; player.Character.Humanoid.UseJumpPower = true end
+
+TabHome:Button({ Title = "设置速度: 100 (点我)", Callback = function()
+    currentSpeed = 100
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = 100
+    end
+    Notify("成功", "速度已调整为 100")
+end })
+
+TabHome:Button({ Title = "设置速度: 200 (点我)", Callback = function()
+    currentSpeed = 200
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = 200
+    end
+    Notify("成功", "速度已调整为 200")
+end })
+
+TabHome:Button({ Title = "设置跳跃: 200 (点我)", Callback = function()
+    currentJump = 200
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.JumpPower = 200
+        player.Character.Humanoid.UseJumpPower = true
+    end
+    Notify("成功", "跳跃力已调整为 200")
 end })
 
 local infJump = false
 TabHome:Toggle({ Title = "无限跳跃", Value = false, Callback = function(s) infJump = s end })
+
+RunService.RenderStepped:Connect(function()
+    if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        local hum = player.Character.Humanoid
+        if hum.WalkSpeed ~= currentSpeed and currentSpeed > 16 then
+            hum.WalkSpeed = currentSpeed
+        end
+    end
+end)
+
 UserInputService.JumpRequest:Connect(function()
     if infJump and player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
@@ -1839,26 +1858,50 @@ TabCraft:Button({ Title = "获取【月神剑空投工具】", Callback = functi
     end)
 end })
 
-TabExtra:Paragraph({ Title = "【 环境修改 】" })
+TabExtra:Paragraph({ Title = "【 环境修改 (暴君强制版) 】" })
+
 local awaysday = false
 local awaysdnight = false
 local nofog = false
 
 TabExtra:Toggle({ Title = "终日白天", Value = false, Callback = function(state)
     awaysday = state
-    if state then Lighting.TimeOfDay = "14:00:00" end
+    if state then awaysdnight = false end
 end })
+
 TabExtra:Toggle({ Title = "终日黑夜", Value = false, Callback = function(state)
     awaysdnight = state
-    if state then Lighting.TimeOfDay = "02:00:00" end
+    if state then awaysday = false end
 end })
+
 TabExtra:Toggle({ Title = "去除雾", Value = false, Callback = function(state)
     nofog = state
-    if state then Lighting.FogEnd = 1000000 end
 end })
+
 TabExtra:Toggle({ Title = "消除阴影", Value = false, Callback = function(state)
     Lighting.GlobalShadows = not state
 end })
+
+RunService.RenderStepped:Connect(function()
+    if awaysday then
+        Lighting.TimeOfDay = "14:00:00"
+        Lighting.ClockTime = 14
+    elseif awaysdnight then
+        Lighting.TimeOfDay = "02:00:00"
+        Lighting.ClockTime = 2
+    end
+    
+    if nofog then
+        Lighting.FogEnd = 1000000
+        Lighting.FogStart = 1000000
+        for _, v in pairs(Lighting:GetChildren()) do
+            if v:IsA("Atmosphere") then
+                v.Density = 0
+                v.Haze = 0
+            end
+        end
+    end
+end)
 
 TabExtra:Paragraph({ Title = "【 穿墙与透视 】" })
 local noclipEnabled = false
