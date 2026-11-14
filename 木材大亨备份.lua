@@ -560,7 +560,10 @@ local function bringTreeRemote(treeClass)
     for _, log in pairs(Workspace.LogModels:GetChildren()) do existingLogs[log] = true end
     local treeCenter = woodSec.Position
     local stopCutting, timeoutReached = false, false
-    if not damage or damage <= 0 then damage = 10000 end
+    if not damage or damage <= 0 then
+    Notify("自动砍树", "斧头伤害读取失败，无法砍伐", 3)
+    return false
+end
     local sendTask = task.spawn(function()
         while not stopCutting do
             pcall(remote.FireServer, remote, cutEvent, {height=0.3, faceVector=Vector3.new(-1,0,0), cooldown=cooldown, sectionId=1, hitPoints=damage, tool=tool, cuttingClass="Axe"})
@@ -568,7 +571,7 @@ local function bringTreeRemote(treeClass)
         end
     end)
     local timeoutTask = task.spawn(function()
-        task.wait(60)
+        task.wait(15)
         if not stopCutting then timeoutReached = true stopCutting = true end
     end)
     while not fallenLog and not stopCutting do
