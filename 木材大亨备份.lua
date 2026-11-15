@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -343,15 +343,48 @@ TabHome:Button({ Title = "自动敲击天使序列", Callback = function()
     if not hrp then return end
     local oldCF = hrp.CFrame
     hrp.CFrame = CFrame.new(184, 12, -2666)
-    task.wait(0.2)
+    task.wait(0.3)
+    
     local controller = Workspace.Stores.PlantomicsChoice.Parts.Controller.yes
     for _, name in ipairs({"Up","Up","Down","Down","Left","Right","Left","Right","B","A","Start"}) do
         local part = controller:FindFirstChild(name)
         local click = part and part:FindFirstChildOfClass("ClickDetector")
-        if click then fireclickdetector(click, 1); task.wait(0.2) end
+        if click then 
+            fireclickdetector(click, 1)
+            task.wait(0.25) 
+        end
     end
-    Notify("序列完成", "请自行寻找掉落的天堂鸭")
-    hrp.CFrame = oldCF
+    
+    Notify("序列完成", "原地等待天使鸭掉落...", 3)
+    task.wait(1.5)
+    
+    local targetDuck = nil
+    for _, m in pairs(Workspace.PlayerModels:GetChildren()) do
+        if m:IsA("Model") and m.Name == "DuckAngel" then
+            local owner = m:FindFirstChild("Owner")
+            if not owner or owner.Value == nil or owner.Value == player then
+                local p = m.PrimaryPart or m:FindFirstChild("Main") or m:FindFirstChildWhichIsA("BasePart")
+                if p and (p.Position - hrp.Position).Magnitude < 50 then
+                    targetDuck = m
+                    break
+                end
+            end
+        end
+    end
+    
+    if targetDuck then
+        Notify("成功", "找到天使鸭，正在拉回基地...", 3)
+        if not targetDuck.PrimaryPart then 
+            targetDuck.PrimaryPart = targetDuck:FindFirstChild("Main") or targetDuck:FindFirstChildWhichIsA("BasePart") 
+        end
+        dragToPosition(targetDuck, oldCF, function()
+            hrp.CFrame = oldCF
+            Notify("完成", "天使鸭已拉回！", 3)
+        end)
+    else
+        hrp.CFrame = oldCF
+        Notify("提示", "没看到掉落的鸭子，已传送回原地", 3)
+    end
 end })
 
 TabHome:Paragraph({ Title = "【 系统防踢 】" })
@@ -1504,7 +1537,35 @@ TabBuy:Button({ Title = "一键强制扫描并获取商人ID", Callback = functi
         Notify("扫描成功", "商人ID已刷新，可重新选择商店", 3)
     end)
 end })
-
+TabBuy:Button({ Title = "一键扫描未翻译物品 (查漏补缺)", Callback = function()
+    local untranslated = {}
+    local seen = {}
+    local storesFolder = Workspace:FindFirstChild("Stores")
+    
+    if storesFolder then
+        for _, store in pairs(storesFolder:GetChildren()) do
+            local shopItems = store:FindFirstChild("ShopItems")
+            if shopItems then
+                for _, item in pairs(shopItems:GetChildren()) do
+                    if not translateMap[item.Name] and not seen[item.Name] then
+                        seen[item.Name] = true
+                        table.insert(untranslated, item.Name)
+                    end
+                end
+            end
+        end
+    end
+    
+    if #untranslated > 0 then
+        local msg = "发现未翻译物品 (" .. #untranslated .. "个):\n"
+        for _, name in ipairs(untranslated) do
+            msg = msg .. name .. "\n"
+        end
+        Notify("未翻译物品列表", msg, 30)
+    else
+        Notify("完美", "当前全图商店物品已全部翻译！", 5)
+    end
+end })
 TabBuy:Button({ Title = "开始购买选中商品", Callback = function()
     if not selectedEntry then
         Notify("提示", "请先在下拉框选择商品", 3)
