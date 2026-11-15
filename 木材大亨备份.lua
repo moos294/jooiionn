@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -545,34 +545,6 @@ local function selectBestWeapon(treeClass)
     return nil, nil, 0
 end
 
-local function selectBestWeapon(treeClass)
-    local toolFolder = player:FindFirstChild("ToolFolder")
-    if not toolFolder then return nil, nil, 0 end
-    
-    local bestWeapon, bestDamage, bestConfig = nil, -1, nil
-    local fallbackWeapon = nil
-    
-    for _, child in pairs(toolFolder:GetChildren()) do
-        if fallbackWeapon == nil then fallbackWeapon = child.Name end
-        local config = loadWeaponConfig(child.Name)
-        if config then
-            local damage = (config.SpecialTrees[treeClass] and config.SpecialTrees[treeClass].Damage) or config.Damage or 0
-            if damage > bestDamage then
-                bestWeapon, bestDamage, bestConfig = child.Name, damage, config
-            end
-        end
-    end
-    
-    if bestWeapon then 
-        return bestWeapon, bestConfig, bestDamage 
-    end
-    if fallbackWeapon then 
-        return fallbackWeapon, {Damage = 10, SwingCooldown = 0.3, Range = 10, SpecialTrees = {}}, 10 
-    end
-    
-    return nil, nil, 0
-end
-
 local function getTreeTopCFrame(treeModel)
     local topY = -math.huge
     local topCF = nil
@@ -588,13 +560,20 @@ local function getTreeTopCFrame(treeModel)
     if not topCF then topCF = treeModel:GetPivot() + Vector3.new(0, 2, 0) end
     return topCF
 end
-
 local function bringTreeRemote(treeClass)
     local weaponName, weaponConfig, damage = selectBestWeapon(treeClass)
-    if not weaponName then Notify("自动砍树", "自动选武器失败") return false end
+    if not weaponName then 
+        Notify("自动砍树", "自动选武器失败，未找到可用斧头", 3)
+        return false 
+    end
+    
     local cooldown = (weaponConfig.SpecialTrees[treeClass] and weaponConfig.SpecialTrees[treeClass].SwingCooldown) or weaponConfig.SwingCooldown or 0.3
     local woodSec, tree = findUncutTree(treeClass)
-    if not woodSec then Notify("自动砍树", "附近没有可砍的树") return false end
+    if not woodSec then 
+        Notify("自动砍树", "附近没有找到这种树", 3)
+        return false 
+    end
+    
     local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
     if not tool then
         local toolFolder = player:FindFirstChild("ToolFolder")
@@ -603,12 +582,21 @@ local function bringTreeRemote(treeClass)
             tool = weaponObj and (weaponObj:IsA("Tool") and weaponObj or weaponObj.Value) or nil
         end
     end
-    if not tool then Notify("自动砍树", "未找到工具: "..weaponName) return false end
+    if not tool then 
+        Notify("自动砍树", "未在背包或角色上找到工具: " .. tostring(weaponName), 3)
+        return false 
+    end
+    
     local cutEvent = tree:FindFirstChild("CutEvent")
-    if not cutEvent then Notify("自动砍树", "无法获取CutEvent") return false end
+    if not cutEvent then 
+        Notify("自动砍树", "该树无法获取CutEvent", 3)
+        return false 
+    end
+    
     local remote = RS:WaitForChild("Interaction"):WaitForChild("RemoteProxy")
     local playerOriginalCF = player.Character and player.Character.HumanoidRootPart.CFrame
     if not playerOriginalCF then return false end
+    
     local lockConn
     local function hold()
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -620,51 +608,68 @@ local function bringTreeRemote(treeClass)
     end
     hold()
     lockConn = RunService.Heartbeat:Connect(hold)
+    
     local fallenLog, existingLogs = nil, {}
     for _, log in pairs(Workspace.LogModels:GetChildren()) do existingLogs[log] = true end
     local treeCenter = woodSec.Position
     local stopCutting, timeoutReached = false, false
-    if not damage or damage <= 0 then
-    Notify("自动砍树", "斧头伤害读取失败，无法砍伐", 3)
-    return false
-end
+    
+    if not damage or damage <= 0 then damage = 10 end
+    
     local sendTask = task.spawn(function()
         while not stopCutting do
             pcall(remote.FireServer, remote, cutEvent, {height=0.3, faceVector=Vector3.new(-1,0,0), cooldown=cooldown, sectionId=1, hitPoints=damage, tool=tool, cuttingClass="Axe"})
             task.wait(0.05)
         end
     end)
+    
     local timeoutTask = task.spawn(function()
-        task.wait(15)
-        if not stopCutting then timeoutReached = true stopCutting = true end
+        task.wait(15) 
+        if not stopCutting then 
+            timeoutReached = true 
+            stopCutting = true 
+        end
     end)
+    
     while not fallenLog and not stopCutting do
         for _, log in pairs(Workspace.LogModels:GetChildren()) do
             if not existingLogs[log] and log:FindFirstChild("Owner") and log.Owner.Value == player and log:FindFirstChild("TreeClass") and log.TreeClass.Value == treeClass then
-                if (log:GetPivot().Position - treeCenter).Magnitude < 100 then fallenLog = log break end
+                if (log:GetPivot().Position - treeCenter).Magnitude < 100 then 
+                    fallenLog = log 
+                    break 
+                end
             end
         end
         task.wait(0.01)
     end
-    stopCutting = true task.cancel(sendTask) task.cancel(timeoutTask)
+    
+    stopCutting = true 
+    task.cancel(sendTask) 
+    task.cancel(timeoutTask)
     if lockConn then lockConn:Disconnect() end
+    
     if timeoutReached or not fallenLog then
-        Notify("自动砍树", "砍树超时或木头未掉落")
+        Notify("自动砍树", "15秒内未砍倒，放弃并传送回原点", 3)
         player.Character.HumanoidRootPart.CFrame = playerOriginalCF
         return false
     end
+    
     local primary = fallenLog.PrimaryPart or fallenLog:FindFirstChild("WoodSection") or fallenLog:FindFirstChild("Main") or fallenLog:FindFirstChildWhichIsA("BasePart")
     if not primary then
-        Notify("自动砍树", "无法定位木头")
+        Notify("自动砍树", "无法定位掉落的木头", 3)
         player.Character.HumanoidRootPart.CFrame = playerOriginalCF
         return false
     end
+    
     if not fallenLog.PrimaryPart then fallenLog.PrimaryPart = primary end
+    
     for i = 1, 40 do 
-    DragModel(fallenLog, playerOriginalCF) 
-    task.wait(0.02) 
-end
-player.Character.HumanoidRootPart.CFrame = playerOriginalCF
+        DragModel(fallenLog, playerOriginalCF) 
+        task.wait(0.02) 
+    end
+    
+    player.Character.HumanoidRootPart.CFrame = playerOriginalCF
+    Notify("自动砍树", "砍伐成功，木头已拉回", 3)
     return true
 end
 
@@ -676,14 +681,25 @@ local isTreeRunning = false
 TabTree:Dropdown({ Title = "选择树木种类", Values = treeNames, Value = selectedTreeName, Callback = function(b) selectedTreeName = b end })
 TabTree:Input({ Title = "砍伐数量", Value = "1", Callback = function(v) local n = tonumber(v); if n then batchCount = n end end })
 TabTree:Button({ Title = "开始带来树", Callback = function()
-    if isTreeRunning then return end
+    if isTreeRunning then
+        Notify("提示", "任务正在运行中，请先点停止任务", 3)
+        return 
+    end
     isTreeRunning = true
     task.spawn(function()
         local successCount, failCount = 0, 0
         for i = 1, batchCount do
             if not isTreeRunning then break end
-            if bringTreeRemote(selectedTreeName) then successCount = successCount + 1
-            else failCount = failCount + 1 break end
+            local ok, res = pcall(bringTreeRemote, selectedTreeName)
+            if ok and res then 
+                successCount = successCount + 1
+            else 
+                failCount = failCount + 1 
+                if not ok then
+                    Notify("砍树报错", tostring(res), 5)
+                end
+                break 
+            end
             task.wait(0.01)
         end
         isTreeRunning = false
@@ -1294,7 +1310,7 @@ local function GetAllCashierIds()
     return cashierIds
 end
 local translateMap = {
-    ["BlackMarket"] = "黑市", ["WoodRUs"] = "木材反斗城", ["FineArt"] = "美术店", ["FineFinds"] = "好货店", ["FurnitureStore"] = "家具店", ["CarStore"] = "车店",
+    ["HLStand"] = "熔岩商店",["Cheese"] = "奶酪",["Skull"] = "骷髅",["BlackMarket"] = "黑市", ["WoodRUs"] = "木材反斗城", ["FineArt"] = "美术店", ["FineFinds"] = "好货店", ["FurnitureStore"] = "家具店", ["CarStore"] = "车店",
     ["AutumnCatalog"] = "秋季商店", ["MusicStore"] = "音乐店", ["Igloo"] = "冰屋", ["LogicStore"] = "逻辑店", ["MountainSide"] = "山边店",
     ["PlanterStore"] = "种子店", ["PlantomicsChoice"] = "植物店", ["SallysSeasonal"] = "莎莉的季节", ["SaplingCart"] = "树苗车", ["SeaSide"] = "海边店",
     ["StoneRUs"] = "石头店", ["TravelingTrader"] = "旅行商人", ["VIPSHOP"] = "VIP商店",
