@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.3" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -747,6 +747,51 @@ TabTree:Button({ Title = "开始带来树", Callback = function()
     end)
 end })
 TabTree:Button({ Title = "停止任务", Callback = function() isTreeRunning = false end })
+
+local customTPs = { nil, nil, nil }
+local selectedTPIndex = 1
+local selectedTPName = "点位1"
+
+TabTP:Paragraph({ Title = "【 自定义传送点 】" })
+
+TabTP:Dropdown({ Title = "选择传送点", Values = {"点位1", "点位2", "点位3"}, Value = "点位1", Callback = function(opt)
+    if opt == "点位1" then selectedTPIndex = 1
+    elseif opt == "点位2" then selectedTPIndex = 2
+    elseif opt == "点位3" then selectedTPIndex = 3 end
+    selectedTPName = opt
+end })
+
+TabTP:Button({ Title = "设置 点位1", Callback = function()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        customTPs[1] = player.Character.HumanoidRootPart.CFrame
+        Notify("设置成功", "点位1 已记录当前位置", 3)
+    end
+end })
+
+TabTP:Button({ Title = "设置 点位2", Callback = function()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        customTPs[2] = player.Character.HumanoidRootPart.CFrame
+        Notify("设置成功", "点位2 已记录当前位置", 3)
+    end
+end })
+
+TabTP:Button({ Title = "设置 点位3", Callback = function()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        customTPs[3] = player.Character.HumanoidRootPart.CFrame
+        Notify("设置成功", "点位3 已记录当前位置", 3)
+    end
+end })
+
+TabTP:Button({ Title = "瞬间传送到选中点位", Callback = function()
+    if not customTPs[selectedTPIndex] then
+        Notify("提示", selectedTPName .. " 还没有设置坐标", 3)
+        return
+    end
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.CFrame = customTPs[selectedTPIndex] + Vector3.new(0, 3, 0)
+        Notify("传送成功", "已瞬间传送到 " .. selectedTPName, 3)
+    end
+end })
 
 local selectedBringTarget = "BRING1"
 local selectedObjects = {}
