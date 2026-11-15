@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -1391,15 +1391,17 @@ local function purchaseCycle(storeInfo, selectedItemName, buyAmount, doubleConfi
     return successCycles == buyAmount
 end
 
-TabBuy:Paragraph({ Title = "【 全商店购买（中英分离版） 】" })
+TabBuy:Paragraph({ Title = "【 全商店购买（终极联动版） 】" })
 
 local currentStoreDropdown
 local currentItemDropdown
-local selectedStoreData = nil
 local selectedEntry = nil
-
 local storeOptions = {}
 local storeDataMap = {}
+
+-- 这里定义全局活动变量，打破闭包限制
+local activeStore = nil
+local activeItemMap = {}
 
 local function refreshStoreList()
     allStores = {}
@@ -1428,56 +1430,61 @@ local function refreshStoreList()
                 
                 local storeObj = { name = storeName, object = store, shopItems = shopItems, npc = npcInfo, itemsList = itemsList }
                 table.insert(allStores, storeObj)
+                
+                local display = getCNName(store.name)
+                table.insert(storeOptions, display)
+                storeDataMap[display] = storeObj
             end
         end
     end
-    
-    table.sort(allStores, function(a, b) return a.name < b.name end)
-    
-    for _, store in ipairs(allStores) do
-        local display = getCNName(store.name)
-        table.insert(storeOptions, display)
-        storeDataMap[display] = store
-    end
-end
-
-local function loadItemsForStore(store)
-    if currentItemDropdown and currentItemDropdown.Row then
-        currentItemDropdown.Row:Destroy()
-        currentItemDropdown = nil
-    end
-    
-    local itemOptions = {}
-    local itemMap = {}
-    
-    for _, itemName in ipairs(store.itemsList) do
-        local display = getCNName(itemName)
-        table.insert(itemOptions, display)
-        itemMap[display] = itemName
-    end
-    
-    if #itemOptions > 0 then
-        currentItemDropdown = TabBuy:Dropdown({ Title = "选择商品", Values = itemOptions, Value = itemOptions[1], Callback = function(sel)
-            selectedEntry = { store = store, item = itemMap[sel] }
-        end })
-        selectedEntry = { store = store, item = itemMap[itemOptions[1]] }
-    else
-        selectedEntry = nil
-    end
+    table.sort(storeOptions)
 end
 
 refreshStoreList()
 
 if #storeOptions > 0 then
+    -- 初始化全局活动变量
+    local firstStore = storeDataMap[storeOptions[1]]
+    activeStore = firstStore
+    
+    local firstItemOptions = {}
+    activeItemMap = {}
+    for _, itemName in ipairs(firstStore.itemsList) do
+        local display = getCNName(itemName)
+        table.insert(firstItemOptions, display)
+        activeItemMap[display] = itemName
+    end
+
+    -- 1. 创建商店下拉框
     currentStoreDropdown = TabBuy:Dropdown({ Title = "选择商店", Values = storeOptions, Value = storeOptions[1], Callback = function(sel)
         local store = storeDataMap[sel]
         if store then
-            selectedStoreData = store
-            loadItemsForStore(store)
+            activeStore = store
+            local newItemOptions = {}
+            activeItemMap = {} -- 更新全局活动 Map
+            for _, itemName in ipairs(store.itemsList) do
+                local display = getCNName(itemName)
+                table.insert(newItemOptions, display)
+                activeItemMap[display] = itemName
+            end
+            
+            -- 调用底层 SetOptions 刷新商品列表
+            if currentItemDropdown and currentItemDropdown.SetOptions then
+                currentItemDropdown:SetOptions(newItemOptions)
+            end
+            selectedEntry = { store = activeStore, item = activeItemMap[newItemOptions[1]] }
         end
     end })
     
-    loadItemsForStore(storeDataMap[storeOptions[1]])
+    -- 2. 创建商品下拉框
+    currentItemDropdown = TabBuy:Dropdown({ Title = "选择商品", Values = firstItemOptions, Value = firstItemOptions[1], Callback = function(sel)
+        -- 这里的闭包读取的是最新的 activeStore 和 activeItemMap，完美解决闭包问题！
+        if activeStore and activeItemMap[sel] then
+            selectedEntry = { store = activeStore, item = activeItemMap[sel] }
+        end
+    end })
+    
+    selectedEntry = { store = activeStore, item = activeItemMap[firstItemOptions[1]] }
 end
 
 local buyAmount = 1
@@ -1493,14 +1500,8 @@ TabBuy:Button({ Title = "一键强制扫描并获取商人ID", Callback = functi
         for k, v in pairs(npcMapping) do
             if ids[v.name] then v.id = ids[v.name] end
         end
-        
         refreshStoreList()
-        if #storeOptions > 0 then
-            loadItemsForStore(storeDataMap[storeOptions[1]])
-            Notify("扫描成功", "商人ID和商品已加载完毕", 3)
-        else
-            Notify("扫描失败", "未找到任何商店", 3)
-        end
+        Notify("扫描成功", "商人ID已刷新，可重新选择商店", 3)
     end)
 end })
 
