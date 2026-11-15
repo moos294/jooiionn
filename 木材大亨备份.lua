@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -465,47 +465,28 @@ local function dragToPosition(model, targetCF, callback, waitFinish)
 end
 
 local function loadWeaponConfig(weaponName)
-    local override = nil
-    local wsPlayer = Workspace:FindFirstChild(player.Name)
-    if wsPlayer then
-        local wsTool = wsPlayer:FindFirstChild("Tool")
-        if wsTool then
-            local tn = wsTool:FindFirstChild("ToolName")
-            if tn and tostring(tn.Value) == tostring(weaponName) then
-                override = wsTool:FindFirstChild("AxeClassDamageOverride")
-            end
-        end
+    local realTool = nil
+    local toolFolder = player:FindFirstChild("ToolFolder")
+    local toolObj = toolFolder and toolFolder:FindFirstChild(weaponName)
+    
+    if toolObj then
+        realTool = (toolObj:IsA("Tool") and toolObj) or toolObj.Value
     end
-    if not override then
+    if not realTool then
         local backpack = player:FindFirstChild("Backpack")
-        if backpack then
-            for _, tool in pairs(backpack:GetChildren()) do
-                if tool:IsA("Tool") then
-                    local tn = tool:FindFirstChild("ToolName")
-                    if tn and tostring(tn.Value) == tostring(weaponName) then
-                        override = tool:FindFirstChild("AxeClassDamageOverride")
-                        if override then break end
-                    end
-                end
-            end
-        end
+        if backpack then realTool = backpack:FindFirstChild(weaponName) end
     end
-    if not override then
-        local char = player.Character
-        if char then
-            for _, tool in pairs(char:GetChildren()) do
-                if tool:IsA("Tool") then
-                    local tn = tool:FindFirstChild("ToolName")
-                    if tn and tostring(tn.Value) == tostring(weaponName) then
-                        override = tool:FindFirstChild("AxeClassDamageOverride")
-                        if override then break end
-                    end
-                end
-            end
-        end
+    if not realTool then
+        realTool = player.Character and player.Character:FindFirstChild(weaponName)
     end
+
+    local override = nil
+    if realTool and realTool:IsA("Tool") then
+        override = realTool:FindFirstChild("AxeClassDamageOverride")
+    end
+
     if override then
-        local config = {Damage = nil, SwingCooldown = nil, Range = nil, SpecialTrees = {}}
+        local config = {Damage = 10, SwingCooldown = 0.3, Range = 10, SpecialTrees = {}}
         for key, value in pairs(override:GetAttributes()) do
             if key == "Damage" then config.Damage = value
             elseif key == "SwingCooldown" then config.SwingCooldown = value
@@ -520,7 +501,7 @@ local function loadWeaponConfig(weaponName)
                 else config.SpecialTrees[child.Name] = {Damage = child.Value} end
             end
         end
-        if config.Damage or config.SwingCooldown or next(config.SpecialTrees) then return config end
+        return config
     end
     return nil
 end
@@ -528,8 +509,12 @@ end
 local function selectBestWeapon(treeClass)
     local toolFolder = player:FindFirstChild("ToolFolder")
     if not toolFolder then return nil, nil, 0 end
+    
     local bestWeapon, bestDamage, bestConfig = nil, -1, nil
+    local fallbackWeapon = nil
+    
     for _, child in pairs(toolFolder:GetChildren()) do
+        if fallbackWeapon == nil then fallbackWeapon = child.Name end
         local config = loadWeaponConfig(child.Name)
         if config then
             local damage = (config.SpecialTrees[treeClass] and config.SpecialTrees[treeClass].Damage) or config.Damage or 0
@@ -538,30 +523,15 @@ local function selectBestWeapon(treeClass)
             end
         end
     end
-    return bestWeapon, bestConfig, bestDamage
-end
-
-local function findUncutTree(treeClass)
-    local playerPos = player.Character and player.Character.HumanoidRootPart.Position
-    if not playerPos then return nil end
-    local nearestDist, nearestWood, nearestTree = math.huge, nil, nil
-    for _, region in pairs(Workspace:GetChildren()) do
-        if region.Name == "TreeRegion" then
-            for _, tree in pairs(region:GetChildren()) do
-                if tree:IsA("Model") and tree:FindFirstChild("TreeClass") and tree.TreeClass.Value == treeClass then
-                    local woodSections = {}
-                    for _, child in pairs(tree:GetChildren()) do
-                        if child.Name == "WoodSection" and child:IsA("BasePart") then table.insert(woodSections, child) end
-                    end
-                    if #woodSections >= 2 then
-                        local dist = (woodSections[1].Position - playerPos).Magnitude
-                        if dist < nearestDist then nearestDist, nearestWood, nearestTree = dist, woodSections[1], tree end
-                    end
-                end
-            end
-        end
+    
+    if bestWeapon then 
+        return bestWeapon, bestConfig, bestDamage 
     end
-    return nearestWood, nearestTree
+    if fallbackWeapon then 
+        return fallbackWeapon, {Damage = 10, SwingCooldown = 0.3, Range = 10, SpecialTrees = {}}, 10 
+    end
+    
+    return nil, nil, 0
 end
 
 local function getTreeTopCFrame(treeModel)
@@ -651,9 +621,11 @@ end
         return false
     end
     if not fallenLog.PrimaryPart then fallenLog.PrimaryPart = primary end
-    dragToPosition(fallenLog, playerOriginalCF, function()
-        player.Character.HumanoidRootPart.CFrame = playerOriginalCF
-    end)
+    for i = 1, 40 do 
+    DragModel(fallenLog, playerOriginalCF) 
+    task.wait(0.02) 
+end
+player.Character.HumanoidRootPart.CFrame = playerOriginalCF
     return true
 end
 
@@ -1283,22 +1255,69 @@ local function GetAllCashierIds()
     return cashierIds
 end
 local translateMap = {
-    ["Plank"] = "木板", ["Crate"] = "板条箱", ["Log"] = "原木", ["Blueprint"] = "蓝图", 
-    ["Sawmill"] = "锯木机", ["Workbench"] = "工作台", ["Lantern"] = "灯笼", ["Furniture"] = "家具", ["Door"] = "门", 
-    ["Window"] = "窗户", ["Car"] = "汽车", ["Wheel"] = "车轮", ["Toy"] = "玩具", ["Gift"] = "礼物", 
-    ["Egg"] = "蛋", ["LightBulb"] = "灯泡", ["Duck"] = "鸭子", ["MagicLamp"] = "神灯", ["Milk"] = "牛奶", 
-    ["NESController"] = "游戏机", ["Battery"] = "电池", ["BloxyCola"] = "可乐", ["HappyBall"] = "快乐球", ["Cocoa"] = "热可可",
-    ["Eye3"] = "老虎眼", ["Sapling"] = "树苗", ["Bucket"] = "水桶", ["Map"] = "地图", ["Wrench"] = "扳手", ["Sign"] = "告示牌",
-    ["Chair"] = "椅子", ["Table"] = "桌子", ["Lamp"] = "台灯", ["Bed"] = "床", ["Shelf"] = "架子", ["Rug"] = "地毯", ["Paint"] = "油漆",
-    ["BlackMarket"] = "黑市", ["WoodRUs"] = "木材反斗城", ["FineArt"] = "美术店", ["FineFinds"] = "好货店", ["FurnitureStore"] = "家具店", ["CarStore"] = "车店",
-    ["AutumnCatalog"] = "秋季商店", ["MusicStore"] = "音乐店", ["Igloo"] = "冰屋", ["LogicStore"] = "逻辑店", ["MountainSide"] = "山边店",
-    ["PlanterStore"] = "种子店", ["PlantomicsChoice"] = "植物店", ["SallysSeasonal"] = "莎莉的季节", ["SaplingCart"] = "树苗车", ["SeaSide"] = "海边店",
-    ["StoneRUs"] = "石头店", ["TravelingTrader"] = "旅行商人", ["VIPSHOP"] = "VIP商店",
-    ["Bigsaw"] = "大锯", ["Chainsaw"] = "电锯", ["EndtimesChainsaw"] = "末日电锯", ["MiniTruck"] = "迷你卡车", ["Skull"] = "骷髅", ["Cheese"] = "奶酪",
-    ["UtilityTruckNeon"] = "霓虹工具车", ["Crate_Cube"] = "方块板条箱", ["Toolbox"] = "工具箱", ["Sledge"] = "大锤", ["Hammer"] = "锤子",
-    ["Painting1"] = "油画1", ["Painting2"] = "油画2", ["Painting3"] = "油画3", ["Painting11"] = "油画11",
-    ["GoldenAxe"] = "金斧头", ["SilverAxe"] = "银斧头", ["OlReliable"] = "老伙计", ["OIReliable"] = "老伙计", ["BasicAxe"] = "基础斧头", ["Axe"] = "斧头",
-    ["BeachBall"] = "沙滩球", ["Cookie"] = "曲奇饼干", ["Vip"] = "VIP物品"
+    ["4SeatTruck"] = "四座卡车", ["6die"] = "六面骰子", ["AppleTree"] = "苹果树", ["Asphalt"] = "沥青",
+    ["Axe1"] = "测试斧头1", ["Axe2"] = "测试斧头2", ["Axe3"] = "测试斧头3", ["AxeAlphaTesters"] = "内测斧头",
+    ["AxeAmber"] = "琥珀斧头", ["AxeBetaTesters"] = "公测斧头", ["AxeBlurple"] = "蓝紫斧头", ["AxeChicken"] = "小鸡斧头",
+    ["AxeCommunity"] = "社区斧头", ["AxeIce"] = "冰斧头", ["AxeShiny"] = "闪光斧头", ["AxeSinister2"] = "邪恶斧头2",
+    ["BadWaterCar"] = "污水车", ["BagOfSand"] = "沙袋", ["BasicHatchet"] = "基础手斧", ["Bed1"] = "单人床", ["Bed2"] = "双人床",
+    ["BeeAxe"] = "蜜蜂斧头", ["BigTable1"] = "大桌子", ["BirdAxe"] = "鸟斧", ["BloodBorne"] = "血源斧", ["BobbleheadSpooky"] = "幽灵摇头娃娃",
+    ["BookCase"] = "书架", ["Box1Large"] = "大纸箱", ["Button0"] = "按钮", 
+    ["Cabinet1"] = "柜子", ["Cabinet1CornerTight"] = "柜子内角", ["Cabinet1CornerWide"] = "柜子外角", ["Cabinet1Thin"] = "薄柜子",
+    ["CandyCaneAxe"] = "拐杖糖斧", ["CargoBox"] = "货物箱", ["Cat"] = "猫", ["CeilingLight"] = "吸顶灯", ["Chair1"] = "椅子", ["Chest"] = "箱子",
+    ["ChopSaw"] = "电锯", ["ConveyorFunnel"] = "传送带漏斗", ["ConveyorSupports"] = "传送带支架", ["ConveyorSwitch"] = "传送带开关",
+    ["Counter"] = "柜台", ["CounterTop1"] = "台面", ["CounterTop1Sink"] = "带水槽台面", ["CounterTop1Thin"] = "薄台面",
+    ["Cube"] = "方块", ["CursedWorklight"] = "诅咒工作灯",
+    ["Dishwasher"] = "洗碗机", ["Display"] = "展示台", ["DisplayCase"] = "展示柜", ["DogWood"] = "狗木", ["Door1"] = "门", ["Dynamite"] = "炸药",
+    ["EndTimesAxe"] = "末日斧", ["Eye1"] = "眼睛", 
+    ["FastConveyor"] = "快速传送带", ["FastTightTurnConveyor"] = "快速紧凑传送带", ["FastTiltConveyor"] = "快速倾斜传送带",
+    ["FireAxe"] = "消防斧", ["FireRock"] = "火石", ["Flashlight"] = "手电筒",
+    ["Floor1"] = "一号地板", ["Floor1Large"] = "一号大地板", ["Floor1MegaLarge"] = "一号超大底板", ["Floor1Small"] = "一号小地板", ["Floor1Tiny"] = "一号迷你地板",
+    ["Floor2"] = "二号地板", ["Floor2Large"] = "二号大地板", ["Floor2MegaLarge"] = "二号超大底板", ["Floor2Small"] = "二号小地板", ["Floor2Tiny"] = "二号迷你地板", ["Floor2long"] = "二号长地板",
+    ["FloorLamp1"] = "落地灯", ["FoldingChair"] = "折叠椅", ["Furnace"] = "熔炉", ["FurnaceVIP"] = "VIP熔炉",
+    ["GateAND"] = "与逻辑门", ["GateNOT"] = "非逻辑门", ["GateOR"] = "或逻辑门", ["GateXOR"] = "异或逻辑门", ["GateTruck"] = "卡车专用门",
+    ["GiantCone"] = "巨型路锥", ["GingerbreadAxe"] = "姜饼斧", 
+    ["GlassDoor1"] = "玻璃门1", ["GlassDoor2"] = "玻璃门2", ["GlassPane1"] = "玻璃板1", ["GlassPane2"] = "玻璃板2", ["GlassPane3"] = "玻璃板3", ["GlassPane4"] = "玻璃板4",
+    ["GlobeWood"] = "地球仪木", ["GoldBall"] = "金球", ["GoldChop"] = "黄金电锯", ["GoldConveyorFunnel"] = "黄金漏斗", ["GoldStraightConveyor"] = "黄金直传送带", ["GoldTightTurnConveyor"] = "黄金紧凑传送带", ["GoldTiltConveyor"] = "黄金倾斜传送带",
+    ["Hatch"] = "舱口", 
+    ["IceCube"] = "冰块", 
+    ["IcicleWireAmber"] = "琥珀冰柱线", ["IcicleWireBlue"] = "蓝色冰柱线", ["IcicleWireGreen"] = "绿色冰柱线", ["IcicleWireRed"] = "红色冰柱线",
+    ["Ladder1"] = "梯子", ["Lamp1"] = "台灯", ["LargeChest"] = "大箱子", ["Laser"] = "激光发射器", ["LaserReceiver"] = "激光接收器", ["LavaCar"] = "岩浆车", ["Lemon"] = "柠檬", ["Lever0"] = "拉杆", ["LogSweeper"] = "原木清扫器", ["LumberCD2"] = "木材CD2",
+    ["MEGATiltConveyor"] = "超级倾斜传送带", ["ManyAxe"] = "多把斧头", ["MegaConveyor"] = "巨型传送带", ["MegaConveyorFunnel"] = "巨型漏斗", ["MegaFurnace"] = "巨型熔炉", ["MusicBox"] = "音乐盒",
+    ["NeonWireBlue"] = "霓虹蓝线", ["NeonWireCyan"] = "霓虹青线", ["NeonWireGreen"] = "霓虹绿线", ["NeonWireOrange"] = "霓虹橙线", ["NeonWireRed"] = "霓虹红线", ["NeonWireSinister"] = "霓虹邪恶线", ["NeonWireViolet"] = "霓虹紫线", ["NeonWireWhite"] = "霓虹白线", ["NeonWireYellow"] = "霓虹黄线",
+    ["ObamaAxe"] = "奥巴马斧", ["OffRoadTruck"] = "越野卡车", ["OwnerOnlyDoor"] = "专属门",
+    ["Pan"] = "平底锅", ["ParkBench"] = "公园长椅", ["PickUp5"] = "皮卡5", ["Pickup1"] = "皮卡1", ["Pickup2"] = "皮卡2", ["Pickup3"] = "皮卡3", ["Pickup4"] = "皮卡4",
+    ["Pie"] = "派", ["Piston"] = "活塞", ["Planter2"] = "种植箱", ["Pot"] = "花盆", ["PressurePlate"] = "压力板",
+    ["PumpkinClassic"] = "经典南瓜", ["PumpkinDark"] = "暗黑南瓜", ["PumpkinGold"] = "黄金南瓜", ["PumpkinSinister"] = "邪恶南瓜", ["PumpkinWood"] = "南瓜木",
+    ["QunatumSawmill"] = "量子锯木机",
+    ["Ramp"] = "斜坡", ["Refridgerator"] = "冰箱", ["Rukiryaxe"] = "神斧",
+    ["SaplingCrate"] = "树苗箱", ["SaplingGeneric"] = "普通树苗", ["Sawmill2"] = "锯木机2", ["Sawmill3"] = "锯木机3", ["Sawmill4"] = "锯木机4", ["Sawmill4L"] = "锯木机4L", ["Sawmill5"] = "锯木机5", ["SawmillGift"] = "礼物锯木机", ["SawmillPower"] = "动力锯木机",
+    ["Seat_Armchair"] = "扶手椅", ["Seat_Couch"] = "沙发", ["Seat_Loveseat"] = "双人沙发", ["Shelf1"] = "架子1", ["Shelf2"] = "架子2", ["Shelf3"] = "架子3", ["Ship"] = "船只",
+    ["Sign1"] = "告示牌", ["SignalDelay"] = "信号延迟器", ["SignalSustain"] = "信号保持器",
+    ["SinisterChopSaw"] = "邪恶电锯", ["SinisterConveyor"] = "邪恶传送带", ["SinisterSawmill2"] = "邪恶锯木机2", ["SinisterSeller"] = "邪恶售货机", ["SinisterTightTurnConveyor"] = "邪恶紧凑传送带", ["SinisterTiltConveyor"] = "邪恶倾斜传送带",
+    ["SmallKey"] = "小钥匙", ["SmallTable"] = "小桌子", ["SmallTable2"] = "小桌子2", ["SmallTrailer"] = "小拖车", ["SnowGlobe2"] = "雪花玻璃球", ["SpiritAxe"] = "灵魂斧",
+    ["Stair1"] = "楼梯1", ["Stair2"] = "楼梯2", ["SteamRock"] = "蒸汽石", ["StorageHouse"] = "储物屋", ["Store"] = "商店", ["Store2"] = "商店2", ["Stove"] = "炉子",
+    ["StraightConveyor"] = "直传送带", ["StraightConveyorExtraLong"] = "超长直传送带", ["StraightConveyorLong"] = "长直传送带", ["StraightSwitchConveyorLeft"] = "左转开关传送带", ["StraightSwitchConveyorRight"] = "右转开关传送带",
+    ["StrangeMan"] = "奇怪的人", 
+    ["Table1"] = "桌子1", ["Table2"] = "桌子2", ["Table3"] = "桌子3", ["Tahoe"] = "塔霍车", ["TallLargeGlassPane"] = "高大玻璃板",
+    ["TeleportBlue"] = "蓝色传送门", ["TeleportGold"] = "金色传送门", ["TeleportGreen"] = "绿色传送门", ["TeleportPink"] = "粉色传送门", ["TeleportRed"] = "红色传送门",
+    ["TightTurnConveyor"] = "紧凑转弯传送带", ["TightTurnConveyorSupports"] = "紧凑转弯支架", ["TiltConveyor"] = "倾斜传送带", ["TinyTrailer"] = "迷你拖车", ["Titanium"] = "钛合金", ["Toilet"] = "马桶", ["ToiletGoldVIP"] = "黄金VIP马桶", ["ToiletPaper"] = "卫生纸", ["Torch"] = "火把",
+    ["Trailer2"] = "拖车2", ["Trailer3"] = "拖车3", ["TrailerGate"] = "拖车尾门", ["Turkey3"] = "火鸡3", ["Turkey4"] = "火鸡4", ["Turkey5"] = "火鸡5",
+    ["UtilityTruck"] = "工具车", ["UtilityTruck2"] = "工具车2", ["UtilityTruckNeon"] = "霓虹工具车", ["VirtualAxe"] = "虚拟斧头",
+    ["Wall1"] = "一号墙壁", ["Wall1Corner"] = "一号墙壁内角", ["Wall1Short"] = "一号短墙", ["Wall1ShortCorner"] = "一号短墙内角", ["Wall1ShortThin"] = "一号短薄墙", ["Wall1Tall"] = "一号高墙", ["Wall1TallCorner"] = "一号高墙内角", ["Wall1TallThin"] = "一号高薄墙", ["Wall1Thin"] = "一号薄墙",
+    ["Wall2"] = "二号墙壁", ["Wall2Corner"] = "二号墙壁内角", ["Wall2Round"] = "二号圆墙", ["Wall2Short"] = "二号短墙", ["Wall2ShortCorner"] = "二号短墙内角", ["Wall2ShortThin"] = "二号短薄墙", ["Wall2Stub"] = "二号矮墙", ["Wall2Tall"] = "二号高墙", ["Wall2TallCorner"] = "二号高墙内角", ["Wall2TallThin"] = "二号高薄墙", ["Wall2TallThinTall"] = "二号高薄墙连接件", ["Wall2Thin"] = "二号薄墙",
+    ["Wall3"] = "三号墙壁", ["Wall3Corner"] = "三号墙壁内角", ["Wall3Tall"] = "三号高墙", ["Wall3TallCorner"] = "三号高墙内角", ["Wall3TallThin"] = "三号高薄墙", ["Wall3Thin"] = "三号薄墙",
+    ["WallLight1"] = "壁灯1", ["WallLight2"] = "壁灯2", ["WallMadeWithRound"] = "圆边组合墙", ["WallMadeWithRoundBig"] = "大圆边组合墙",
+    ["WashingMachine"] = "洗衣机", ["WaterCar"] = "水车", ["WaterCube"] = "水方块", ["WaterTrailer"] = "水拖车",
+    ["Wedge1"] = "楔子1", ["Wedge10"] = "楔子10", ["Wedge10Corner"] = "楔子10内角", ["Wedge10_Thin"] = "楔子10薄", ["Wedge1Corner"] = "楔子1内角",
+    ["Wedge2"] = "楔子2", ["Wedge2Corner"] = "楔子2内角", ["Wedge2_Thin"] = "楔子2薄",
+    ["Wedge3"] = "楔子3", ["Wedge3Corner"] = "楔子3内角", ["Wedge3_Thin"] = "楔子3薄",
+    ["Wedge4"] = "楔子4", ["Wedge4Corner"] = "楔子4内角", ["Wedge4_Thin"] = "楔子4薄",
+    ["Wedge5"] = "楔子5", ["Wedge5Corner"] = "楔子5内角", ["Wedge5_Thin"] = "楔子5薄",
+    ["Wedge6"] = "楔子6", ["Wedge6Corner"] = "楔子6内角", ["Wedge6_Thin"] = "楔子6薄",
+    ["Wedge7"] = "楔子7", ["Wedge7Corner"] = "楔子7内角", ["Wedge7_Thin"] = "楔子7薄",
+    ["Wedge8"] = "楔子8", ["Wedge8Corner"] = "楔子8内角", ["Wedge8_Thin"] = "楔子8薄",
+    ["Wedge9"] = "楔子9", ["Wedge9Corner"] = "楔子9内角", ["Wedge9_Thin"] = "楔子9薄",
+    ["Wire"] = "电线", ["WoodChecker"] = "木材检测器", ["WoodLauncher"] = "木头发射器", ["WorkLight"] = "工作灯", ["WritableSign"] = "可写告示牌", ["largeUmbrella"] = "大遮阳伞"
 }
 
 local function getCNName(enName)
