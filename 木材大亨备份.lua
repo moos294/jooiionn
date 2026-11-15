@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -2485,112 +2485,9 @@ do
     end
 end
 do
-    local _gpOriginal = {}
-    local _gpEnabled = false
-
-    local function _saveGpOriginal()
-        _gpOriginal = {}
-        local gp = player:FindFirstChild("Gamepasses")
-        if not gp then
-            Notify("通行证", "未找到 Gamepasses 文件夹，可能未加载", 3)
-            return false
-        end
-        for _, v in ipairs(gp:GetDescendants()) do
-            if v:IsA("BoolValue") or v:IsA("IntValue") or v:IsA("NumberValue") then
-                _gpOriginal[v] = v.Value
-            end
-        end
-        return true
-    end
-
-    local function _applyGpUnlock()
-        local gp = player:FindFirstChild("Gamepasses")
-        if not gp then return 0 end
-        local count = 0
-        for _, v in ipairs(gp:GetDescendants()) do
-            if v:IsA("BoolValue") then
-                if not v.Value then v.Value = true end
-                count = count + 1
-            elseif v:IsA("IntValue") or v:IsA("NumberValue") then
-                v.Value = 1
-                count = count + 1
-            end
-        end
-        return count
-    end
-
-    TabHome:Paragraph({ Title = "【 通行证解锁 (防服务器重置版) 】" })
-
-    TabHome:Toggle({ Title = "解锁所有通行证", Value = false, Callback = function(state)
-        _gpEnabled = state
-        if state then
-            if next(_gpOriginal) == nil then _saveGpOriginal() end
-            local n = _applyGpUnlock()
-            Notify("通行证", "已解锁 " .. tostring(n) .. " 项并锁定", 3)
-        else
-            Notify("通行证", "已停止锁定", 2)
-        end
-    end })
-
-    TabHome:Button({ Title = "恢复通行证原始值", Callback = function()
-        _gpEnabled = false
-        local n = 0
-        for obj, val in pairs(_gpOriginal) do
-            if obj and obj.Parent then
-                pcall(function() obj.Value = val end)
-                n = n + 1
-            end
-        end
-        Notify("通行证", "已恢复 " .. tostring(n) .. " 项", 3)
-    end })
-
-    TabHome:Button({ Title = "重新保存当前值为原始", Callback = function()
-        if _saveGpOriginal() then
-            Notify("通行证", "已将当前值保存为原始值", 3)
-        end
-    end })
-
-    RunService.RenderStepped:Connect(function()
-        if not _gpEnabled then return end
-        local gp = player:FindFirstChild("Gamepasses")
-        if not gp then return end
-        for _, v in ipairs(gp:GetDescendants()) do
-            if v:IsA("BoolValue") and not v.Value then
-                v.Value = true
-            elseif v:IsA("IntValue") or v:IsA("NumberValue") then
-                v.Value = 1
-            end
-        end
-    end)
-end
-do
     local RS = game:GetService("ReplicatedStorage")
-    local CN_Map = {
-        ["Wood"] = "木头", ["Plank"] = "木板", ["Log"] = "原木", ["Blueprint"] = "蓝图",
-        ["Axe"] = "斧头", ["Sawmill"] = "锯木机", ["Car"] = "汽车", ["Bucket"] = "水桶",
-        ["Sapling"] = "树苗", ["Crate"] = "板条箱", ["Sign"] = "告示牌", ["Lantern"] = "灯笼",
-        ["Paint"] = "染料", ["Paintbrush"] = "刷子", ["Duck"] = "鸭子", ["Gift"] = "礼物",
-        ["Chair"] = "椅子", ["Table"] = "桌子", ["Bed"] = "床", ["Shelf"] = "架子", ["Lamp"] = "台灯",
-        ["Chest"] = "箱子", ["Door"] = "门", ["Window"] = "窗户", ["Rug"] = "地毯", ["Sofa"] = "沙发",
-        ["Couch"] = "沙发", ["Stool"] = "凳子", ["Cabinet"] = "柜子", ["Drawer"] = "抽屉"
-    }
 
-    local function getCNName(enName)
-        if CN_Map[enName] then return CN_Map[enName] end
-        for k, v in pairs(CN_Map) do
-            if string.find(string.lower(enName), string.lower(k)) then
-                return v .. " (" .. enName .. ")"
-            end
-        end
-        return enName
-    end
-
-    local ScannedItems = {}
-    local ScannedMap = {}
-    local selectedItemName = "Wood"
-    local selectorGenerated = false
-
-    TabHome:Paragraph({ Title = "【 强制全图扫描与刷取 】" })
+    TabHome:Paragraph({ Title = "【 染料提取与官方端口对接 】" })
 
     TabHome:Button({ Title = "获取 染料工具", Callback = function()
         local backpack = player:FindFirstChild("Backpack")
@@ -2617,113 +2514,66 @@ do
             clone.Parent = backpack
             Notify("成功", "已获取: " .. foundTool.Name, 3)
         else
-            local tool = Instance.new("Tool")
-            tool.Name = "Paintbrush"
-            tool.RequiresHandle = false
-            local colorVal = Instance.new("StringValue")
-            colorVal.Name = "Color"
-            colorVal.Value = "Really Red"
-            colorVal.Parent = tool
-            tool.Parent = backpack
-            Notify("成功", "未扫到实体，已手搓染料工具", 3)
+            Notify("失败", "未找到染料工具实体，可能被服务器隐藏", 3)
         end
     end })
 
-    TabHome:Button({ Title = "1. 强制扫描所有物品", Callback = function()
-        Notify("扫描", "正在深挖游戏资源，请稍候...", 3)
-        task.spawn(function()
-            ScannedItems = {}
-            ScannedMap = {}
-            local seen = {}
-            
-            local stores = game.Workspace:FindFirstChild("Stores")
-            if stores then
-                for _, store in pairs(stores:GetChildren()) do
-                    local shopItems = store:FindFirstChild("ShopItems")
-                    if shopItems then
-                        for _, item in pairs(shopItems:GetChildren()) do
-                            seen[item.Name] = true
+    _G.TargetItemName = "Wood"
+    TabHome:Input({ Title = "输入物品英文名", Value = "Wood", Callback = function(v)
+        _G.TargetItemName = v
+    end })
+
+    TabHome:Button({ Title = "强行对接生成端口", Callback = function()
+        local itemName = _G.TargetItemName or "Wood"
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        Notify("端口扫描", "正在扫描服务器隐藏接口...", 3)
+        local foundCount = 0
+        
+        for _, remote in ipairs(RS:GetDescendants()) do
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                local name = string.lower(remote.Name)
+                if string.find(name, "admin") or string.find(name, "spawn") or string.find(name, "give") or string.find(name, "create") or string.find(name, "item") then
+                    
+                    local success = false
+                    
+                    pcall(function()
+                        if remote:IsA("RemoteEvent") then
+                            remote:FireServer(itemName, hrp.CFrame)
+                            remote:FireServer(itemName)
+                            remote:FireServer("Spawn", itemName, hrp.CFrame)
+                            remote:FireServer(player, itemName, hrp.Position)
+                            success = true
+                        elseif remote:IsA("RemoteFunction") then
+                            remote:InvokeServer(itemName, hrp.CFrame)
+                            remote:InvokeServer("Spawn", itemName)
+                            success = true
                         end
+                    end)
+                    
+                    if success then
+                        foundCount = foundCount + 1
                     end
                 end
             end
-            
-            local playerModels = game.Workspace:FindFirstChild("PlayerModels")
-            if playerModels then
-                for _, item in pairs(playerModels:GetChildren()) do
-                    if item.Name ~= "" and #item.Name < 40 then
-                        seen[item.Name] = true
-                    end
-                end
-            end
-
-            for _, v in ipairs(RS:GetDescendants()) do
-                if v:IsA("Tool") or v:IsA("Model") then
-                    if v.Name ~= "" and #v.Name < 40 then
-                        seen[v.Name] = true
-                    end
-                end
-            end
-
-            for k, _ in pairs(seen) do
-                table.insert(ScannedItems, getCNName(k))
-                ScannedMap[getCNName(k)] = k
-            end
-            table.sort(ScannedItems)
-
-            if #ScannedItems == 0 then
-                Notify("扫描", "未扫描到物品", 3)
-                return
-            end
-            
-            Notify("扫描完成", "共发现 " .. #ScannedItems .. " 个物品，请点下方生成列表", 5)
-        end)
-    end })
-
-    TabHome:Button({ Title = "2. 生成物品选择器", Callback = function()
-        if #ScannedItems == 0 then
-            Notify("失败", "请先点击上方按钮进行扫描", 3)
-            return
         end
-        if selectorGenerated then
-            Notify("提示", "选择器已生成，请直接在上面操作", 3)
-            return
+        
+        local interaction = RS:FindFirstChild("Interaction")
+        if interaction then
+            local proxy = interaction:FindFirstChild("RemoteProxy")
+            if proxy then
+                pcall(function()
+                    proxy:FireServer("Admin", "Spawn", itemName, hrp.CFrame)
+                    proxy:FireServer("Spawn", itemName, hrp.Position)
+                end)
+            end
         end
-        selectorGenerated = true
-
-        TabHome:Dropdown({ 
-            Title = "选择物品", 
-            Values = ScannedItems, 
-            Value = ScannedItems[1], 
-            Callback = function(opt)
-                selectedItemName = ScannedMap[opt] or opt
-            end 
-        })
-
-        TabHome:Button({ Title = "刷出选中的物品", Callback = function()
-            local item = RS:FindFirstChild(selectedItemName, true) or game.Workspace:FindFirstChild(selectedItemName, true)
-            if not item then
-                Notify("失败", "找不到路径: " .. selectedItemName, 3)
-                return
-            end
-            local clone = item:Clone()
-            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp and (clone:IsA("Model") or clone:IsA("BasePart")) then
-                if clone:IsA("Model") then
-                    if not clone.PrimaryPart then clone.PrimaryPart = clone:FindFirstChildWhichIsA("BasePart") end
-                    if clone.PrimaryPart then clone:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(0, 0, -5)) end
-                else
-                    clone.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
-                end
-                clone.Parent = game.Workspace
-                Notify("成功", "已生成物品", 3)
-            elseif clone:IsA("Tool") then
-                local bp = player:FindFirstChild("Backpack")
-                if bp then
-                    clone.Parent = bp
-                    Notify("成功", "已放入背包", 3)
-                end
-            end
-        end })
+        
+        if foundCount > 0 then
+            Notify("对接成功", "已向 " .. foundCount .. " 个官方端口发送生成请求，看看脚下！", 5)
+        else
+            Notify("提示", "已通过主通道强行发送，如果没反应，说明端口被彻底锁死", 5)
+        end
     end })
 end
