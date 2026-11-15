@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -703,7 +703,22 @@ local selectedTreeName = "普通树"
 local batchCount = 1
 local isTreeRunning = false
 
-TabTree:Dropdown({ Title = "选择树木种类", Values = treeNames, Value = selectedTreeName, Callback = function(b) selectedTreeName = b end })
+local treeClassMap = {
+    ["普通树"] = "Generic", ["枯木"] = "GenericDead", ["金树"] = "GenericGold", ["沼泽黄金"] = "GoldSwampy",
+    ["樱花树"] = "Cherry", ["蓝木"] = "CaveCrawler", ["洞窟紫木"] = "Cavern", ["冰木"] = "Frost",
+    ["火山木"] = "Volcano", ["橡木"] = "Oak", ["巧克力木"] = "Walnut", ["白桦木"] = "Birch",
+    ["大巧克力树"] = "Koa", ["椰子树"] = "Palm", ["雪地松"] = "Pine", ["幻影木"] = "LoneCave",
+    ["幽灵木"] = "Spooky", ["南瓜木"] = "SpookyNeon", ["地狱木"] = "Hell", ["岩浆树"] = "Magma",
+    ["虚空木"] = "Void", ["星空木"] = "Spirit", ["天堂木"] = "Sky", ["彩虹木"] = "Rainbow",
+    ["雷电木"] = "Electric", ["玻璃木"] = "Glass", ["钻石木"] = "Diamond", ["金子木"] = "Gold",
+    ["石头木"] = "Stone", ["大理石木"] = "Marble", ["曲奇木"] = "Cookie", ["糖果树"] = "Candy",
+    ["狗木"] = "Dog", ["骨头木"] = "Bone", ["水晶木"] = "Crystal", ["火焰木"] = "Flame",
+    ["生命古橡"] = "GreatOak", ["沙子木"] = "Sand"
+}
+
+TabTree:Dropdown({ Title = "选择树木种类", Values = treeNames, Value = selectedTreeName, Callback = function(b) 
+    selectedTreeName = treeClassMap[b] or b 
+end })
 TabTree:Input({ Title = "砍伐数量", Value = "1", Callback = function(v) local n = tonumber(v); if n then batchCount = n end end })
 TabTree:Button({ Title = "开始带来树", Callback = function()
     if isTreeRunning then
