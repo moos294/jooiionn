@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -2487,15 +2487,20 @@ end
 do
     local RS = game:GetService("ReplicatedStorage")
 
-    TabHome:Paragraph({ Title = "【 染料提取与官方端口对接 】" })
+    TabHome:Paragraph({ Title = "【 染料工具追踪提取 】" })
 
-    TabHome:Button({ Title = "获取 染料工具", Callback = function()
+    TabHome:Button({ Title = "追踪并提取 染料工具", Callback = function()
         local backpack = player:FindFirstChild("Backpack")
         if not backpack then return end
         
-        local foundTool = nil
-        local keywords = {"paint", "brush", "dye", "color", "bucket"}
+        if backpack:FindFirstChild("Paintbrush") then backpack.Paintbrush:Destroy() end
+        if backpack:FindFirstChild("PaintBucket") then backpack.PaintBucket:Destroy() end
         
+        local foundTool = nil
+        local toolPath = ""
+        local keywords = {"paint", "brush", "dye"}
+        
+        -- 1. 在资源库深挖
         for _, v in ipairs(RS:GetDescendants()) do
             if v:IsA("Tool") then
                 local lowerName = string.lower(v.Name)
@@ -2509,71 +2514,38 @@ do
             end
         end
         
-        if foundTool then
-            local clone = foundTool:Clone()
-            clone.Parent = backpack
-            Notify("成功", "已获取: " .. foundTool.Name, 3)
-        else
-            Notify("失败", "未找到染料工具实体，可能被服务器隐藏", 3)
-        end
-    end })
-
-    _G.TargetItemName = "Wood"
-    TabHome:Input({ Title = "输入物品英文名", Value = "Wood", Callback = function(v)
-        _G.TargetItemName = v
-    end })
-
-    TabHome:Button({ Title = "强行对接生成端口", Callback = function()
-        local itemName = _G.TargetItemName or "Wood"
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        
-        Notify("端口扫描", "正在扫描服务器隐藏接口...", 3)
-        local foundCount = 0
-        
-        for _, remote in ipairs(RS:GetDescendants()) do
-            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-                local name = string.lower(remote.Name)
-                if string.find(name, "admin") or string.find(name, "spawn") or string.find(name, "give") or string.find(name, "create") or string.find(name, "item") then
-                    
-                    local success = false
-                    
-                    pcall(function()
-                        if remote:IsA("RemoteEvent") then
-                            remote:FireServer(itemName, hrp.CFrame)
-                            remote:FireServer(itemName)
-                            remote:FireServer("Spawn", itemName, hrp.CFrame)
-                            remote:FireServer(player, itemName, hrp.Position)
-                            success = true
-                        elseif remote:IsA("RemoteFunction") then
-                            remote:InvokeServer(itemName, hrp.CFrame)
-                            remote:InvokeServer("Spawn", itemName)
-                            success = true
+        -- 2. 如果在资源库没找到，去全地图找
+        if not foundTool then
+            for _, v in ipairs(game.Workspace:GetDescendants()) do
+                if v:IsA("Tool") then
+                    local lowerName = string.lower(v.Name)
+                    for _, kw in ipairs(keywords) do
+                        if string.find(lowerName, kw) then
+                            foundTool = v
+                            break
                         end
-                    end)
-                    
-                    if success then
-                        foundCount = foundCount + 1
                     end
+                    if foundTool then break end
                 end
             end
         end
         
-        local interaction = RS:FindFirstChild("Interaction")
-        if interaction then
-            local proxy = interaction:FindFirstChild("RemoteProxy")
-            if proxy then
-                pcall(function()
-                    proxy:FireServer("Admin", "Spawn", itemName, hrp.CFrame)
-                    proxy:FireServer("Spawn", itemName, hrp.Position)
-                end)
+        if foundTool then
+            toolPath = foundTool:GetFullName()
+            local clone = foundTool:Clone()
+            clone.Parent = backpack
+            
+            local hasHandle = clone:FindFirstChild("Handle") ~= nil
+            
+            if hasHandle then
+                Notify("提取成功", "找到带有模型的工具！\n路径: " .. toolPath, 8)
+            else
+                Notify("提取警告", "只找到了空壳 UI，没有物理模型。\n路径: " .. toolPath, 8)
             end
-        end
-        
-        if foundCount > 0 then
-            Notify("对接成功", "已向 " .. foundCount .. " 个官方端口发送生成请求，看看脚下！", 5)
+            
         else
-            Notify("提示", "已通过主通道强行发送，如果没反应，说明端口被彻底锁死", 5)
+            -- 如果连壳都没找到
+            Notify("提取失败", "全图未找到任何名字带 paint/brush/dye 的工具", 5)
         end
     end })
 end
