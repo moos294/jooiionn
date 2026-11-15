@@ -337,7 +337,6 @@ TabHome:Button({ Title = "恶魔鸭材料破解", Callback = function()
     end
     Notify("今日材料", text, 10)
 end })
-
 TabHome:Button({ Title = "自动敲击天使序列", Callback = function()
     local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
@@ -356,7 +355,7 @@ TabHome:Button({ Title = "自动敲击天使序列", Callback = function()
     end
     
     Notify("序列完成", "原地等待天使鸭掉落...", 3)
-    task.wait(1.5)
+    task.wait(2)
     
     local targetDuck = nil
     for _, m in pairs(Workspace.PlayerModels:GetChildren()) do
@@ -364,7 +363,7 @@ TabHome:Button({ Title = "自动敲击天使序列", Callback = function()
             local owner = m:FindFirstChild("Owner")
             if not owner or owner.Value == nil or owner.Value == player then
                 local p = m.PrimaryPart or m:FindFirstChild("Main") or m:FindFirstChildWhichIsA("BasePart")
-                if p and (p.Position - hrp.Position).Magnitude < 50 then
+                if p and (p.Position - hrp.Position).Magnitude < 100 then
                     targetDuck = m
                     break
                 end
@@ -373,20 +372,23 @@ TabHome:Button({ Title = "自动敲击天使序列", Callback = function()
     end
     
     if targetDuck then
-        Notify("成功", "找到天使鸭，正在拉回基地...", 3)
+        Notify("成功", "抓到天使鸭！正在强行拉回...", 3)
         if not targetDuck.PrimaryPart then 
             targetDuck.PrimaryPart = targetDuck:FindFirstChild("Main") or targetDuck:FindFirstChildWhichIsA("BasePart") 
         end
-        dragToPosition(targetDuck, oldCF, function()
-            hrp.CFrame = oldCF
-            Notify("完成", "天使鸭已拉回！", 3)
-        end)
+        
+        for i = 1, 40 do 
+            DragModel(targetDuck, oldCF) 
+            task.wait(0.02) 
+        end
+        
+        hrp.CFrame = oldCF
+        Notify("完成", "天使鸭已拉回！", 3)
     else
         hrp.CFrame = oldCF
         Notify("提示", "没看到掉落的鸭子，已传送回原地", 3)
     end
 end })
-
 TabHome:Paragraph({ Title = "【 系统防踢 】" })
 TabHome:Button({ Title = "开启反挂机防踢", Callback = function()
     for _, connection in ipairs(getconnections(game.Players.LocalPlayer.Idled)) do
@@ -1280,9 +1282,8 @@ local function GetAllCashierIds()
     pcall(function() REPLICATED_STORAGE.NPCDialog.SetChattingValue:InvokeServer(0) end)
     return cashierIds
 end
-
 local translateMap = {
-    ["Plank"] = "木板", ["Crate"] = "板条箱", ["Log"] = "原木", ["Blueprint"] = "蓝图", ["Axe"] = "斧头", 
+    ["Plank"] = "木板", ["Crate"] = "板条箱", ["Log"] = "原木", ["Blueprint"] = "蓝图", 
     ["Sawmill"] = "锯木机", ["Workbench"] = "工作台", ["Lantern"] = "灯笼", ["Furniture"] = "家具", ["Door"] = "门", 
     ["Window"] = "窗户", ["Car"] = "汽车", ["Wheel"] = "车轮", ["Toy"] = "玩具", ["Gift"] = "礼物", 
     ["Egg"] = "蛋", ["LightBulb"] = "灯泡", ["Duck"] = "鸭子", ["MagicLamp"] = "神灯", ["Milk"] = "牛奶", 
@@ -1295,20 +1296,17 @@ local translateMap = {
     ["StoneRUs"] = "石头店", ["TravelingTrader"] = "旅行商人", ["VIPSHOP"] = "VIP商店",
     ["Bigsaw"] = "大锯", ["Chainsaw"] = "电锯", ["EndtimesChainsaw"] = "末日电锯", ["MiniTruck"] = "迷你卡车", ["Skull"] = "骷髅", ["Cheese"] = "奶酪",
     ["UtilityTruckNeon"] = "霓虹工具车", ["Crate_Cube"] = "方块板条箱", ["Toolbox"] = "工具箱", ["Sledge"] = "大锤", ["Hammer"] = "锤子",
-    ["Painting1"] = "油画1", ["Painting2"] = "油画2", ["Painting3"] = "油画3", ["Painting11"] = "油画11"
+    ["Painting1"] = "油画1", ["Painting2"] = "油画2", ["Painting3"] = "油画3", ["Painting11"] = "油画11",
+    ["GoldenAxe"] = "金斧头", ["SilverAxe"] = "银斧头", ["OlReliable"] = "老伙计", ["OIReliable"] = "老伙计", ["BasicAxe"] = "基础斧头", ["Axe"] = "斧头",
+    ["BeachBall"] = "沙滩球", ["Cookie"] = "曲奇饼干", ["Vip"] = "VIP物品"
 }
+
 local function getCNName(enName)
     if translateMap[enName] then 
         return translateMap[enName] 
     end
-    for k, v in pairs(translateMap) do
-        if string.find(string.lower(enName), string.lower(k)) then 
-            return v 
-        end
-    end
     return enName
 end
-
 local allStores = {}
 local stopPurchaseFlag = false
 
@@ -1557,11 +1555,114 @@ TabBuy:Button({ Title = "一键扫描未翻译物品 (查漏补缺)", Callback =
     end
     
     if #untranslated > 0 then
-        local msg = "发现未翻译物品 (" .. #untranslated .. "个):\n"
-        for _, name in ipairs(untranslated) do
-            msg = msg .. name .. "\n"
-        end
-        Notify("未翻译物品列表", msg, 30)
+        table.sort(untranslated)
+        local textContent = table.concat(untranslated, "\n")
+        
+        local oldGui = player.PlayerGui:FindFirstChild("UntranslatedUI")
+        if oldGui then oldGui:Destroy() end
+        
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "UntranslatedUI"
+        gui.ResetOnSpawn = false
+        gui.DisplayOrder = 100
+        gui.Parent = player.PlayerGui
+        
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 300, 0, 400)
+        frame.Position = UDim2.new(0.5, -150, 0.5, -200)
+        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+        frame.BorderSizePixel = 0
+        frame.Active = true
+        frame.Parent = gui
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+        
+        local titleBar = Instance.new("Frame")
+        titleBar.Size = UDim2.new(1, 0, 0, 35)
+        titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        titleBar.BorderSizePixel = 0
+        titleBar.Parent = frame
+        Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8)
+        
+        local titleText = Instance.new("TextLabel")
+        titleText.Size = UDim2.new(1, -60, 1, 0)
+        titleText.Position = UDim2.new(0, 10, 0, 0)
+        titleText.BackgroundTransparency = 1
+        titleText.Text = "未翻译物品 (" .. #untranslated .. "个)"
+        titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+        titleText.Font = Enum.Font.GothamBold
+        titleText.TextSize = 14
+        titleText.TextXAlignment = Enum.TextXAlignment.Left
+        titleText.Parent = titleBar
+        
+        local closeBtn = Instance.new("TextButton")
+        closeBtn.Size = UDim2.new(0, 25, 0, 25)
+        closeBtn.Position = UDim2.new(1, -30, 0, 5)
+        closeBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        closeBtn.Text = "X"
+        closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        closeBtn.Font = Enum.Font.GothamBold
+        closeBtn.TextSize = 14
+        closeBtn.Parent = titleBar
+        Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+        
+        local textBox = Instance.new("TextBox")
+        textBox.Size = UDim2.new(1, -20, 1, -90)
+        textBox.Position = UDim2.new(0, 10, 0, 45)
+        textBox.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+        textBox.TextColor3 = Color3.fromRGB(0, 255, 150)
+        textBox.Font = Enum.Font.Code
+        textBox.TextSize = 13
+        textBox.TextXAlignment = Enum.TextXAlignment.Left
+        textBox.TextYAlignment = Enum.TextYAlignment.Top
+        textBox.TextWrapped = true
+        textBox.ClearTextOnFocus = false
+        textBox.MultiLine = true
+        textBox.Text = textContent
+        textBox.Parent = frame
+        Instance.new("UICorner", textBox).CornerRadius = UDim.new(0, 6)
+        
+        local copyBtn = Instance.new("TextButton")
+        copyBtn.Size = UDim2.new(1, -20, 0, 35)
+        copyBtn.Position = UDim2.new(0, 10, 1, -45)
+        copyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        copyBtn.Text = "一键复制全部内容"
+        copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        copyBtn.Font = Enum.Font.GothamBold
+        copyBtn.TextSize = 14
+        copyBtn.Parent = frame
+        Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 6)
+        
+        local dragging, dragInput, dragStart, startPos
+        titleBar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = frame.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                end)
+            end
+        end)
+        titleBar.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                if dragging then
+                    local delta = input.Position - dragStart
+                    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end
+        end)
+        
+        closeBtn.MouseButton1Click:Connect(function()
+            gui:Destroy()
+        end)
+        
+        copyBtn.MouseButton1Click:Connect(function()
+            setclipboard(textContent)
+            copyBtn.Text = "复制成功！"
+            task.wait(2)
+            copyBtn.Text = "一键复制全部内容"
+        end)
+        
     else
         Notify("完美", "当前全图商店物品已全部翻译！", 5)
     end
