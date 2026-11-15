@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -544,7 +544,32 @@ local function selectBestWeapon(treeClass)
     
     return nil, nil, 0
 end
-
+local function findUncutTree(treeClass)
+    local playerPos = player.Character and player.Character.HumanoidRootPart.Position
+    if not playerPos then return nil end
+    local nearestDist, nearestWood, nearestTree = math.huge, nil, nil
+    for _, region in pairs(Workspace:GetChildren()) do
+        if region.Name == "TreeRegion" then
+            for _, tree in pairs(region:GetChildren()) do
+                if tree:IsA("Model") and tree:FindFirstChild("TreeClass") and tree.TreeClass.Value == treeClass then
+                    local woodSections = {}
+                    for _, child in pairs(tree:GetChildren()) do
+                        if child.Name == "WoodSection" and child:IsA("BasePart") then 
+                            table.insert(woodSections, child) 
+                        end
+                    end
+                    if #woodSections >= 2 then
+                        local dist = (woodSections[1].Position - playerPos).Magnitude
+                        if dist < nearestDist then 
+                            nearestDist, nearestWood, nearestTree = dist, woodSections[1], tree 
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nearestWood, nearestTree
+end
 local function getTreeTopCFrame(treeModel)
     local topY = -math.huge
     local topCF = nil
