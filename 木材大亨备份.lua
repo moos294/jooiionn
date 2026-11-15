@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -2486,66 +2486,63 @@ do
 end
 do
     local RS = game:GetService("ReplicatedStorage")
+    local Mouse = player:GetMouse()
 
-    TabHome:Paragraph({ Title = "【 染料工具追踪提取 】" })
+    TabHome:Paragraph({ Title = "【 染料工具 强修实体版 】" })
 
-    TabHome:Button({ Title = "追踪并提取 染料工具", Callback = function()
+    TabHome:Button({ Title = "提取并装配 染料工具", Callback = function()
         local backpack = player:FindFirstChild("Backpack")
         if not backpack then return end
         
-        if backpack:FindFirstChild("Paintbrush") then backpack.Paintbrush:Destroy() end
-        if backpack:FindFirstChild("PaintBucket") then backpack.PaintBucket:Destroy() end
+        local paintTool = RS:FindFirstChild("PaintTool")
         
-        local foundTool = nil
-        local toolPath = ""
-        local keywords = {"paint", "brush", "dye"}
-        
-        -- 1. 在资源库深挖
-        for _, v in ipairs(RS:GetDescendants()) do
-            if v:IsA("Tool") then
-                local lowerName = string.lower(v.Name)
-                for _, kw in ipairs(keywords) do
-                    if string.find(lowerName, kw) then
-                        foundTool = v
-                        break
-                    end
-                end
-                if foundTool then break end
-            end
+        if not paintTool then
+            Notify("失败", "未在资源库找到 PaintTool 节点", 3)
+            return
         end
         
-        -- 2. 如果在资源库没找到，去全地图找
-        if not foundTool then
-            for _, v in ipairs(game.Workspace:GetDescendants()) do
-                if v:IsA("Tool") then
-                    local lowerName = string.lower(v.Name)
-                    for _, kw in ipairs(keywords) do
-                        if string.find(lowerName, kw) then
-                            foundTool = v
-                            break
-                        end
-                    end
-                    if foundTool then break end
-                end
-            end
+        if backpack:FindFirstChild("PaintTool") then backpack.PaintTool:Destroy() end
+        if backpack:FindFirstChild("神级染料桶") then backpack["神级染料桶"]:Destroy() end
+        
+        local clone = paintTool:Clone()
+        clone.Name = "神级染料桶"
+        
+        local hasHandle = clone:FindFirstChild("Handle")
+        if not hasHandle then
+            local handle = Instance.new("Part")
+            handle.Name = "Handle"
+            handle.Size = Vector3.new(1.2, 1.5, 1.2)
+            handle.Color = Color3.fromRGB(255, 60, 60)
+            handle.Material = Enum.Material.Neon
+            
+            local mesh = Instance.new("SpecialMesh")
+            mesh.MeshType = Enum.MeshType.Cylinder
+            mesh.Scale = Vector3.new(1, 1, 1)
+            mesh.Parent = handle
+            
+            handle.Parent = clone
         end
         
-        if foundTool then
-            toolPath = foundTool:GetFullName()
-            local clone = foundTool:Clone()
-            clone.Parent = backpack
-            
-            local hasHandle = clone:FindFirstChild("Handle") ~= nil
-            
-            if hasHandle then
-                Notify("提取成功", "找到带有模型的工具！\n路径: " .. toolPath, 8)
-            else
-                Notify("提取警告", "只找到了空壳 UI，没有物理模型。\n路径: " .. toolPath, 8)
+        clone.Activated:Connect(function()
+            local target = Mouse.Target
+            if target and target.Parent then
+                local targetModel = target.Parent
+                
+                pcall(function()
+                    RS.Interaction.ClientInteracted:FireServer(targetModel, "Paint")
+                end)
+                pcall(function()
+                    RS.Interaction.ClientInteracted:FireServer(targetModel, "Paint", "Really Red")
+                end)
+                pcall(function()
+                    RS.Interaction.RemoteProxy:FireServer(targetModel, "Paint", "Really Red")
+                end)
+                
+                Notify("强行染色", "已发送材质替换请求", 2)
             end
-            
-        else
-            -- 如果连壳都没找到
-            Notify("提取失败", "全图未找到任何名字带 paint/brush/dye 的工具", 5)
-        end
+        end)
+        
+        clone.Parent = backpack
+        Notify("装配成功", "已为你注入物理模型！请装备并点击目标", 5)
     end })
 end
