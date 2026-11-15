@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -1255,13 +1255,23 @@ local translateMap = {
     ["Egg"] = "蛋", ["LightBulb"] = "灯泡", ["Duck"] = "鸭子", ["MagicLamp"] = "神灯", ["Milk"] = "牛奶", 
     ["NESController"] = "游戏机", ["Battery"] = "电池", ["BloxyCola"] = "可乐", ["HappyBall"] = "快乐球", ["Cocoa"] = "热可可",
     ["Eye3"] = "老虎眼", ["Sapling"] = "树苗", ["Bucket"] = "水桶", ["Map"] = "地图", ["Wrench"] = "扳手", ["Sign"] = "告示牌",
-    ["Chair"] = "椅子", ["Table"] = "桌子", ["Lamp"] = "台灯", ["Bed"] = "床", ["Shelf"] = "架子", ["Rug"] = "地毯", ["Paint"] = "油漆"
+    ["Chair"] = "椅子", ["Table"] = "桌子", ["Lamp"] = "台灯", ["Bed"] = "床", ["Shelf"] = "架子", ["Rug"] = "地毯", ["Paint"] = "油漆",
+    ["BlackMarket"] = "黑市", ["WoodRUs"] = "木材反斗城", ["FineArt"] = "美术店", ["FineFinds"] = "好货店", ["FurnitureStore"] = "家具店", ["CarStore"] = "车店",
+    ["AutumnCatalog"] = "秋季商店", ["MusicStore"] = "音乐店", ["Igloo"] = "冰屋", ["LogicStore"] = "逻辑店", ["MountainSide"] = "山边店",
+    ["PlanterStore"] = "种子店", ["PlantomicsChoice"] = "植物店", ["SallysSeasonal"] = "莎莉的季节", ["SaplingCart"] = "树苗车", ["SeaSide"] = "海边店",
+    ["StoneRUs"] = "石头店", ["TravelingTrader"] = "旅行商人", ["VIPSHOP"] = "VIP商店",
+    ["Bigsaw"] = "大锯", ["Chainsaw"] = "电锯", ["EndtimesChainsaw"] = "末日电锯", ["MiniTruck"] = "迷你卡车", ["Skull"] = "骷髅", ["Cheese"] = "奶酪",
+    ["UtilityTruckNeon"] = "霓虹工具车", ["Crate_Cube"] = "方块板条箱", ["Toolbox"] = "工具箱", ["Sledge"] = "大锤", ["Hammer"] = "锤子",
+    ["Painting1"] = "油画1", ["Painting2"] = "油画2", ["Painting3"] = "油画3", ["Painting11"] = "油画11"
 }
-
 local function getCNName(enName)
-    if translateMap[enName] then return translateMap[enName] end
+    if translateMap[enName] then 
+        return translateMap[enName] 
+    end
     for k, v in pairs(translateMap) do
-        if string.find(enName, k) then return v .. " (" .. enName .. ")" end
+        if string.find(string.lower(enName), string.lower(k)) then 
+            return v 
+        end
     end
     return enName
 end
@@ -1381,13 +1391,21 @@ local function purchaseCycle(storeInfo, selectedItemName, buyAmount, doubleConfi
     return successCycles == buyAmount
 end
 
-TabBuy:Paragraph({ Title = "【 全商店购买（中文） 】" })
+TabBuy:Paragraph({ Title = "【 全商店购买（中英分离版） 】" })
 
 local currentStoreDropdown
+local currentItemDropdown
+local selectedStoreData = nil
 local selectedEntry = nil
 
-local function refreshItemList()
+local storeOptions = {}
+local storeDataMap = {}
+
+local function refreshStoreList()
     allStores = {}
+    storeOptions = {}
+    storeDataMap = {}
+    
     local storesFolder = Workspace:FindFirstChild("Stores")
     if storesFolder then
         for _, store in pairs(storesFolder:GetChildren()) do
@@ -1398,64 +1416,94 @@ local function refreshItemList()
                 if not npcInfo then
                     npcInfo = { name = storeName, id = nil, path = storeName }
                 end
-                table.insert(allStores, { name = storeName, object = store, shopItems = shopItems, npc = npcInfo })
+                
+                local itemsList = {}
+                local seen = {}
+                for _, item in pairs(shopItems:GetChildren()) do
+                    if not seen[item.Name] then
+                        seen[item.Name] = true
+                        table.insert(itemsList, item.Name)
+                    end
+                end
+                
+                local storeObj = { name = storeName, object = store, shopItems = shopItems, npc = npcInfo, itemsList = itemsList }
+                table.insert(allStores, storeObj)
             end
         end
-    end
-    table.sort(allStores, function(a, b) return a.name < b.name end)
-
-    local allItemsList = {}
-    for _, store in ipairs(allStores) do
-        if store.shopItems then
-            for _, item in pairs(store.shopItems:GetChildren()) do
-                table.insert(allItemsList, { 
-                    display = getCNName(store.name) .. " - " .. getCNName(item.Name), 
-                    store = store, 
-                    item = item.Name 
-                })
-            end
-        end
-    end
-    table.sort(allItemsList, function(a, b) return a.display < b.display end)
-
-    local displayOptions = {}
-    local itemMap = {}
-    for _, entry in ipairs(allItemsList) do
-        table.insert(displayOptions, entry.display)
-        itemMap[entry.display] = entry
-    end
-
-    if #displayOptions > 0 then
-        selectedEntry = itemMap[displayOptions[1]]
     end
     
-    return displayOptions, itemMap
+    table.sort(allStores, function(a, b) return a.name < b.name end)
+    
+    for _, store in ipairs(allStores) do
+        local display = getCNName(store.name)
+        table.insert(storeOptions, display)
+        storeDataMap[display] = store
+    end
 end
 
-local displayOptions, itemMap = refreshItemList()
+local function loadItemsForStore(store)
+    if currentItemDropdown and currentItemDropdown.Row then
+        currentItemDropdown.Row:Destroy()
+        currentItemDropdown = nil
+    end
+    
+    local itemOptions = {}
+    local itemMap = {}
+    
+    for _, itemName in ipairs(store.itemsList) do
+        local display = getCNName(itemName)
+        table.insert(itemOptions, display)
+        itemMap[display] = itemName
+    end
+    
+    if #itemOptions > 0 then
+        currentItemDropdown = TabBuy:Dropdown({ Title = "选择商品", Values = itemOptions, Value = itemOptions[1], Callback = function(sel)
+            selectedEntry = { store = store, item = itemMap[sel] }
+        end })
+        selectedEntry = { store = store, item = itemMap[itemOptions[1]] }
+    else
+        selectedEntry = nil
+    end
+end
 
-if #displayOptions > 0 then
-    local selectedDisplay = displayOptions[1]
-    local dd = TabBuy:Dropdown({ Title = "选择商品", Values = displayOptions, Value = selectedDisplay, Callback = function(sel)
-        selectedDisplay = sel
-        selectedEntry = itemMap[sel]
-    end })
-    
-    local buyAmount = 1
-    TabBuy:Input({ Title = "循环次数", Value = "1", Callback = function(v)
-        local num = tonumber(v)
-        if num and num > 0 then buyAmount = num else buyAmount = 1 end
-    end })
-    
-    TabBuy:Button({ Title = "刷新商品列表 (跑图加载后点我)", Callback = function()
-        local newOpts, newMap = refreshItemList()
-        if dd and dd.Refresh then
-            dd:Refresh(newOpts)
-        else
-            Notify("刷新成功", "已更新商品列表,请重新选择", 5)
+refreshStoreList()
+
+if #storeOptions > 0 then
+    currentStoreDropdown = TabBuy:Dropdown({ Title = "选择商店", Values = storeOptions, Value = storeOptions[1], Callback = function(sel)
+        local store = storeDataMap[sel]
+        if store then
+            selectedStoreData = store
+            loadItemsForStore(store)
         end
     end })
     
+    loadItemsForStore(storeDataMap[storeOptions[1]])
+end
+
+local buyAmount = 1
+TabBuy:Input({ Title = "循环次数", Value = "1", Callback = function(v)
+    local num = tonumber(v)
+    if num and num > 0 then buyAmount = num else buyAmount = 1 end
+end })
+
+TabBuy:Button({ Title = "一键强制扫描并获取商人ID", Callback = function()
+    Notify("扫描", "正在获取所有商人ID并加载商品...", 3)
+    task.spawn(function()
+        local ids = GetAllCashierIds()
+        for k, v in pairs(npcMapping) do
+            if ids[v.name] then v.id = ids[v.name] end
+        end
+        
+        refreshStoreList()
+        if #storeOptions > 0 then
+            loadItemsForStore(storeDataMap[storeOptions[1]])
+            Notify("扫描成功", "商人ID和商品已加载完毕", 3)
+        else
+            Notify("扫描失败", "未找到任何商店", 3)
+        end
+    end)
+end })
+
 TabBuy:Button({ Title = "开始购买选中商品", Callback = function()
     if not selectedEntry then
         Notify("提示", "请先在下拉框选择商品", 3)
@@ -1472,12 +1520,11 @@ TabBuy:Button({ Title = "开始购买选中商品", Callback = function()
     stopPurchaseFlag = false
     task.spawn(function() purchaseCycle(selectedEntry.store, selectedEntry.item, buyAmount, false) end)
 end })
-    
-    TabBuy:Button({ Title = "停止全商店购买", Callback = function()
-        stopPurchaseFlag = true
-        Notify("系统", "已发送停止信号", 3)
-    end })
-end
+
+TabBuy:Button({ Title = "停止全商店购买", Callback = function()
+    stopPurchaseFlag = true
+    Notify("系统", "已发送停止信号", 3)
+end })
 local evilStopFlag = false
 local evilAutoRunning = false
 local evilCombineCount = 1
