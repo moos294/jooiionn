@@ -27,7 +27,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.1" end
+        if v.Text == "ORIGAMI" then v.Text = "封存木材 V0.2" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -470,14 +470,25 @@ local function loadWeaponConfig(weaponName)
     local toolObj = toolFolder and toolFolder:FindFirstChild(weaponName)
     
     if toolObj then
-        realTool = (toolObj:IsA("Tool") and toolObj) or toolObj.Value
+        if toolObj:IsA("Tool") then
+            realTool = toolObj
+        elseif toolObj:IsA("ObjectValue") then
+            realTool = toolObj.Value
+        end
     end
     if not realTool then
         local backpack = player:FindFirstChild("Backpack")
-        if backpack then realTool = backpack:FindFirstChild(weaponName) end
+        if backpack then 
+            local bpObj = backpack:FindFirstChild(weaponName)
+            if bpObj and bpObj:IsA("Tool") then realTool = bpObj end
+        end
     end
     if not realTool then
-        realTool = player.Character and player.Character:FindFirstChild(weaponName)
+        local char = player.Character
+        if char then
+            local charObj = char:FindFirstChild(weaponName)
+            if charObj and charObj:IsA("Tool") then realTool = charObj end
+        end
     end
 
     local override = nil
@@ -504,6 +515,34 @@ local function loadWeaponConfig(weaponName)
         return config
     end
     return nil
+end
+
+local function selectBestWeapon(treeClass)
+    local toolFolder = player:FindFirstChild("ToolFolder")
+    if not toolFolder then return nil, nil, 0 end
+    
+    local bestWeapon, bestDamage, bestConfig = nil, -1, nil
+    local fallbackWeapon = nil
+    
+    for _, child in pairs(toolFolder:GetChildren()) do
+        if fallbackWeapon == nil then fallbackWeapon = child.Name end
+        local config = loadWeaponConfig(child.Name)
+        if config then
+            local damage = (config.SpecialTrees[treeClass] and config.SpecialTrees[treeClass].Damage) or config.Damage or 0
+            if damage > bestDamage then
+                bestWeapon, bestDamage, bestConfig = child.Name, damage, config
+            end
+        end
+    end
+    
+    if bestWeapon then 
+        return bestWeapon, bestConfig, bestDamage 
+    end
+    if fallbackWeapon then 
+        return fallbackWeapon, {Damage = 10, SwingCooldown = 0.3, Range = 10, SpecialTrees = {}}, 10 
+    end
+    
+    return nil, nil, 0
 end
 
 local function selectBestWeapon(treeClass)
@@ -1255,6 +1294,15 @@ local function GetAllCashierIds()
     return cashierIds
 end
 local translateMap = {
+    ["BlackMarket"] = "黑市", ["WoodRUs"] = "木材反斗城", ["FineArt"] = "美术店", ["FineFinds"] = "好货店", ["FurnitureStore"] = "家具店", ["CarStore"] = "车店",
+    ["AutumnCatalog"] = "秋季商店", ["MusicStore"] = "音乐店", ["Igloo"] = "冰屋", ["LogicStore"] = "逻辑店", ["MountainSide"] = "山边店",
+    ["PlanterStore"] = "种子店", ["PlantomicsChoice"] = "植物店", ["SallysSeasonal"] = "莎莉的季节", ["SaplingCart"] = "树苗车", ["SeaSide"] = "海边店",
+    ["StoneRUs"] = "石头店", ["TravelingTrader"] = "旅行商人", ["VIPSHOP"] = "VIP商店",
+    ["Battery"] = "电池", ["BeachBall"] = "沙滩球", ["Bigsaw"] = "大锯", ["Chainsaw"] = "电锯", ["Cocoa"] = "热可可", ["Cookie"] = "曲奇饼干", 
+    ["Crate"] = "板条箱", ["Crate_Cube"] = "方块板条箱", ["Egg"] = "蛋", ["EndtimesChainsaw"] = "末日电锯", ["Eye3"] = "老虎眼", 
+    ["HappyBall"] = "快乐球", ["LightBulb"] = "灯泡", ["MagicLamp"] = "神灯", ["Milk"] = "牛奶", ["MiniTruck"] = "迷你卡车", 
+    ["NESController"] = "游戏机", ["Painting1"] = "油画1", ["Painting11"] = "油画11", ["Painting2"] = "油画2", ["Painting3"] = "油画3", 
+    ["Sawmill"] = "锯木机", ["SilverAxe"] = "银斧头", ["Vip"] = "VIP物品",
     ["4SeatTruck"] = "四座卡车", ["6die"] = "六面骰子", ["AppleTree"] = "苹果树", ["Asphalt"] = "沥青",
     ["Axe1"] = "测试斧头1", ["Axe2"] = "测试斧头2", ["Axe3"] = "测试斧头3", ["AxeAlphaTesters"] = "内测斧头",
     ["AxeAmber"] = "琥珀斧头", ["AxeBetaTesters"] = "公测斧头", ["AxeBlurple"] = "蓝紫斧头", ["AxeChicken"] = "小鸡斧头",
@@ -1266,9 +1314,8 @@ local translateMap = {
     ["CandyCaneAxe"] = "拐杖糖斧", ["CargoBox"] = "货物箱", ["Cat"] = "猫", ["CeilingLight"] = "吸顶灯", ["Chair1"] = "椅子", ["Chest"] = "箱子",
     ["ChopSaw"] = "电锯", ["ConveyorFunnel"] = "传送带漏斗", ["ConveyorSupports"] = "传送带支架", ["ConveyorSwitch"] = "传送带开关",
     ["Counter"] = "柜台", ["CounterTop1"] = "台面", ["CounterTop1Sink"] = "带水槽台面", ["CounterTop1Thin"] = "薄台面",
-    ["Cube"] = "方块", ["CursedWorklight"] = "诅咒工作灯",
-    ["Dishwasher"] = "洗碗机", ["Display"] = "展示台", ["DisplayCase"] = "展示柜", ["DogWood"] = "狗木", ["Door1"] = "门", ["Dynamite"] = "炸药",
-    ["EndTimesAxe"] = "末日斧", ["Eye1"] = "眼睛", 
+    ["Cube"] = "方块", ["CursedWorklight"] = "诅咒工作灯", ["Dishwasher"] = "洗碗机", ["Display"] = "展示台", ["DisplayCase"] = "展示柜", 
+    ["DogWood"] = "狗木", ["Door1"] = "门", ["Dynamite"] = "炸药", ["EndTimesAxe"] = "末日斧", ["Eye1"] = "眼睛", 
     ["FastConveyor"] = "快速传送带", ["FastTightTurnConveyor"] = "快速紧凑传送带", ["FastTiltConveyor"] = "快速倾斜传送带",
     ["FireAxe"] = "消防斧", ["FireRock"] = "火石", ["Flashlight"] = "手电筒",
     ["Floor1"] = "一号地板", ["Floor1Large"] = "一号大地板", ["Floor1MegaLarge"] = "一号超大底板", ["Floor1Small"] = "一号小地板", ["Floor1Tiny"] = "一号迷你地板",
@@ -1278,8 +1325,7 @@ local translateMap = {
     ["GiantCone"] = "巨型路锥", ["GingerbreadAxe"] = "姜饼斧", 
     ["GlassDoor1"] = "玻璃门1", ["GlassDoor2"] = "玻璃门2", ["GlassPane1"] = "玻璃板1", ["GlassPane2"] = "玻璃板2", ["GlassPane3"] = "玻璃板3", ["GlassPane4"] = "玻璃板4",
     ["GlobeWood"] = "地球仪木", ["GoldBall"] = "金球", ["GoldChop"] = "黄金电锯", ["GoldConveyorFunnel"] = "黄金漏斗", ["GoldStraightConveyor"] = "黄金直传送带", ["GoldTightTurnConveyor"] = "黄金紧凑传送带", ["GoldTiltConveyor"] = "黄金倾斜传送带",
-    ["Hatch"] = "舱口", 
-    ["IceCube"] = "冰块", 
+    ["Hatch"] = "舱口", ["IceCube"] = "冰块", 
     ["IcicleWireAmber"] = "琥珀冰柱线", ["IcicleWireBlue"] = "蓝色冰柱线", ["IcicleWireGreen"] = "绿色冰柱线", ["IcicleWireRed"] = "红色冰柱线",
     ["Ladder1"] = "梯子", ["Lamp1"] = "台灯", ["LargeChest"] = "大箱子", ["Laser"] = "激光发射器", ["LaserReceiver"] = "激光接收器", ["LavaCar"] = "岩浆车", ["Lemon"] = "柠檬", ["Lever0"] = "拉杆", ["LogSweeper"] = "原木清扫器", ["LumberCD2"] = "木材CD2",
     ["MEGATiltConveyor"] = "超级倾斜传送带", ["ManyAxe"] = "多把斧头", ["MegaConveyor"] = "巨型传送带", ["MegaConveyorFunnel"] = "巨型漏斗", ["MegaFurnace"] = "巨型熔炉", ["MusicBox"] = "音乐盒",
@@ -1288,8 +1334,7 @@ local translateMap = {
     ["Pan"] = "平底锅", ["ParkBench"] = "公园长椅", ["PickUp5"] = "皮卡5", ["Pickup1"] = "皮卡1", ["Pickup2"] = "皮卡2", ["Pickup3"] = "皮卡3", ["Pickup4"] = "皮卡4",
     ["Pie"] = "派", ["Piston"] = "活塞", ["Planter2"] = "种植箱", ["Pot"] = "花盆", ["PressurePlate"] = "压力板",
     ["PumpkinClassic"] = "经典南瓜", ["PumpkinDark"] = "暗黑南瓜", ["PumpkinGold"] = "黄金南瓜", ["PumpkinSinister"] = "邪恶南瓜", ["PumpkinWood"] = "南瓜木",
-    ["QunatumSawmill"] = "量子锯木机",
-    ["Ramp"] = "斜坡", ["Refridgerator"] = "冰箱", ["Rukiryaxe"] = "神斧",
+    ["QunatumSawmill"] = "量子锯木机", ["Ramp"] = "斜坡", ["Refridgerator"] = "冰箱", ["Rukiryaxe"] = "神斧",
     ["SaplingCrate"] = "树苗箱", ["SaplingGeneric"] = "普通树苗", ["Sawmill2"] = "锯木机2", ["Sawmill3"] = "锯木机3", ["Sawmill4"] = "锯木机4", ["Sawmill4L"] = "锯木机4L", ["Sawmill5"] = "锯木机5", ["SawmillGift"] = "礼物锯木机", ["SawmillPower"] = "动力锯木机",
     ["Seat_Armchair"] = "扶手椅", ["Seat_Couch"] = "沙发", ["Seat_Loveseat"] = "双人沙发", ["Shelf1"] = "架子1", ["Shelf2"] = "架子2", ["Shelf3"] = "架子3", ["Ship"] = "船只",
     ["Sign1"] = "告示牌", ["SignalDelay"] = "信号延迟器", ["SignalSustain"] = "信号保持器",
