@@ -99,7 +99,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     Humanoid = char:WaitForChild("Humanoid")
 end)
 
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/MillJackson832/-/refs/heads/main/Wind%20Ui.txt"))()
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Window = WindUI:CreateWindow({
     Title = "Yttrium Hub",
     Author = "俄亥俄州",
