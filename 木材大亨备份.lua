@@ -1,6 +1,6 @@
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-
-local Window = WindUI:CreateWindow({
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/moos294/ghghjj/refs/heads/main/UI.lua"))()
+local Window = UI.Window
+local WindUI = UI.WindUI
     Title = "封存",
     Author = "封存",
     Folder = "FengCun",
