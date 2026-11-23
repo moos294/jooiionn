@@ -1,4 +1,14 @@
-local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/moos294/ghghjj/refs/heads/main/crown.lua"))()
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/moos294/ghghjj/refs/heads/main/UI.lua"))()
+local Window = UI.Window
+local WindUI = UI.WindUI
+
+for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
+    if v:IsA("TextLabel") then
+        if v.Text == "ORIGAMI" then v.Text = "封存力量" end
+        if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
+    end
+end
+
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -13,31 +23,45 @@ task.wait(0.05)
 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
 end)
 
-local TabMain = UI.CreateTab("主要")
+local TabMain = Window:Tab({ Title = "主要" })
+local TabTP = Window:Tab({ Title = "传送" })
+local TabPlayer = Window:Tab({ Title = "玩家" })
+local TabOther = Window:Tab({ Title = "其他" })
 
-UI.CreateToggle(TabMain, "快速锻炼", false, function(s)
+TabMain:Toggle({
+Title = "快速锻炼",
+Value = false,
+Callback = function(s)
 if s then
 task.spawn(function()
 while s do
-pcall(function() for i=1,20 do me:FireServer("rep") end end)
+pcall(function() for i = 1, 20 do me:FireServer("rep") end end)
 task.wait(0.1)
 end
 end)
 end
-end)
+end
+})
 
-UI.CreateToggle(TabMain, "自动重生", false, function(s)
+TabMain:Toggle({
+Title = "自动重生",
+Value = false,
+Callback = function(s)
 if s then
 task.spawn(function()
 while s do
-pcall(function() for i=1,20 do me:FireServer("rep") end end)
+pcall(function() for i = 1, 20 do me:FireServer("rep") end end)
 task.wait(0.1)
 end
 end)
 end
-end)
+end
+})
 
-UI.CreateToggle(TabMain, "超载硬拉", false, function(s)
+TabMain:Toggle({
+Title = "超载硬拉",
+Value = false,
+Callback = function(s)
 if s then
 task.spawn(function()
 while s do
@@ -50,9 +74,13 @@ task.wait(0.1)
 end
 end)
 end
-end)
+end
+})
 
-UI.CreateToggle(TabMain, "超载深蹲", false, function(s)
+TabMain:Toggle({
+Title = "超载深蹲",
+Value = false,
+Callback = function(s)
 if s then
 task.spawn(function()
 while s do
@@ -65,9 +93,9 @@ task.wait(0.1)
 end
 end)
 end
-end)
+end
+})
 
-local TabTP = UI.CreateTab("传送")
 local tps = {
 {"大厅", Vector3.new(-0.75, 90.61, 242.78)},
 {"小岛", Vector3.new(-32.14, 8.51, 1904.41)},
@@ -78,13 +106,14 @@ local tps = {
 }
 
 for _, v in ipairs(tps) do
-UI.CreateButton(TabTP, v[1], function()
+TabTP:Button({
+Title = v[1],
+Callback = function()
 local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
 if hrp then hrp.CFrame = CFrame.new(v[2]) end
-end)
 end
-
-local TabPlayer = UI.CreateTab("玩家")
+})
+end
 
 local function getPlr()
 local list = {}
@@ -94,24 +123,34 @@ end
 return list
 end
 
-local dropdown = UI.CreateDropdown(TabPlayer, "选择玩家", getPlr(), "", function(v)
-targetPlayer = v
-end)
+local Dropdown = TabPlayer:Dropdown({
+Title = "选择玩家",
+Values = getPlr(),
+Value = "",
+Callback = function(v) targetPlayer = v end
+})
 
-UI.CreateButton(TabPlayer, "刷新玩家列表", function()
-if dropdown and dropdown.SetOptions then
-dropdown.SetOptions(getPlr())
+TabPlayer:Button({
+Title = "刷新玩家列表",
+Callback = function()
+if Dropdown.SetOptions then Dropdown:SetOptions(getPlr()) end
 end
-end)
+})
 
-UI.CreateButton(TabPlayer, "传送到玩家身边", function()
+TabPlayer:Button({
+Title = "传送到玩家身边",
+Callback = function()
 local t = Players:FindFirstChild(targetPlayer)
 if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and LP.Character then
 LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
 end
-end)
+end
+})
 
-UI.CreateToggle(TabPlayer, "循环锁定传送", false, function(s)
+TabPlayer:Toggle({
+Title = "循环锁定传送",
+Value = false,
+Callback = function(s)
 loopTP = s
 if s then
 task.spawn(function()
@@ -126,23 +165,34 @@ task.wait()
 end
 end)
 end
-end)
+end
+})
 
-local TabOther = UI.CreateTab("其他")
-
-UI.CreateButton(TabOther, "防挂机踢出", function()
+TabOther:Button({
+Title = "防挂机踢出",
+Callback = function()
 pcall(function()
 for _, conn in pairs(getconnections(LP.Idled)) do
 conn:Disable()
 conn:Disconnect()
 end
 end)
-end)
+if WindUI and WindUI.Notify then
+WindUI:Notify({ Title = "成功", Content = "已开启防挂机", Duration = 3 })
+end
+end
+})
 
-UI.CreateButton(TabOther, "防卡顿", function()
+TabOther:Button({
+Title = "防卡顿",
+Callback = function()
 Lighting.Brightness = 0
 Lighting.GlobalShadows = false
 for _, v in pairs(workspace:GetDescendants()) do
 pcall(function() v:Destroy() end)
 end
-end)
+if WindUI and WindUI.Notify then
+WindUI:Notify({ Title = "成功", Content = "已清理垃圾模型", Duration = 3 })
+end
+end
+})
