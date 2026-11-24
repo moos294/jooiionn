@@ -4,7 +4,7 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存力量 V1.3" end
+        if v.Text == "ORIGAMI" then v.Text = "封存力量 V1.5" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
@@ -16,9 +16,6 @@ local UserInputService = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 local targetPlayer = ""
 local loopTP = false
-
-local totalReps = 0
-local startTime = tick()
 
 local function fmt(n)
     n = math.floor(tonumber(n) or 0)
@@ -49,70 +46,101 @@ hud.ResetOnSpawn = false
 hud.IgnoreGuiInset = true
 hud.Parent = LP:WaitForChild("PlayerGui")
 
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 110, 0, 35)
+openBtn.Position = UDim2.new(0, 20, 0.2, 0)
+openBtn.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
+openBtn.Text = "📊 查看统计"
+openBtn.TextColor3 = Color3.fromRGB(60, 150, 230)
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 13
+openBtn.Parent = hud
+local c1 = Instance.new("UICorner", openBtn)
+c1.CornerRadius = UDim.new(0, 6)
+
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 110)
+frame.Size = UDim2.new(0, 240, 0, 220)
 frame.Position = UDim2.new(0, 20, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(20, 24, 34)
 frame.BackgroundTransparency = 0.1
 frame.BorderSizePixel = 0
+frame.Visible = false
 frame.Parent = hud
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = frame
+local c2 = Instance.new("UICorner", frame)
+c2.CornerRadius = UDim.new(0, 8)
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 24)
 title.BackgroundTransparency = 1
-title.Text = "📊 封存统计"
+title.Text = "📊 封存数据预估"
 title.TextColor3 = Color3.fromRGB(60, 150, 230)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 13
 title.Parent = frame
 
-local lblStr = Instance.new("TextLabel")
-lblStr.Size = UDim2.new(1, -10, 0, 18)
-lblStr.Position = UDim2.new(0, 10, 0, 28)
-lblStr.BackgroundTransparency = 1
-lblStr.Text = "力量: 0"
-lblStr.TextColor3 = Color3.fromRGB(230, 230, 235)
-lblStr.Font = Enum.Font.Gotham
-lblStr.TextSize = 11
-lblStr.TextXAlignment = Enum.TextXAlignment.Left
-lblStr.Parent = frame
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 24, 0, 24)
+closeBtn.Position = UDim2.new(1, -24, 0, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
+closeBtn.Parent = frame
 
-local lblReb = Instance.new("TextLabel")
-lblReb.Size = UDim2.new(1, -10, 0, 18)
-lblReb.Position = UDim2.new(0, 10, 0, 48)
-lblReb.BackgroundTransparency = 1
-lblReb.Text = "转生: 0"
-lblReb.TextColor3 = Color3.fromRGB(230, 230, 235)
-lblReb.Font = Enum.Font.Gotham
-lblReb.TextSize = 11
-lblReb.TextXAlignment = Enum.TextXAlignment.Left
-lblReb.Parent = frame
+local function createLabel(y, txt, col)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, -10, 0, 18)
+    l.Position = UDim2.new(0, 10, 0, y)
+    l.BackgroundTransparency = 1
+    l.Text = txt
+    l.TextColor3 = col or Color3.fromRGB(230, 230, 235)
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 11
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Parent = frame
+    return l
+end
 
-local lblReps = Instance.new("TextLabel")
-lblReps.Size = UDim2.new(1, -10, 0, 18)
-lblReps.Position = UDim2.new(0, 10, 0, 68)
-lblReps.BackgroundTransparency = 1
-lblReps.Text = "锻炼次数: 0"
-lblReps.TextColor3 = Color3.fromRGB(150, 255, 150)
-lblReps.Font = Enum.Font.Gotham
-lblReps.TextSize = 11
-lblReps.TextXAlignment = Enum.TextXAlignment.Left
-lblReps.Parent = frame
+local lblStr = createLabel(28, "当前力量: 0")
+local lblReb = createLabel(48, "当前转生: 0")
+local lblHrStr = createLabel(76, "1小时预估力量: 0", Color3.fromRGB(150, 255, 150))
+local lblHrReb = createLabel(96, "1小时预估转生: 0", Color3.fromRGB(150, 255, 150))
+local lblDayStr = createLabel(116, "24小时预估力量: 0", Color3.fromRGB(255, 200, 100))
+local lblDayReb = createLabel(136, "24小时预估转生: 0", Color3.fromRGB(255, 200, 100))
 
-local lblTime = Instance.new("TextLabel")
-lblTime.Size = UDim2.new(1, -10, 0, 18)
-lblTime.Position = UDim2.new(0, 10, 0, 88)
-lblTime.BackgroundTransparency = 1
-lblTime.Text = "时长: 00:00:00"
-lblTime.TextColor3 = Color3.fromRGB(230, 230, 235)
-lblTime.Font = Enum.Font.Gotham
-lblTime.TextSize = 11
-lblTime.TextXAlignment = Enum.TextXAlignment.Left
-lblTime.Parent = frame
+local packBox = Instance.new("TextBox")
+packBox.Size = UDim2.new(1, -20, 0, 28)
+packBox.Position = UDim2.new(0, 10, 0, 165)
+packBox.BackgroundColor3 = Color3.fromRGB(30, 35, 40)
+packBox.Text = "设置包数 (1包=2次重生)"
+packBox.TextColor3 = Color3.fromRGB(200, 200, 200)
+packBox.Font = Enum.Font.Gotham
+packBox.TextSize = 11
+packBox.Parent = frame
+local c3 = Instance.new("UICorner", packBox)
+c3.CornerRadius = UDim.new(0, 6)
+
+local currentPacks = 0
+packBox.FocusLost:Connect(function()
+    local num = tonumber(packBox.Text:match("%d+"))
+    if num then
+        currentPacks = num
+        packBox.Text = "包数: " .. num .. " (额外+" .. (num * 2) .. "重生/时)"
+    else
+        currentPacks = 0
+        packBox.Text = "设置包数 (1包=2次重生)"
+    end
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+    openBtn.Visible = false
+    frame.Visible = true
+end)
+closeBtn.MouseButton1Click:Connect(function()
+    openBtn.Visible = true
+    frame.Visible = false
+end)
 
 local dragging, dragInput, dragStart, startPos
 frame.InputBegan:Connect(function(input)
@@ -137,21 +165,52 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+local lastStr = getStat("Strength", "Power")
+local lastReb = getStat("Rebirths", "Rebirth")
+local strRate = 0
+local rebRate = 0
+local lastUpdate = tick()
+
 task.spawn(function()
     while hud.Parent do
-        local str = getStat("Strength", "Power")
-        local reb = getStat("Rebirths", "Rebirth")
-        lblStr.Text = "力量: " .. fmt(str)
-        lblReb.Text = "转生: " .. fmt(reb)
-        lblReps.Text = "锻炼次数: " .. fmt(totalReps)
+        task.wait(2)
+        local curStr = getStat("Strength", "Power")
+        local curReb = getStat("Rebirths", "Rebirth")
+        local now = tick()
+        local dt = now - lastUpdate
         
-        local elapsed = tick() - startTime
-        local h = math.floor(elapsed / 3600)
-        local m = math.floor((elapsed % 3600) / 60)
-        local s = math.floor(elapsed % 60)
-        lblTime.Text = string.format("时长: %02d:%02d:%02d", h, m, s)
+        if curStr >= lastStr then
+            local diff = (curStr - lastStr) / dt
+            strRate = strRate * 0.7 + diff * 0.3
+        else
+            strRate = curStr / dt 
+        end
         
-        task.wait(0.5)
+        if curReb >= lastReb then
+            local diff = (curReb - lastReb) / dt
+            rebRate = rebRate * 0.7 + diff * 0.3
+        else
+            rebRate = 0
+        end
+
+        lastStr = curStr
+        lastReb = curReb
+        lastUpdate = now
+
+        local baseHrRebGain = rebRate * 3600
+        local packHrRebGain = currentPacks * 2 
+        local hrStrGain = strRate * 3600
+        local hrRebGain = baseHrRebGain + packHrRebGain
+        
+        local dayStrGain = hrStrGain * 24
+        local dayRebGain = hrRebGain * 24
+
+        lblStr.Text = "当前力量: " .. fmt(curStr)
+        lblReb.Text = "当前转生: " .. fmt(curReb)
+        lblHrStr.Text = "1小时预估力量: +" .. fmt(hrStrGain)
+        lblHrReb.Text = "1小时预估转生: +" .. fmt(hrRebGain)
+        lblDayStr.Text = "24小时预估力量: +" .. fmt(dayStrGain)
+        lblDayReb.Text = "24小时预估转生: +" .. fmt(dayRebGain)
     end
 end)
 
@@ -166,30 +225,6 @@ local TabTP = Window:Tab({ Title = "传送地点" })
 local TabPlayer = Window:Tab({ Title = "玩家追踪" })
 local TabOther = Window:Tab({ Title = "其他设置" })
 
-TabMain:Input({
-    Title = "目标次数",
-    Placeholder = "自定义目标",
-    Value = "",
-    Callback = function(state)
-    end
-})
-
-TabMain:Input({
-    Title = "倍率",
-    Placeholder = "自己调节",
-    Value = "1",
-    Callback = function(state)
-    end
-})
-
-TabMain:Dropdown({
-    Title = "选择锻炼类型",
-    Values = {"默认", "哑铃", "倒立", "仰卧起坐", "俯卧撑"},
-    Value = "默认",
-    Callback = function(opt)
-    end
-})
-
 TabMain:Toggle({
     Title = "自动锻炼",
     Value = false,
@@ -198,10 +233,7 @@ TabMain:Toggle({
             task.spawn(function()
                 while s do
                     local me = LP:FindFirstChild("muscleEvent")
-                    if me then
-                        pcall(function() me:FireServer("rep") end)
-                        totalReps = totalReps + 1
-                    end
+                    if me then pcall(function() me:FireServer("rep") end) end
                     task.wait(0.1)
                 end
             end)
@@ -217,14 +249,7 @@ TabMain:Toggle({
             task.spawn(function()
                 while s do
                     local me = LP:FindFirstChild("muscleEvent")
-                    if me then
-                        pcall(function() 
-                            for i = 1, 20 do 
-                                me:FireServer("rep") 
-                            end 
-                        end)
-                        totalReps = totalReps + 20
-                    end
+                    if me then pcall(function() for i = 1, 20 do me:FireServer("rep") end end) end
                     task.wait(0.1)
                 end
             end)
@@ -240,10 +265,7 @@ TabMain:Toggle({
             task.spawn(function()
                 while s do
                     local me = LP:FindFirstChild("muscleEvent")
-                    if me then
-                        pcall(function() for i = 1, 20 do me:FireServer("rep") end end)
-                        totalReps = totalReps + 20
-                    end
+                    if me then pcall(function() for i = 1, 20 do me:FireServer("rep") end end) end
                     task.wait(0.1)
                 end
             end)
@@ -289,11 +311,8 @@ TabPlayer:Button({
     Callback = function()
         local plrs = getPlr()
         if Dropdown then
-            if Dropdown.SetOptions then
-                Dropdown:SetOptions(plrs)
-            elseif Dropdown.Refresh then
-                Dropdown:Refresh(plrs)
-            end
+            if Dropdown.SetOptions then Dropdown:SetOptions(plrs)
+            elseif Dropdown.Refresh then Dropdown:Refresh(plrs) end
         end
     end
 })
