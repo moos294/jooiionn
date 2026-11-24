@@ -4,18 +4,22 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存力量 V1.5" end
+        if v.Text == "ORIGAMI" then v.Text = "封存力量 V2.0" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 local targetPlayer = ""
 local loopTP = false
+local rebirthCooldown = 3.5
+
+local muscleEvent = LP:WaitForChild("muscleEvent", 10)
 
 local function fmt(n)
     n = math.floor(tonumber(n) or 0)
@@ -59,7 +63,7 @@ local c1 = Instance.new("UICorner", openBtn)
 c1.CornerRadius = UDim.new(0, 6)
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 240, 0, 220)
+frame.Size = UDim2.new(0, 240, 0, 180)
 frame.Position = UDim2.new(0, 20, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(20, 24, 34)
 frame.BackgroundTransparency = 0.1
@@ -72,7 +76,7 @@ c2.CornerRadius = UDim.new(0, 8)
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 24)
 title.BackgroundTransparency = 1
-title.Text = "📊 封存数据预估"
+title.Text = "📊 封存数据统计"
 title.TextColor3 = Color3.fromRGB(60, 150, 230)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 13
@@ -96,22 +100,20 @@ local function createLabel(y, txt, col)
     l.Text = txt
     l.TextColor3 = col or Color3.fromRGB(230, 230, 235)
     l.Font = Enum.Font.Gotham
-    l.TextSize = 11
+    l.TextSize = 12
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.Parent = frame
     return l
 end
 
-local lblStr = createLabel(28, "当前力量: 0")
-local lblReb = createLabel(48, "当前转生: 0")
-local lblHrStr = createLabel(76, "1小时预估力量: 0", Color3.fromRGB(150, 255, 150))
-local lblHrReb = createLabel(96, "1小时预估转生: 0", Color3.fromRGB(150, 255, 150))
-local lblDayStr = createLabel(116, "24小时预估力量: 0", Color3.fromRGB(255, 200, 100))
-local lblDayReb = createLabel(136, "24小时预估转生: 0", Color3.fromRGB(255, 200, 100))
+local lblStr = createLabel(32, "当前力量: 0")
+local lblReb = createLabel(58, "当前转生: 0")
+local lblBossStatus = createLabel(84, "Boss状态: 等待中", Color3.fromRGB(255, 150, 150))
+local lblBossTimer = createLabel(110, "Boss倒计时: 0s", Color3.fromRGB(255, 200, 100))
 
 local packBox = Instance.new("TextBox")
 packBox.Size = UDim2.new(1, -20, 0, 28)
-packBox.Position = UDim2.new(0, 10, 0, 165)
+packBox.Position = UDim2.new(0, 10, 0, 140)
 packBox.BackgroundColor3 = Color3.fromRGB(30, 35, 40)
 packBox.Text = "设置包数 (1包=2次重生)"
 packBox.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -126,7 +128,7 @@ packBox.FocusLost:Connect(function()
     local num = tonumber(packBox.Text:match("%d+"))
     if num then
         currentPacks = num
-        packBox.Text = "包数: " .. num .. " (额外+" .. (num * 2) .. "重生/时)"
+        packBox.Text = "包数: " .. num .. " (额外+" .. (num * 2) .. "重生)"
     else
         currentPacks = 0
         packBox.Text = "设置包数 (1包=2次重生)"
@@ -165,52 +167,174 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-local lastStr = getStat("Strength", "Power")
-local lastReb = getStat("Rebirths", "Rebirth")
-local strRate = 0
-local rebRate = 0
-local lastUpdate = tick()
+-- BOSS 核心逻辑移植
+local BOSS_HEIGHT = 66
+local HOME_POS = Vector3.new(1,44,-1251)
+local BACKUP_CHEST_CF = CFrame.new(Vector3.new(-2.2187373638153076, 52.295745849609375, -1272.9957275390625))
+local bState = { running=false, fighting=false, bossActive=false, bossIndex=1, conn=nil, thread=nil, lastKillTime=0, cooldown=60 }
+
+local function pressKey(key, delay)
+    delay = delay or 0.05
+    VirtualInputManager:SendKeyEvent(true, key, false, game)
+    task.wait(delay)
+    VirtualInputManager:SendKeyEvent(false, key, false, game)
+end
+
+local function getBossHealth(name)
+    local ev = workspace:FindFirstChild("Events")
+    local arena = ev and ev:FindFirstChild("BossArena")
+    local folder = arena and arena:FindFirstChild(name)
+    if folder then
+        local stats = folder:FindFirstChild("stats")
+        local hp = stats and stats:FindFirstChild("Health")
+        if hp then return hp.Value end
+    end
+    return 0
+end
+
+local function getBossPos()
+    local ev = workspace:FindFirstChild("Events")
+    local arena = ev and ev:FindFirstChild("BossArena")
+    local folder = arena and arena:FindFirstChild("Boss"..(bState.bossIndex or 1))
+    local boss = folder and folder:FindFirstChild("Boss")
+    if not boss then return nil end
+    return boss:IsA("Model") and boss:GetPivot().Position or boss.Position
+end
+
+local function setFighting(on)
+    if bState.fighting==on then return end
+    bState.fighting = on
+    if bState.conn then bState.conn:Disconnect() bState.conn=nil end
+    if bState.thread then pcall(task.cancel,bState.thread) bState.thread=nil end
+    if not on then return end
+
+    bState.conn = RunService.RenderStepped:Connect(function()
+        if not bState.running or not bState.fighting then return end
+        local bp = getBossPos()
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp or not bp then return end
+        local target = bp + Vector3.new(0,BOSS_HEIGHT,0)
+        local flat = Vector3.new(bp.X-target.X, 0, bp.Z-target.Z)
+        if flat.Magnitude<0.1 then flat = Vector3.new(0,0,-1) end
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        hrp.CFrame = CFrame.lookAt(target, target+flat.Unit)*CFrame.Angles(math.rad(-90),0,0)
+    end)
+
+    bState.thread = task.spawn(function()
+        local ids = {"3638729053","3638767427","507768375","522635514","522638767","182393478","129967390","129967478"}
+        local isLeft, leftAnim, rightAnim, counter = true, nil, nil, 0
+        while bState.running and bState.fighting do
+            if not getBossPos() then task.wait(0.5) else
+                counter = counter + 1
+                if counter%4==0 then
+                    local p = LP.Backpack:FindFirstChild("Punch")
+                    local d = p and p:FindFirstChildOfClass("NumberValue")
+                    if d then d.Value = 0.01 end
+                end
+                pcall(function()
+                    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+                    if not hum then return end
+                    local p = LP.Backpack:FindFirstChild("Punch")
+                    if p then hum:EquipTool(p) end
+                    muscleEvent:FireServer("punch", isLeft and "leftHand" or "rightHand")
+                    local anim = isLeft and leftAnim or rightAnim
+                    if not anim then
+                        local a = Instance.new("Animation")
+                        a.AnimationId = "rbxassetid://"..(isLeft and ids[1] or ids[2])
+                        anim = hum:FindFirstChildOfClass("Animator"):LoadAnimation(a)
+                        if isLeft then leftAnim=anim else rightAnim=anim end
+                    end
+                    anim:Stop(0); anim:Play(0.1)
+                    isLeft = not isLeft
+                end)
+            end
+            task.wait(0.05)
+        end
+    end)
+end
 
 task.spawn(function()
     while hud.Parent do
-        task.wait(2)
+        task.wait(0.5)
         local curStr = getStat("Strength", "Power")
         local curReb = getStat("Rebirths", "Rebirth")
-        local now = tick()
-        local dt = now - lastUpdate
-        
-        if curStr >= lastStr then
-            local diff = (curStr - lastStr) / dt
-            strRate = strRate * 0.7 + diff * 0.3
-        else
-            strRate = curStr / dt 
-        end
-        
-        if curReb >= lastReb then
-            local diff = (curReb - lastReb) / dt
-            rebRate = rebRate * 0.7 + diff * 0.3
-        else
-            rebRate = 0
-        end
-
-        lastStr = curStr
-        lastReb = curReb
-        lastUpdate = now
-
-        local baseHrRebGain = rebRate * 3600
-        local packHrRebGain = currentPacks * 2 
-        local hrStrGain = strRate * 3600
-        local hrRebGain = baseHrRebGain + packHrRebGain
-        
-        local dayStrGain = hrStrGain * 24
-        local dayRebGain = hrRebGain * 24
-
         lblStr.Text = "当前力量: " .. fmt(curStr)
         lblReb.Text = "当前转生: " .. fmt(curReb)
-        lblHrStr.Text = "1小时预估力量: +" .. fmt(hrStrGain)
-        lblHrReb.Text = "1小时预估转生: +" .. fmt(hrRebGain)
-        lblDayStr.Text = "24小时预估力量: +" .. fmt(dayStrGain)
-        lblDayReb.Text = "24小时预估转生: +" .. fmt(dayRebGain)
+        
+        -- Boss 监测更新
+        local active, idx = false, nil
+        for i=1,5 do
+            if getBossHealth("Boss"..i)>0 then active=true idx=i break end
+        end
+        if not active and getBossHealth("BossRainbow")>0 then active=true idx="Rainbow" end
+        
+        if active then
+            lblBossStatus.Text = "Boss状态: 正在打 Boss " .. tostring(idx)
+            lblBossStatus.TextColor3 = Color3.fromRGB(150, 255, 150)
+            lblBossTimer.Text = "Boss倒计时: 存活中"
+        else
+            lblBossStatus.Text = "Boss状态: 等待生成"
+            lblBossStatus.TextColor3 = Color3.fromRGB(255, 150, 150)
+            local timePassed = tick() - bState.lastKillTime
+            if bState.lastKillTime > 0 then
+                local left = math.max(0, bState.cooldown - timePassed)
+                lblBossTimer.Text = "Boss倒计时: " .. math.floor(left) .. "s (估算)"
+            else
+                lblBossTimer.Text = "Boss倒计时: 未击杀过"
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if not bState.running then
+            bState.bossActive = false
+            setFighting(false)
+            continue
+        end
+
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Position.Y < -100 then
+            hrp.CFrame = CFrame.new(HOME_POS)
+            task.wait(1)
+            continue
+        end
+
+        local active, idx = false, nil
+        for i=1,5 do
+            if getBossHealth("Boss"..i)>0 then active=true idx=i break end
+        end
+        if not active and getBossHealth("BossRainbow")>0 then active=true idx="Rainbow" end
+
+        if active then
+            if not bState.bossActive then
+                bState.bossActive = true
+                bState.bossIndex = idx
+                pressKey(Enum.KeyCode.Space)
+                task.wait(0.05)
+                pressKey(Enum.KeyCode.Space)
+                task.wait(5)
+                setFighting(true)
+            end
+        else
+            if bState.bossActive then
+                bState.bossActive = false
+                setFighting(false)
+                bState.lastKillTime = tick()
+
+                local hrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                if hrp2 then
+                    hrp2.AssemblyLinearVelocity = Vector3.zero
+                    hrp2.AssemblyAngularVelocity = Vector3.zero
+                    hrp2.CFrame = BACKUP_CHEST_CF
+                end
+                task.wait(2)
+            else
+                setFighting(false)
+            end
+        end
     end
 end)
 
@@ -221,25 +345,10 @@ LP.Idled:Connect(function()
 end)
 
 local TabMain = Window:Tab({ Title = "主要功能" })
+local TabBoss = Window:Tab({ Title = "bái自动boss" })
 local TabTP = Window:Tab({ Title = "传送地点" })
 local TabPlayer = Window:Tab({ Title = "玩家追踪" })
 local TabOther = Window:Tab({ Title = "其他设置" })
-
-TabMain:Toggle({
-    Title = "自动锻炼",
-    Value = false,
-    Callback = function(s)
-        if s then
-            task.spawn(function()
-                while s do
-                    local me = LP:FindFirstChild("muscleEvent")
-                    if me then pcall(function() me:FireServer("rep") end) end
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end
-})
 
 TabMain:Toggle({
     Title = "快速锻炼",
@@ -248,8 +357,7 @@ TabMain:Toggle({
         if s then
             task.spawn(function()
                 while s do
-                    local me = LP:FindFirstChild("muscleEvent")
-                    if me then pcall(function() for i = 1, 20 do me:FireServer("rep") end end) end
+                    if muscleEvent then pcall(function() for i = 1, 20 do muscleEvent:FireServer("rep") end end) end
                     task.wait(0.1)
                 end
             end)
@@ -258,17 +366,35 @@ TabMain:Toggle({
 })
 
 TabMain:Toggle({
-    Title = "自动重生",
+    Title = "自动重生 (防冷却)",
     Value = false,
     Callback = function(s)
         if s then
             task.spawn(function()
                 while s do
-                    local me = LP:FindFirstChild("muscleEvent")
-                    if me then pcall(function() for i = 1, 20 do me:FireServer("rep") end end) end
-                    task.wait(0.1)
+                    if muscleEvent then 
+                        pcall(function() 
+                            for i = 1, 30 do 
+                                muscleEvent:FireServer("rep") 
+                            end 
+                        end)
+                    end
+                    task.wait(rebirthCooldown)
                 end
             end)
+        end
+    end
+})
+
+TabBoss:Paragraph({ Title = "自动打BOSS", Desc = "自动检测并挑战BOSS，打完自动开箱子" })
+TabBoss:Toggle({
+    Title = "开启 bái自动boss",
+    Value = false,
+    Callback = function(s)
+        bState.running = s
+        if not s then
+            setFighting(false)
+            bState.bossActive = false
         end
     end
 })
