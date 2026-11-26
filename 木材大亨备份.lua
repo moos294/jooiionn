@@ -4,23 +4,38 @@ local WindUI = UI.WindUI
 
 for _, v in ipairs(UI.Gui.Panel:GetDescendants()) do
     if v:IsA("TextLabel") then
-        if v.Text == "ORIGAMI" then v.Text = "封存力量 V2.0" end
+        if v.Text == "ORIGAMI" then v.Text = "封存力量 V0.1" end
         if v.Text == "BUILD TOOL" then v.Text = "Author: 封存" end
     end
 end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 local targetPlayer = ""
 local loopTP = false
-local rebirthCooldown = 3.5
 
 local muscleEvent = LP:WaitForChild("muscleEvent", 10)
 
+-- 全局状态表
+local state = {
+    FastTrain = false,
+    AutoRebirth = false,
+    AutoTPMuscle = false,
+    Rock1 = false,
+    Rock2 = false,
+    Rock3 = false,
+    AutoCrystal = false,
+    AutoBuyPet = false,
+    AutoEvolve = false,
+    AutoWheel = false
+}
+
+-- 悬浮窗代码
 local function fmt(n)
     n = math.floor(tonumber(n) or 0)
     local s = tostring(n)
@@ -123,42 +138,18 @@ packBox.Parent = frame
 local c3 = Instance.new("UICorner", packBox)
 c3.CornerRadius = UDim.new(0, 6)
 
-local currentPacks = 0
-packBox.FocusLost:Connect(function()
-    local num = tonumber(packBox.Text:match("%d+"))
-    if num then
-        currentPacks = num
-        packBox.Text = "包数: " .. num .. " (额外+" .. (num * 2) .. "重生)"
-    else
-        currentPacks = 0
-        packBox.Text = "设置包数 (1包=2次重生)"
-    end
-end)
-
-openBtn.MouseButton1Click:Connect(function()
-    openBtn.Visible = false
-    frame.Visible = true
-end)
-closeBtn.MouseButton1Click:Connect(function()
-    openBtn.Visible = true
-    frame.Visible = false
-end)
+openBtn.MouseButton1Click:Connect(function() openBtn.Visible = false frame.Visible = true end)
+closeBtn.MouseButton1Click:Connect(function() openBtn.Visible = true frame.Visible = false end)
 
 local dragging, dragInput, dragStart, startPos
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
+        dragging = true dragStart = input.Position startPos = frame.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
     end
 end)
 frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
@@ -167,7 +158,232 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- BOSS 核心逻辑移植
+task.spawn(function()
+    while hud.Parent do
+        task.wait(0.5)
+        lblStr.Text = "当前力量: " .. fmt(getStat("Strength", "Power"))
+        lblReb.Text = "当前转生: " .. fmt(getStat("Rebirths", "Rebirth"))
+    end
+end)
+
+LP.Idled:Connect(function()
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
+    task.wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
+end)
+
+-- 标签页
+local TabMain = Window:Tab({ Title = "主要功能" })
+local TabBoss = Window:Tab({ Title = "bái自动boss" })
+local TabTeleport = Window:Tab({ Title = "传送与石头" })
+local TabPets = Window:Tab({ Title = "宠物与抽奖" })
+
+-- 主要功能
+TabMain:Toggle({
+    Title = "快速锻炼",
+    Value = false,
+    Callback = function(s)
+        state.FastTrain = s
+        if s then
+            task.spawn(function()
+                while state.FastTrain do
+                    pcall(function() for i = 1, 20 do muscleEvent:FireServer("rep") end end)
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+TabMain:Toggle({
+    Title = "自动重生",
+    Value = false,
+    Callback = function(s)
+        state.AutoRebirth = s
+        if s then
+            task.spawn(function()
+                while state.AutoRebirth do
+                    pcall(function()
+                        for i = 1, 12 do muscleEvent:FireServer("rep") end
+                        task.wait(0.02)
+                        for i = 1, 12 do muscleEvent:FireServer("rep") end
+                    end)
+                    task.wait(0.02)
+                end
+            end)
+        end
+    end
+})
+
+-- 传送与石头
+local MUSCLE_KING_POS = Vector3.new(-8625.4, 16.99, -5730.41)
+
+TabTeleport:Button({
+    Title = "传送至肌肉王",
+    Callback = function()
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.CFrame = CFrame.new(MUSCLE_KING_POS) end
+    end
+})
+
+TabTeleport:Toggle({
+    Title = "自动传送肌肉王 (锁定)",
+    Value = false,
+    Callback = function(s)
+        state.AutoTPMuscle = s
+        if s then
+            task.spawn(function()
+                while state.AutoTPMuscle do
+                    pcall(function()
+                        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then hrp.CFrame = CFrame.new(MUSCLE_KING_POS) end
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+TabTeleport:Toggle({
+    Title = "举石头 1 (Rock_1)",
+    Value = false,
+    Callback = function(s)
+        state.Rock1 = s
+        if s then
+            task.spawn(function()
+                while state.Rock1 do
+                    pcall(function()
+                        local mf = workspace:FindFirstChild("machinesFolder")
+                        local seat = mf and mf:FindFirstChild("Rock_1") and mf.Rock_1:FindFirstChild("interactSeat")
+                        if seat then muscleEvent:FireServer("rep", seat) end
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+TabTeleport:Toggle({
+    Title = "举石头 2 (Rock_2)",
+    Value = false,
+    Callback = function(s)
+        state.Rock2 = s
+        if s then
+            task.spawn(function()
+                while state.Rock2 do
+                    pcall(function()
+                        local mf = workspace:FindFirstChild("machinesFolder")
+                        local seat = mf and mf:FindFirstChild("Rock_2") and mf.Rock_2:FindFirstChild("interactSeat")
+                        if seat then muscleEvent:FireServer("rep", seat) end
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+TabTeleport:Toggle({
+    Title = "举石头 3 (Rock_3)",
+    Value = false,
+    Callback = function(s)
+        state.Rock3 = s
+        if s then
+            task.spawn(function()
+                while state.Rock3 do
+                    pcall(function()
+                        local mf = workspace:FindFirstChild("machinesFolder")
+                        local seat = mf and mf:FindFirstChild("Rock_3") and mf.Rock_3:FindFirstChild("interactSeat")
+                        if seat then muscleEvent:FireServer("rep", seat) end
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+-- 宠物与抽奖
+TabPets:Paragraph({ Title = "自动宠物与商店", Desc = "原版 29 源码提取" })
+
+TabPets:Toggle({
+    Title = "自动抽水晶",
+    Value = false,
+    Callback = function(s)
+        state.AutoCrystal = s
+        if s then
+            task.spawn(function()
+                while state.AutoCrystal do
+                    pcall(function()
+                        ReplicatedStorage.rEvents.openCrystalRemote:InvokeServer("openCrystal", nil)
+                    end)
+                    task.wait(0.3)
+                end
+            end)
+        end
+    end
+})
+
+TabPets:Toggle({
+    Title = "自动购买宠物",
+    Value = false,
+    Callback = function(s)
+        state.AutoBuyPet = s
+        if s then
+            task.spawn(function()
+                while state.AutoBuyPet do
+                    pcall(function()
+                        local cPetShopRemote = ReplicatedStorage.rEvents:FindFirstChild("cPetShopRemote", 3)
+                        local cPetShopFolder = ReplicatedStorage.shared.runtime:FindFirstChild("cPetShopFolder", 3)
+                        local child = cPetShopFolder:FindFirstChild(nil)
+                        cPetShopRemote:InvokeServer(child)
+                    end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+TabPets:Toggle({
+    Title = "自动进化",
+    Value = false,
+    Callback = function(s)
+        state.AutoEvolve = s
+        if s then
+            task.spawn(function()
+                while state.AutoEvolve do
+                    pcall(function()
+                        ReplicatedStorage.rEvents.petEvolveEvent:FireServer("evolvePet", false)
+                    end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+TabPets:Toggle({
+    Title = "自动转盘",
+    Value = false,
+    Callback = function(s)
+        state.AutoWheel = s
+        if s then
+            task.spawn(function()
+                while state.AutoWheel do
+                    pcall(function()
+                        ReplicatedStorage.rEvents.openFortuneWheelRemote:InvokeServer("openFortuneWheel", ReplicatedStorage.shared.catalogs.fortuneWheelChances["Fortune Wheel"])
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+-- BOSS 功能
 local BOSS_HEIGHT = 66
 local HOME_POS = Vector3.new(1,44,-1251)
 local BACKUP_CHEST_CF = CFrame.new(Vector3.new(-2.2187373638153076, 52.295745849609375, -1272.9957275390625))
@@ -254,38 +470,18 @@ local function setFighting(on)
     end)
 end
 
-task.spawn(function()
-    while hud.Parent do
-        task.wait(0.5)
-        local curStr = getStat("Strength", "Power")
-        local curReb = getStat("Rebirths", "Rebirth")
-        lblStr.Text = "当前力量: " .. fmt(curStr)
-        lblReb.Text = "当前转生: " .. fmt(curReb)
-        
-        -- Boss 监测更新
-        local active, idx = false, nil
-        for i=1,5 do
-            if getBossHealth("Boss"..i)>0 then active=true idx=i break end
-        end
-        if not active and getBossHealth("BossRainbow")>0 then active=true idx="Rainbow" end
-        
-        if active then
-            lblBossStatus.Text = "Boss状态: 正在打 Boss " .. tostring(idx)
-            lblBossStatus.TextColor3 = Color3.fromRGB(150, 255, 150)
-            lblBossTimer.Text = "Boss倒计时: 存活中"
-        else
-            lblBossStatus.Text = "Boss状态: 等待生成"
-            lblBossStatus.TextColor3 = Color3.fromRGB(255, 150, 150)
-            local timePassed = tick() - bState.lastKillTime
-            if bState.lastKillTime > 0 then
-                local left = math.max(0, bState.cooldown - timePassed)
-                lblBossTimer.Text = "Boss倒计时: " .. math.floor(left) .. "s (估算)"
-            else
-                lblBossTimer.Text = "Boss倒计时: 未击杀过"
-            end
+TabBoss:Paragraph({ Title = "自动打BOSS", Desc = "自动检测并挑战BOSS，打完自动开箱子" })
+TabBoss:Toggle({
+    Title = "开启 bái自动boss",
+    Value = false,
+    Callback = function(s)
+        bState.running = s
+        if not s then
+            setFighting(false)
+            bState.bossActive = false
         end
     end
-end)
+})
 
 task.spawn(function()
     while task.wait(0.1) do
@@ -337,164 +533,3 @@ task.spawn(function()
         end
     end
 end)
-
-LP.Idled:Connect(function()
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
-    task.wait(0.05)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
-end)
-
-local TabMain = Window:Tab({ Title = "主要功能" })
-local TabBoss = Window:Tab({ Title = "bái自动boss" })
-local TabTP = Window:Tab({ Title = "传送地点" })
-local TabPlayer = Window:Tab({ Title = "玩家追踪" })
-local TabOther = Window:Tab({ Title = "其他设置" })
-
-TabMain:Toggle({
-    Title = "快速锻炼",
-    Value = false,
-    Callback = function(s)
-        if s then
-            task.spawn(function()
-                while s do
-                    if muscleEvent then pcall(function() for i = 1, 20 do muscleEvent:FireServer("rep") end end) end
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end
-})
-
-TabMain:Toggle({
-    Title = "自动重生 (防冷却)",
-    Value = false,
-    Callback = function(s)
-        if s then
-            task.spawn(function()
-                while s do
-                    if muscleEvent then 
-                        pcall(function() 
-                            for i = 1, 30 do 
-                                muscleEvent:FireServer("rep") 
-                            end 
-                        end)
-                    end
-                    task.wait(rebirthCooldown)
-                end
-            end)
-        end
-    end
-})
-
-TabBoss:Paragraph({ Title = "自动打BOSS", Desc = "自动检测并挑战BOSS，打完自动开箱子" })
-TabBoss:Toggle({
-    Title = "开启 bái自动boss",
-    Value = false,
-    Callback = function(s)
-        bState.running = s
-        if not s then
-            setFighting(false)
-            bState.bossActive = false
-        end
-    end
-})
-
-local tps = {
-    {"大厅", Vector3.new(-0.75, 90.61, 242.78)},
-    {"小岛", Vector3.new(-32.14, 8.51, 1904.41)},
-    {"冰霜健身房", Vector3.new(-2623.41, 6.99, -409.34)},
-    {"神话健身房", Vector3.new(2250.39, 6.99, 1072.77)},
-    {"boss战斗场", Vector3.new(-18.77, 47.41, -1232.43)}
-}
-
-for _, v in ipairs(tps) do
-    TabTP:Button({
-        Title = v[1],
-        Callback = function()
-            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then hrp.CFrame = CFrame.new(v[2]) end
-        end
-    })
-end
-
-local function getPlr()
-    local list = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then table.insert(list, p.Name) end
-    end
-    return list
-end
-
-local Dropdown = TabPlayer:Dropdown({
-    Title = "选择玩家",
-    Values = getPlr(),
-    Value = "",
-    Callback = function(v) targetPlayer = v end
-})
-
-TabPlayer:Button({
-    Title = "刷新玩家列表",
-    Callback = function()
-        local plrs = getPlr()
-        if Dropdown then
-            if Dropdown.SetOptions then Dropdown:SetOptions(plrs)
-            elseif Dropdown.Refresh then Dropdown:Refresh(plrs) end
-        end
-    end
-})
-
-TabPlayer:Button({
-    Title = "传送到玩家身边",
-    Callback = function()
-        local t = Players:FindFirstChild(targetPlayer)
-        if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and LP.Character then
-            LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-        end
-    end
-})
-
-TabPlayer:Toggle({
-    Title = "循环锁定传送",
-    Value = false,
-    Callback = function(s)
-        loopTP = s
-        if s then
-            task.spawn(function()
-                while loopTP do
-                    pcall(function()
-                        local t = Players:FindFirstChild(targetPlayer)
-                        if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and LP.Character then
-                            LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-                        end
-                    end)
-                    task.wait()
-                end
-            end)
-        end
-    end
-})
-
-TabOther:Button({
-    Title = "防挂机踢出",
-    Callback = function()
-        pcall(function()
-            for _, conn in pairs(getconnections(LP.Idled)) do
-                conn:Disable()
-                conn:Disconnect()
-            end
-        end)
-        WindUI:Notify({ Title = "成功", Content = "已开启防挂机", Duration = 3 })
-    end
-})
-
-TabOther:Button({
-    Title = "防卡顿清理",
-    Callback = function()
-        Lighting.Brightness = 0
-        Lighting.GlobalShadows = false
-        for _, v in pairs(workspace:GetDescendants()) do
-            pcall(function() v:Destroy() end)
-        end
-        WindUI:Notify({ Title = "成功", Content = "已清理垃圾模型", Duration = 3 })
-    end
-})
